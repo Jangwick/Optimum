@@ -22,6 +22,7 @@ server/uploads/
 server/reports/
 server/templates/*.tmp
 server/generated/
+Assignment-of-Cases-Report-*.xlsx
 
 # OS
 .DS_Store
