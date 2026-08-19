@@ -6,7 +6,7 @@ import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../se
 import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument } from '../services/document.service.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
-import { getReports, createReport, generateReport, askClarification } from '../services/report.service.js';
+import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
 import { getTasks, createTask, updateTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
@@ -1351,11 +1351,26 @@ function ReportsTab({ claimId }) {
   const [notes, setNotes] = useState('');
   const [reportTemplateId, setReportTemplateId] = useState('');
   const [clarification, setClarification] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(null);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    const [{ items }, { data: tData }] = await Promise.all([getReports(claimId), api.get('/report-templates')]);
-    setReports(items || []);
-    setTemplates(tData.items || []);
+    setLoading(true);
+    setError(null);
+    try {
+      const [{ items }, { data: tData }] = await Promise.all([
+        getReports(claimId),
+        api.get('/report-templates'),
+      ]);
+      setReports(items || []);
+      setTemplates(tData.items || []);
+    } catch {
+      setError('Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
@@ -1364,86 +1379,342 @@ function ReportsTab({ claimId }) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    const payload = { title, notes };
-    if (reportTemplateId) payload.reportTemplateId = reportTemplateId;
-    await createReport(claimId, payload);
-    setTitle('');
-    setNotes('');
-    setReportTemplateId('');
-    await load();
+    if (!title.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = { title, notes };
+      if (reportTemplateId) payload.reportTemplateId = reportTemplateId;
+      await createReport(claimId, payload);
+      setTitle('');
+      setNotes('');
+      setReportTemplateId('');
+      await load();
+    } catch {
+      setError('Failed to create report draft');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleGenerate = async (reportId) => {
-    await generateReport(claimId, reportId);
-    await load();
+    setGenerating(reportId);
+    setError(null);
+    try {
+      await generateReport(claimId, reportId);
+      await load();
+    } catch {
+      setError('Failed to generate report. Make sure Puppeteer is available.');
+    } finally {
+      setGenerating(null);
+    }
   };
 
   const handleClarify = async (reportId) => {
-    await askClarification(claimId, reportId, { question: clarification[reportId] });
-    setClarification({ ...clarification, [reportId]: '' });
-    await load();
+    const q = clarification[reportId];
+    if (!q?.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await askClarification(claimId, reportId, { question: q });
+      setClarification({ ...clarification, [reportId]: '' });
+      await load();
+    } catch {
+      setError('Failed to send clarification request');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const REPORT_STATUS_COLORS = {
+    DRAFT: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' },
+    SUBMITTED: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
+    UNDER_REVIEW: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+    APPROVED: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+    REJECTED: { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
+    CLARIFICATION_REQUESTED: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
+  };
+
+  function StatusPill({ status }) {
+    const c = REPORT_STATUS_COLORS[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' };
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium whitespace-nowrap ${c.bg} ${c.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${c.dot} shrink-0`} />
+        {status?.replace(/_/g, ' ')}
+      </span>
+    );
+  }
+
+  const draftCount = reports.filter((r) => r.status === 'DRAFT').length;
+  const submittedCount = reports.filter((r) => r.status !== 'DRAFT').length;
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+          <button onClick={() => setError(null)} className="ml-auto text-error hover:opacity-70 shrink-0">
+            <AlertTriangle size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <FileBarChart size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Total Reports</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{reports.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0">
+            <FileText size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Drafts</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{draftCount}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <CheckCircle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Submitted</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{submittedCount}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Create draft form */}
+      <form onSubmit={handleCreate} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <FileBarChart size={18} className="text-primary" />
           <h3 className="text-headline-sm font-semibold text-primary">New Report Draft</h3>
         </div>
-        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Report title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-        <select value={reportTemplateId} onChange={(e) => setReportTemplateId(e.target.value)} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md">
-          <option value="">Default HTML template</option>
-          {templates.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name} ({t.type})
-            </option>
-          ))}
-        </select>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes / summary" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Create Draft</button>
-      </form>
-
-      {reports.map((r) => (
-        <div key={r.id} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-body-lg font-semibold text-primary">{r.title}</p>
-              <p className="text-body-md">Status: {r.status}</p>
-            </div>
-            <div className="flex gap-2">
-              {r.pdfPath && (
-                <a href={`/api/claims/${claimId}/reports/${r.id}/download`} target="_blank" rel="noreferrer" className="h-10 px-4 bg-primary text-white rounded font-semibold flex items-center">
-                  Download PDF
-                </a>
-              )}
-              {r.docxPath && (
-                <a href={`/api/claims/${claimId}/reports/${r.id}/download/docx`} target="_blank" rel="noreferrer" className="h-10 px-4 bg-secondary text-white rounded font-semibold flex items-center">
-                  Download DOCX
-                </a>
-              )}
-              <button onClick={() => handleGenerate(r.id)} className="h-10 px-4 bg-primary text-white rounded font-semibold">Generate</button>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Report Title</label>
             <input
               type="text"
-              value={clarification[r.id] || ''}
-              onChange={(e) => setClarification({ ...clarification, [r.id]: e.target.value })}
-              placeholder="Ask a clarification"
-              className="flex-1 h-10 px-3 rounded border border-outline bg-surface text-body-md"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter report title..."
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              required
             />
-            <button onClick={() => handleClarify(r.id)} className="h-10 px-4 bg-secondary text-white rounded font-semibold">Ask</button>
           </div>
-          <ul className="mt-3 space-y-2 text-body-sm">
-            {r.versions?.map((v) => (
-              <li key={v.id} className="p-2 bg-surface-container-low rounded">
-                Version {v.versionNumber} · {new Date(v.generatedAt).toLocaleString()}
-              </li>
-            )) || <li className="text-on-surface-variant">No versions.</li>}
-          </ul>
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Template</label>
+            <select
+              value={reportTemplateId}
+              onChange={(e) => setReportTemplateId(e.target.value)}
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+            >
+              <option value="">Default HTML template</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
+              ))}
+            </select>
+          </div>
         </div>
-      ))}
+        <div>
+          <label className="block text-label-md text-outline uppercase mb-1.5">Notes / Summary</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Report summary and notes..."
+            className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+            rows={2}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={saving || !title.trim()}
+          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus size={16} />
+          {saving ? 'Creating...' : 'Create Draft'}
+        </button>
+      </form>
+
+      {/* Reports list */}
+      {loading ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <p className="text-body-md text-on-surface-variant">Loading reports...</p>
+        </div>
+      ) : reports.length === 0 ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <FileBarChart size={32} className="text-outline mx-auto mb-2" />
+          <p className="text-body-md text-on-surface-variant">No reports created yet.</p>
+          <p className="text-body-sm text-outline mt-1">Use the form above to create a report draft.</p>
+        </div>
+      ) : (
+        reports.map((r) => (
+          <div key={r.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <FileBarChart size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-body-md font-semibold text-on-surface truncate">{r.title}</p>
+                  <p className="text-label-sm text-outline font-mono mt-0.5">
+                    Created {new Date(r.createdAt).toLocaleDateString()}
+                    {r.generatedAt && ' \u00b7 Generated ' + new Date(r.generatedAt).toLocaleDateString()}
+                    {r.generatedBy && ' \u00b7 ' + r.generatedBy.firstName + ' ' + r.generatedBy.lastName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <StatusPill status={r.status} />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-3">
+              {r.notes && (
+                <div>
+                  <span className="text-label-md text-outline uppercase">Summary</span>
+                  <p className="text-body-sm text-on-surface mt-0.5">{r.notes}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-surface-border">
+                {r.status === 'DRAFT' && (
+                  <button
+                    onClick={() => handleGenerate(r.id)}
+                    disabled={generating === r.id}
+                    className="h-9 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileBarChart size={16} />
+                    {generating === r.id ? 'Generating...' : 'Generate Report'}
+                  </button>
+                )}
+                {r.pdfPath && (
+                  <a
+                    href={getDownloadUrl(claimId, r.id, 'pdf')}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-9 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download PDF
+                  </a>
+                )}
+                {r.docxPath && (
+                  <a
+                    href={getDownloadUrl(claimId, r.id, 'docx')}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-9 px-4 bg-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download DOCX
+                  </a>
+                )}
+              </div>
+
+              {/* Clarification form (only for submitted reports) */}
+              {r.status !== 'DRAFT' && (
+                <div className="pt-3 border-t border-surface-border space-y-2">
+                  <span className="text-label-md text-outline uppercase font-medium">Request Clarification</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={clarification[r.id] || ''}
+                      onChange={(e) => setClarification({ ...clarification, [r.id]: e.target.value })}
+                      placeholder="Ask a clarification question..."
+                      className="flex-1 h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                    />
+                    <button
+                      onClick={() => handleClarify(r.id)}
+                      disabled={saving || !clarification[r.id]?.trim()}
+                      className="h-10 px-4 bg-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <GitBranch size={16} />
+                      Ask
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clarifications list */}
+              {r.clarifications?.length > 0 && (
+                <div className="pt-3 border-t border-surface-border">
+                  <span className="text-label-md text-outline uppercase">Clarifications</span>
+                  <ul className="mt-2 space-y-2">
+                    {r.clarifications.map((cl) => (
+                      <li key={cl.id} className="p-3 bg-surface-container-low rounded-lg border border-surface-border">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium ${
+                            cl.status === 'ANSWERED' ? 'bg-success/10 text-success' : 'bg-accent-orange/10 text-accent-orange'
+                          }`}>
+                            {cl.status === 'ANSWERED' ? <CheckCircle size={10} /> : <Clock size={10} />}
+                            {cl.status}
+                          </span>
+                          <span className="text-label-sm text-outline font-mono">
+                            {new Date(cl.createdAt).toLocaleDateString()}
+                            {cl.askedBy && ' \u00b7 ' + cl.askedBy.firstName + ' ' + cl.askedBy.lastName}
+                          </span>
+                        </div>
+                        <p className="text-body-sm text-on-surface">
+                          <span className="text-on-surface-variant">Q:</span> {cl.question}
+                        </p>
+                        {cl.answer && (
+                          <p className="text-body-sm text-on-surface mt-1">
+                            <span className="text-on-surface-variant">A:</span> {cl.answer}
+                            {cl.answeredBy && <span className="text-outline ml-2">\u00b7 {cl.answeredBy.firstName} {cl.answeredBy.lastName}</span>}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Versions */}
+              {r.versions?.length > 0 && (
+                <div className="pt-3 border-t border-surface-border">
+                  <span className="text-label-md text-outline uppercase">Versions</span>
+                  <ul className="mt-2 space-y-1">
+                    {r.versions.map((v) => (
+                      <li key={v.id} className="flex items-center justify-between p-2 bg-surface-container-low rounded text-body-sm">
+                        <span className="text-on-surface">
+                          Version {v.versionNumber}
+                          <span className="text-on-surface-variant ml-2 font-mono">
+                            {new Date(v.generatedAt).toLocaleString()}
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {v.pdfPath && (
+                            <a
+                              href={getDownloadUrl(claimId, r.id, 'pdf')}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center justify-center w-7 h-7 rounded text-primary hover:bg-primary/10 transition-colors"
+                              title="Download PDF"
+                            >
+                              <Download size={14} />
+                            </a>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

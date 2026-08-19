@@ -17,7 +17,17 @@ function ensureDir(dir) {
 export async function listReports(claimId) {
   return prisma.report.findMany({
     where: { claimId: Number(claimId) },
-    include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
+    include: {
+      generatedBy: { select: { firstName: true, lastName: true } },
+      versions: { orderBy: { versionNumber: 'desc' } },
+      clarifications: {
+        include: {
+          askedBy: { select: { firstName: true, lastName: true } },
+          answeredBy: { select: { firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
     orderBy: { createdAt: 'desc' },
   });
 }
