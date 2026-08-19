@@ -1,0 +1,36 @@
+import { api } from './api.js';
+
+export async function getInvestigations(claimId) {
+  const { data } = await api.get(`/claims/${claimId}/investigations`);
+  return data;
+}
+
+export async function createInvestigation(claimId, payload) {
+  const { data } = await api.post(`/claims/${claimId}/investigations`, payload);
+  return data;
+}
+
+export async function getContacts(claimId) {
+  const { data } = await api.get(`/claims/${claimId}/contacts`);
+  return data;
+}
+
+export async function createContact(claimId, payload) {
+  const { data } = await api.post(`/claims/${claimId}/contacts`, payload);
+  return data;
+}
+
+export async function getInspections(claimId) {
+  const { data } = await api.get(`/claims/${claimId}/inspections`);
+  return data;
+}
+
+export async function createInspection(claimId, payload) {
+  const { data } = await api.post(`/claims/${claimId}/inspections`, payload);
+  return data;
+}
+
+export async function updateInspection(claimId, id, payload) {
+  const { data } = await api.put(`/claims/${claimId}/inspections/${id}`, payload);
+  return data;
+}

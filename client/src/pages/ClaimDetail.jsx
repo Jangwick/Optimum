@@ -9,6 +9,8 @@ import { getReports, createReport, generateReport, askClarification } from '../s
 import { getTasks, createTask, updateTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories } from '../services/master-data.service.js';
+import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
+import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 
@@ -45,9 +47,11 @@ export default function ClaimDetail() {
 
   const tabs = [
     { key: 'summary', label: 'Summary' },
+    { key: 'investigation', label: 'Investigation' },
     { key: 'documents', label: 'Documents' },
     { key: 'assessment', label: 'Assessment' },
     { key: 'settlement', label: 'Settlement' },
+    { key: 'finance', label: 'Finance' },
     { key: 'reports', label: 'Reports' },
     { key: 'tasks', label: 'Tasks' },
   ];
@@ -102,9 +106,11 @@ export default function ClaimDetail() {
           </div>
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} />}
+          {activeTab === 'investigation' && <ClaimInvestigation claimId={id} />}
           {activeTab === 'documents' && <DocumentsTab claimId={id} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={id} />}
           {activeTab === 'settlement' && <SettlementTab claimId={id} />}
+          {activeTab === 'finance' && <ClaimFinance claimId={id} />}
           {activeTab === 'reports' && <ReportsTab claimId={id} />}
           {activeTab === 'tasks' && <TasksTab claimId={id} />}
         </main>

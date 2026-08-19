@@ -40,7 +40,7 @@
 
 - [x] 5.1 Investigation record and contact records under claim.
 - [x] 5.2 Inspection scheduling, completion, findings.
-- [ ] 5.3 Photo upload, grid preview, caption, delete.
+- [~] 5.3 Photo upload backend ready; UI pending.
 
 **Checkpoint 5**: Engineer can investigate, schedule inspection, upload photos, and view them.
 
@@ -48,7 +48,7 @@
 
 - [x] 6.1 Document category requirements per claim type; document checklist.
 - [x] 6.2 Document upload, download, preview, delete.
-- [ ] 6.3 Document history and audit for uploads/deletes.
+- [~] 6.3 Audit logging for uploads/deletes pending.
 
 **Checkpoint 6**: Document checklist auto-generates; required docs can be uploaded, marked received, and downloaded.
 
@@ -56,15 +56,15 @@
 
 - [x] 7.1 Loss assessment header + line items with auto-calculated totals.
 - [x] 7.2 Loss estimate / reserve.
-- [~] 7.3 Assessment summary in claim detail.
+- [x] 7.3 Assessment summary in claim detail.
 
 **Checkpoint 7**: Assessment totals calculate correctly; reserve visible on claim detail.
 
 ## Phase 8 — Reports & Templates
 
-- [~] 8.1 Report template model and admin template upload (DOCX).
+- [~] 8.1 Report template model and admin template upload (DOCX) pending.
 - [x] 8.2 Collect client templates / build generic placeholder templates.
-- [~] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
+- [~] 8.3 Report draft, version, DOCX generation with `docxtemplater` pending.
 - [x] 8.4 PDF generation with `puppeteer` from HTML template.
 - [x] 8.5 Client review / clarification workflow.
 
