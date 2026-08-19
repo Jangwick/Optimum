@@ -1,20 +1,8 @@
-feat: UI polish across all pages, claim detail modal, error boundaries, and semantic status colors
+revert: remove claim detail modal, restore direct page navigation
 
-- Add ErrorBoundary component and wrap all protected routes to prevent white-screen crashes
-- Redesign Dashboard with bento layout, metric cards, workflow breakdown, and recent activity
-- Redesign Employees page with summary cards, role badges, avatars, and backend pagination support
-- Redesign Templates page with drag-and-drop upload, template cards, and summary metrics
-- Redesign Claims Registry with summary cards, filters, column visibility, and raw amount warnings
-- Redesign Master Data page with icon-based tabs, contextual actions, and improved forms
-- Add claim detail modal: clicking a row opens a near-fullscreen modal instead of navigating away
-- Extract ClaimDetailContent as a reusable component shared by modal and full-page routes
-- Unify filter bar, table, and pagination into a single container with internal dividers
-- Add semantic status colors mapping all 18 process statuses to design-system tokens with dot indicators
-- Add 'full' size option to Modal component for large content
-- Add 'bare' prop to DataTable for embedding in parent containers without double borders
-- Fix employees pagination (backend count/sorting support, NaN page totals)
-- Fix claims adjuster display (use engineer.fullName instead of firstName/lastName)
-- Fix dashboard welcome name (construct from firstName/lastName)
+Row clicks in the Claims Registry now navigate to /claims/:id (full page)
+instead of opening a modal overlay. Removes the Modal/ClaimDetailContent
+imports, selectedClaimId state, and the modal JSX from Claims.jsx.
 
 Generated with [Devin](https://devin.ai)
 

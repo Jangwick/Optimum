@@ -8,8 +8,6 @@ import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
-import { Modal } from '../components/Modal.jsx';
-import { ClaimDetailContent } from './ClaimDetail.jsx';
 import {
   Download,
   Lock,
@@ -25,7 +23,6 @@ import {
   X,
   ChevronDown,
   AlertTriangle,
-  ExternalLink,
 } from 'lucide-react';
 
 // Semantic color mapping for process statuses.
@@ -125,7 +122,6 @@ export default function Claims() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
-  const [selectedClaimId, setSelectedClaimId] = useState(null);
   const [visibleCols, setVisibleCols] = useState(
     () => Object.fromEntries(ALL_COLUMNS.map((c) => [c.key, c.default]))
   );
@@ -474,7 +470,7 @@ export default function Claims() {
               sortOrder={sortOrder}
               onSort={onSort}
               keyExtractor={(row) => row.id}
-              onRowClick={(row) => setSelectedClaimId(row.id)}
+              onRowClick={(row) => navigate(`/claims/${row.id}`)}
               bare
               emptyState={
                 <div className="p-12 text-center">
@@ -508,43 +504,6 @@ export default function Claims() {
               />
             </div>
           </div>
-
-          {/* Claim Detail Modal */}
-          <Modal
-            open={!!selectedClaimId}
-            onClose={() => setSelectedClaimId(null)}
-            title={null}
-            size="full"
-          >
-            {selectedClaimId && (
-              <div>
-                <div className="sticky top-0 z-10 bg-surface border-b border-surface-border px-6 py-3 flex items-center justify-between">
-                  <h3 className="text-headline-sm font-semibold text-primary">Claim Details</h3>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => {
-                        const id = selectedClaimId;
-                        setSelectedClaimId(null);
-                        navigate(`/claims/${id}`);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-outline text-body-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors"
-                    >
-                      <ExternalLink size={14} />
-                      Open Full Page
-                    </button>
-                    <button
-                      onClick={() => setSelectedClaimId(null)}
-                      className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-low rounded transition-colors"
-                      aria-label="Close"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-                <ClaimDetailContent claimId={selectedClaimId} />
-              </div>
-            )}
-          </Modal>
         </main>
       </div>
     </div>
