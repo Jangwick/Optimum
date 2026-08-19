@@ -25,6 +25,7 @@ import {
   deleteDocumentCategory,
 } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
+import { Building2, Users, FileText, Tags, FolderOpen } from 'lucide-react';
 
 const baseFields = {
   insurance: [
@@ -69,16 +70,16 @@ const baseFields = {
   ],
 };
 
+const TAB_CONFIG = [
+  { key: 'companies', label: 'Insurance Companies', short: 'Insurers', icon: Building2 },
+  { key: 'clients', label: 'Clients', short: 'Clients', icon: Users },
+  { key: 'policies', label: 'Policies', short: 'Policies', icon: FileText },
+  { key: 'claimTypes', label: 'Claim Types', short: 'Claim Types', icon: Tags },
+  { key: 'documentCategories', label: 'Document Categories', short: 'Doc Categories', icon: FolderOpen },
+];
+
 export default function MasterData() {
   const [tab, setTab] = useState('companies');
-
-  const tabs = [
-    { key: 'companies', label: 'Insurance Companies' },
-    { key: 'clients', label: 'Clients' },
-    { key: 'policies', label: 'Policies' },
-    { key: 'claimTypes', label: 'Claim Types' },
-    { key: 'documentCategories', label: 'Document Categories' },
-  ];
 
   const renderSection = () => {
     switch (tab) {
@@ -86,6 +87,7 @@ export default function MasterData() {
         return (
           <MasterDataCrud
             title="Insurance Companies"
+            entityLabel="Insurance Company"
             list={getInsuranceCompanies}
             create={createInsuranceCompany}
             update={updateInsuranceCompany}
@@ -105,6 +107,7 @@ export default function MasterData() {
         return (
           <MasterDataCrud
             title="Clients"
+            entityLabel="Client"
             list={getClients}
             create={createClient}
             update={updateClient}
@@ -124,6 +127,7 @@ export default function MasterData() {
         return (
           <MasterDataCrud
             title="Policies"
+            entityLabel="Policy"
             list={getPolicies}
             create={createPolicy}
             update={updatePolicy}
@@ -167,6 +171,7 @@ export default function MasterData() {
         return (
           <MasterDataCrud
             title="Claim Types"
+            entityLabel="Claim Type"
             list={getClaimTypes}
             create={createClaimType}
             update={updateClaimType}
@@ -184,6 +189,7 @@ export default function MasterData() {
         return (
           <MasterDataCrud
             title="Document Categories"
+            entityLabel="Document Category"
             list={getDocumentCategories}
             create={createDocumentCategory}
             update={updateDocumentCategory}
@@ -207,24 +213,36 @@ export default function MasterData() {
       <Sidebar />
       <div className="flex-1 flex flex-col ml-[260px]">
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* Page Header */}
           <div className="mb-6">
             <h2 className="text-headline-lg font-semibold text-primary">Master Data</h2>
-            <p className="text-body-md text-on-surface-variant mt-1">Insurance companies, clients, policies, and lookups.</p>
+            <p className="text-body-md text-on-surface-variant mt-1">
+              Insurance companies, clients, policies, and lookups.
+            </p>
           </div>
 
-          <div className="flex gap-2 border-b border-surface-border mb-6">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${
-                  tab === t.key ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-primary'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+          {/* Tabs with icons */}
+          <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto">
+            {TAB_CONFIG.map((t) => {
+              const Icon = t.icon;
+              const isActive = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`px-4 py-2.5 text-body-md font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-t'
+                  }`}
+                >
+                  <Icon size={16} className={isActive ? 'text-primary' : 'text-outline'} />
+                  <span className="hidden sm:inline">{t.label}</span>
+                  <span className="sm:hidden">{t.short}</span>
+                </button>
+              );
+            })}
           </div>
 
           {renderSection()}

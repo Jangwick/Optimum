@@ -4,7 +4,7 @@ import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
 
 export async function getUsers(filters = {}) {
-  const { role, search } = filters;
+  const { role, search, page, limit, sortField, sortOrder } = filters;
   const where = {};
 
   if (role) {
@@ -20,26 +20,46 @@ export async function getUsers(filters = {}) {
     ];
   }
 
-  const users = await prisma.user.findMany({
-    where,
-    include: { role: true },
-    orderBy: { lastName: 'asc' },
-  });
+  const orderBy = {};
+  if (sortField === 'fullName') {
+    orderBy.firstName = sortOrder || 'asc';
+  } else if (sortField === 'role') {
+    orderBy.role = { name: sortOrder || 'asc' };
+  } else if (sortField) {
+    orderBy[sortField] = sortOrder || 'asc';
+  } else {
+    orderBy.lastName = 'asc';
+  }
 
-  return users.map((u) => ({
-    id: u.id,
-    email: u.email,
-    firstName: u.firstName,
-    lastName: u.lastName,
-    fullName: `${u.firstName} ${u.lastName}`,
-    phone: u.phone,
-    employeeNumber: u.employeeNumber,
-    department: u.department,
-    designation: u.designation,
-    role: u.role.name,
-    isActive: u.isActive,
-    lastLoginAt: u.lastLoginAt,
-  }));
+  const hasPagination = page != null && limit != null;
+  const findManyArgs = { where, include: { role: true }, orderBy };
+  if (hasPagination) {
+    findManyArgs.skip = (page - 1) * limit;
+    findManyArgs.take = limit;
+  }
+
+  const [users, count] = await Promise.all([
+    prisma.user.findMany(findManyArgs),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users: users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      fullName: `${u.firstName} ${u.lastName}`,
+      phone: u.phone,
+      employeeNumber: u.employeeNumber,
+      department: u.department,
+      designation: u.designation,
+      role: u.role.name,
+      isActive: u.isActive,
+      lastLoginAt: u.lastLoginAt,
+    })),
+    count,
+  };
 }
 
 export async function getUserById(id) {

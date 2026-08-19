@@ -1,10 +1,12 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 
-export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort, rowActions, keyExtractor, onRowClick }) {
+export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort, rowActions, keyExtractor, onRowClick, emptyState, bare }) {
+  const containerClass = bare ? '' : 'bg-surface border border-surface-border rounded shadow-sm overflow-hidden';
+
   if (loading) {
     return (
-      <div className="bg-surface border border-surface-border rounded shadow-sm p-8 text-center">
+      <div className={`${containerClass} p-8 text-center`}>
         <p className="text-body-md text-on-surface-variant">Loading...</p>
       </div>
     );
@@ -12,8 +14,12 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
 
   if (!rows?.length) {
     return (
-      <div className="bg-surface border border-surface-border rounded shadow-sm p-8 text-center">
-        <p className="text-body-md text-on-surface-variant">No records found.</p>
+      <div className={`${containerClass} overflow-hidden`}>
+        {emptyState || (
+          <div className="p-8 text-center">
+            <p className="text-body-md text-on-surface-variant">No records found.</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -25,7 +31,7 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
   };
 
   return (
-    <div className="bg-surface border border-surface-border rounded shadow-sm overflow-hidden">
+    <div className={containerClass}>
       <table className="w-full text-left">
         <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase sticky top-0">
           <tr>

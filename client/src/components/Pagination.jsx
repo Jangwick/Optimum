@@ -6,7 +6,7 @@ export function Pagination({ page, limit, total, onPageChange, onLimitChange }) 
   const end = Math.min(page * limit, total);
 
   return (
-    <div className="flex items-center justify-between mt-4">
+    <div className="flex items-center justify-between">
       <div className="flex items-center gap-2 text-body-sm text-on-surface-variant">
         <span>Rows per page:</span>
         <select

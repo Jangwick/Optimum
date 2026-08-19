@@ -21,6 +21,20 @@ import { Lock, Ban, AlertTriangle } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar />
+      <div className="flex-1 flex flex-col ml-[260px]">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <ClaimDetailContent claimId={id} />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export function ClaimDetailContent({ claimId }) {
   const { user } = useAuth();
   const [claim, setClaim] = useState(null);
   const [statuses, setStatuses] = useState([]);
@@ -38,7 +52,7 @@ export default function ClaimDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     const [claimData, statusesData, processData] = await Promise.all([
-      getClaim(id),
+      getClaim(claimId),
       getClaimStatuses(),
       getProcessStatuses(),
     ]);
@@ -48,7 +62,7 @@ export default function ClaimDetail() {
     setSelectedStatus(claimData.item.status?.code || '');
     setSelectedProcessStatus(claimData.item.processStatus?.code || '');
     setLoading(false);
-  }, [id]);
+  }, [claimId]);
 
   useEffect(() => {
     load();
@@ -61,14 +75,14 @@ export default function ClaimDetail() {
       selectedProcessStatus === 'CLAIM_SETTLED' ||
       claim?.processStatus?.code === 'ADJUSTMENT_COMPLETED'
     ) {
-      getClosingGuards(id).then((res) => setClosingGuards(res.item)).catch(() => {});
+      getClosingGuards(claimId).then((res) => setClosingGuards(res.item)).catch(() => {});
     }
-  }, [id, claim?.processStatus?.code, selectedProcessStatus]);
+  }, [claimId, claim?.processStatus?.code, selectedProcessStatus]);
 
   const handleTransition = async (e) => {
     e.preventDefault();
     if (!selectedStatus || selectedStatus === claim.status?.code) return;
-    await updateClaimStatus(id, { statusCode: selectedStatus, notes: statusNote });
+    await updateClaimStatus(claimId, { statusCode: selectedStatus, notes: statusNote });
     setStatusNote('');
     setRefresh((r) => r + 1);
   };
@@ -87,7 +101,7 @@ export default function ClaimDetail() {
       payload.overrideReason = overrideReason;
     }
     try {
-      await updateProcessStatus(id, payload);
+      await updateProcessStatus(claimId, payload);
       setProcessNote('');
       setOverrideReason('');
       setRefresh((r) => r + 1);
@@ -113,23 +127,15 @@ export default function ClaimDetail() {
 
   if (loading || !claim) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex-1 flex flex-col ml-[260px]">
-          <TopBar />
-          <main className="flex-1 overflow-y-auto p-6">Loading...</main>
-        </div>
+      <div className="flex items-center justify-center p-12">
+        <p className="text-body-md text-on-surface-variant">Loading claim details...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6 flex items-center justify-between">
+    <div className="p-6">
+      <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-headline-lg font-semibold text-primary">{claim.claimNumber}</h2>
               <p className="text-body-md text-on-surface-variant mt-1">
@@ -219,17 +225,15 @@ export default function ClaimDetail() {
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} />}
           {activeTab === 'process' && <ProcessStatusTab claim={claim} processStatuses={processStatuses} selectedProcessStatus={selectedProcessStatus} setSelectedProcessStatus={setSelectedProcessStatus} processNote={processNote} setProcessNote={setProcessNote} overrideReason={overrideReason} setOverrideReason={setOverrideReason} onTransition={handleProcessTransition} closingGuards={closingGuards} isAdmin={user?.role === 'ADMIN'} />}
-          {activeTab === 'investigation' && <ClaimInvestigation claimId={id} />}
-          {activeTab === 'documents' && <DocumentsTab claimId={id} />}
-          {activeTab === 'assessment' && <AssessmentTab claimId={id} />}
-          {activeTab === 'settlement' && <SettlementTab claimId={id} />}
-          {activeTab === 'finance' && <ClaimFinance claimId={id} />}
-          {activeTab === 'reports' && <ReportsTab claimId={id} />}
-          {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={id} isAdmin={user?.role === 'ADMIN'} />}
+          {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} />}
+          {activeTab === 'documents' && <DocumentsTab claimId={claimId} />}
+          {activeTab === 'assessment' && <AssessmentTab claimId={claimId} />}
+          {activeTab === 'settlement' && <SettlementTab claimId={claimId} />}
+          {activeTab === 'finance' && <ClaimFinance claimId={claimId} />}
+          {activeTab === 'reports' && <ReportsTab claimId={claimId} />}
+          {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} />}
           {activeTab === 'timeline' && <TimelineTab claim={claim} />}
-          {activeTab === 'tasks' && <TasksTab claimId={id} />}
-        </main>
-      </div>
+          {activeTab === 'tasks' && <TasksTab claimId={claimId} />}
     </div>
   );
 }

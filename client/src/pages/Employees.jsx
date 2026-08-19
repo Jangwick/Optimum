@@ -10,7 +10,21 @@ import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { useList } from '../hooks/useList.js';
-import { Pencil, Power, PowerOff, KeyRound, Plus, Search } from 'lucide-react';
+import {
+  Pencil,
+  Power,
+  PowerOff,
+  KeyRound,
+  Plus,
+  Search,
+  Users,
+  Shield,
+  Wrench,
+  Calculator,
+  CircleDot,
+  Mail,
+  Briefcase,
+} from 'lucide-react';
 
 const userSchema = z
   .object({
@@ -26,6 +40,31 @@ const userSchema = z
   })
   .passthrough();
 
+const ROLE_CONFIG = {
+  ADMIN: {
+    label: 'Admin',
+    icon: Shield,
+    badge: 'bg-primary/10 text-primary border-primary/20',
+    avatar: 'bg-primary text-white',
+  },
+  ENGINEER: {
+    label: 'Engineer',
+    icon: Wrench,
+    badge: 'bg-accent-orange/10 text-accent-orange border-accent-orange/20',
+    avatar: 'bg-accent-orange text-white',
+  },
+  ACCOUNTANT: {
+    label: 'Accountant',
+    icon: Calculator,
+    badge: 'bg-success-green/10 text-success-green border-success-green/20',
+    avatar: 'bg-success-green text-white',
+  },
+};
+
+function initials(firstName, lastName) {
+  return `${(firstName || '?')[0] || ''}${(lastName || '?')[0] || ''}`.toUpperCase();
+}
+
 export default function Employees() {
   const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList();
 
@@ -35,6 +74,7 @@ export default function Employees() {
   const [editing, setEditing] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [resetResult, setResetResult] = useState(null);
+  const [roleFilter, setRoleFilter] = useState('');
 
   const {
     register,
@@ -46,10 +86,10 @@ export default function Employees() {
 
   useEffect(() => {
     setLoading(true);
-    getUsers({ page, limit, search, sortField, sortOrder })
+    getUsers({ page, limit, search, sortField, sortOrder, role: roleFilter || undefined })
       .then((res) => setData(res))
       .finally(() => setLoading(false));
-  }, [page, limit, search, sortField, sortOrder, refresh]);
+  }, [page, limit, search, sortField, sortOrder, refresh, roleFilter]);
 
   const openCreate = () => {
     setEditing(null);
@@ -100,29 +140,129 @@ export default function Employees() {
   };
 
   const columns = [
-    { key: 'fullName', title: 'Name', sortable: true },
-    { key: 'email', title: 'Email', sortable: true },
-    { key: 'role', title: 'Role', sortable: true },
-    { key: 'employeeNumber', title: 'Employee #', sortable: true },
-    { key: 'isActive', title: 'Active', render: (row) => (row.isActive ? 'Yes' : 'No') },
+    {
+      key: 'fullName',
+      title: 'Name',
+      sortable: true,
+      render: (row) => {
+        const roleCfg = ROLE_CONFIG[row.role] || ROLE_CONFIG.ENGINEER;
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-label-md font-semibold shrink-0 ${roleCfg.avatar}`}
+            >
+              {initials(row.firstName, row.lastName)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-body-md font-medium text-on-surface truncate">{row.fullName}</p>
+              {row.designation && (
+                <p className="text-body-sm text-on-surface-variant truncate">{row.designation}</p>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      sortable: true,
+      render: (row) => (
+        <div className="flex items-center gap-2 text-on-surface-variant">
+          <Mail size={14} className="text-outline shrink-0" />
+          <span className="text-body-sm truncate">{row.email}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      title: 'Role',
+      sortable: true,
+      render: (row) => {
+        const roleCfg = ROLE_CONFIG[row.role] || ROLE_CONFIG.ENGINEER;
+        const Icon = roleCfg.icon;
+        return (
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium border ${roleCfg.badge}`}
+          >
+            <Icon size={12} />
+            {roleCfg.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'employeeNumber',
+      title: 'Employee #',
+      sortable: true,
+      render: (row) => (
+        <span className="text-body-sm font-mono text-on-surface-variant">{row.employeeNumber || '—'}</span>
+      ),
+    },
+    {
+      key: 'department',
+      title: 'Department',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          {row.department ? (
+            <>
+              <Briefcase size={14} className="text-outline shrink-0" />
+              <span className="text-body-sm text-on-surface-variant">{row.department}</span>
+            </>
+          ) : (
+            <span className="text-body-sm text-outline">—</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'isActive',
+      title: 'Status',
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5">
+          <CircleDot
+            size={14}
+            className={row.isActive ? 'text-success-green' : 'text-outline'}
+          />
+          <span
+            className={`text-body-sm font-medium ${
+              row.isActive ? 'text-success-green' : 'text-outline'
+            }`}
+          >
+            {row.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </span>
+      ),
+    },
   ];
 
   const rowActions = (row) => (
-    <div className="flex items-center justify-end gap-2">
-      <button onClick={() => openEdit(row)} className="p-1.5 text-primary hover:bg-surface-container-low rounded" title="Edit">
+    <div className="flex items-center justify-end gap-1">
+      <button
+        onClick={() => openEdit(row)}
+        className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors"
+        title="Edit"
+        aria-label={`Edit ${row.fullName}`}
+      >
         <Pencil size={16} />
       </button>
       <button
         onClick={() => setConfirm({ type: 'toggle', user: row })}
-        className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-low rounded"
+        className={`p-1.5 rounded transition-colors ${
+          row.isActive
+            ? 'text-outline hover:text-error hover:bg-error/10'
+            : 'text-success-green hover:bg-success-green/10'
+        }`}
         title={row.isActive ? 'Deactivate' : 'Activate'}
+        aria-label={`${row.isActive ? 'Deactivate' : 'Activate'} ${row.fullName}`}
       >
         {row.isActive ? <PowerOff size={16} /> : <Power size={16} />}
       </button>
       <button
         onClick={() => setConfirm({ type: 'reset', user: row })}
-        className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-low rounded"
+        className="p-1.5 text-outline hover:text-primary hover:bg-primary/10 rounded transition-colors"
         title="Reset password"
+        aria-label={`Reset password for ${row.fullName}`}
       >
         <KeyRound size={16} />
       </button>
@@ -134,33 +274,81 @@ export default function Employees() {
       <Sidebar />
       <div className="flex-1 flex flex-col ml-[260px]">
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* Page Header */}
           <div className="mb-6 flex justify-between items-end">
             <div>
               <h2 className="text-headline-lg font-semibold text-primary">Employees</h2>
-              <p className="text-body-md text-on-surface-variant mt-1">System users and roles.</p>
+              <p className="text-body-md text-on-surface-variant mt-1">
+                Manage system users, roles, and access.
+              </p>
             </div>
             <button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded text-label-md uppercase hover:bg-primary-container transition-colors"
+              className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded text-label-md font-medium uppercase hover:bg-primary-container transition-colors shadow-sm"
             >
               <Plus size={18} /> New Employee
             </button>
           </div>
 
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 mb-6 flex gap-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[
+              { label: 'Total Users', value: data.count, icon: Users, tint: 'bg-primary/10 text-primary' },
+              { label: 'Admins', value: data.users.filter((u) => u.role === 'ADMIN').length, icon: Shield, tint: 'bg-primary/10 text-primary' },
+              { label: 'Engineers', value: data.users.filter((u) => u.role === 'ENGINEER').length, icon: Wrench, tint: 'bg-accent-orange/10 text-accent-orange' },
+              { label: 'Accountants', value: data.users.filter((u) => u.role === 'ACCOUNTANT').length, icon: Calculator, tint: 'bg-success-green/10 text-success-green' },
+            ].map((card) => {
+              const Icon = card.icon;
+              return (
+                <div
+                  key={card.label}
+                  className="bg-surface border border-surface-border rounded-lg p-4 flex items-center gap-3"
+                >
+                  <div className={`p-2 rounded flex items-center justify-center shrink-0 ${card.tint}`}>
+                    <Icon size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-label-md text-outline uppercase truncate">{card.label}</p>
+                    <p className="text-headline-sm font-semibold text-on-surface tabular-nums">{card.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 mb-4 flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => applySearch(e.target.value)}
-                placeholder="Search name, email, or employee number"
-                className="w-full h-10 pl-10 pr-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                placeholder="Search name, email, or employee number..."
+                className="w-full h-10 pl-10 pr-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                aria-label="Search employees"
               />
+            </div>
+            <div className="relative">
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-10 pl-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors appearance-none cursor-pointer min-w-[140px]"
+                aria-label="Filter by role"
+              >
+                <option value="">All Roles</option>
+                <option value="ADMIN">Admin</option>
+                <option value="ENGINEER">Engineer</option>
+                <option value="ACCOUNTANT">Accountant</option>
+              </select>
             </div>
           </div>
 
+          {/* Data Table */}
           <DataTable
             columns={columns}
             rows={data.users}
@@ -170,45 +358,65 @@ export default function Employees() {
             onSort={onSort}
             rowActions={rowActions}
             keyExtractor={(row) => row.id}
+            emptyState={
+              <div className="p-12 text-center">
+                <Users size={40} className="mx-auto text-outline mb-3" />
+                <p className="text-body-md font-medium text-on-surface">No employees found</p>
+                <p className="text-body-sm text-on-surface-variant mt-1">
+                  {search || roleFilter
+                    ? 'Try adjusting your search or filters.'
+                    : 'Get started by creating a new employee.'}
+                </p>
+                {!search && !roleFilter && (
+                  <button
+                    onClick={openCreate}
+                    className="mt-4 inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded text-body-md font-medium hover:bg-primary-container transition-colors"
+                  >
+                    <Plus size={16} /> New Employee
+                  </button>
+                )}
+              </div>
+            }
           />
 
           <Pagination page={page} limit={limit} total={data.count} onPageChange={setPage} onLimitChange={setLimit} />
 
+          {/* Create/Edit Modal */}
           <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Employee' : 'New Employee'}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">First Name</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">First Name</label>
                   <input
                     {...register('firstName')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                   {errors.firstName && <p className="text-body-sm text-error mt-1">{errors.firstName.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">Last Name</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">Last Name</label>
                   <input
                     {...register('lastName')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                   {errors.lastName && <p className="text-body-sm text-error mt-1">{errors.lastName.message}</p>}
                 </div>
               </div>
               <div>
-                <label className="block text-body-sm font-semibold mb-1">Email</label>
+                <label className="block text-body-sm font-semibold mb-1.5">Email</label>
                 <input
                   type="email"
                   {...register('email')}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
                 {errors.email && <p className="text-body-sm text-error mt-1">{errors.email.message}</p>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">Role</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">Role</label>
                   <select
                     {...register('role')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   >
                     <option value="ADMIN">Admin</option>
                     <option value="ENGINEER">Engineer</option>
@@ -216,49 +424,56 @@ export default function Employees() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">Employee #</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">Employee #</label>
                   <input
                     {...register('employeeNumber')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">Department</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">Department</label>
                   <input
                     {...register('department')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-body-sm font-semibold mb-1">Designation</label>
+                  <label className="block text-body-sm font-semibold mb-1.5">Designation</label>
                   <input
                     {...register('designation')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-body-sm font-semibold mb-1">Password {editing && '(leave blank to keep)'}</label>
+                <label className="block text-body-sm font-semibold mb-1.5">
+                  Password {editing && '(leave blank to keep current)'}
+                </label>
                 <input
                   type="password"
                   {...register('password')}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
+                {!editing && (
+                  <p className="text-body-sm text-on-surface-variant mt-1">
+                    Leave blank to auto-generate a random password.
+                  </p>
+                )}
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-2 border-t border-surface-border">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded border border-outline text-body-md hover:bg-surface-container-low"
+                  className="px-4 py-2 rounded border border-outline text-body-md hover:bg-surface-container-low transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded bg-primary text-white text-body-md hover:bg-primary-container disabled:opacity-50"
+                  className="px-4 py-2 rounded bg-primary text-white text-body-md font-medium hover:bg-primary-container disabled:opacity-50 transition-colors"
                 >
                   {isSubmitting ? 'Saving...' : editing ? 'Update' : 'Create'}
                 </button>
@@ -266,6 +481,7 @@ export default function Employees() {
             </form>
           </Modal>
 
+          {/* Confirm Dialogs */}
           {confirm && (
             <ConfirmDialog
               open={!!confirm}

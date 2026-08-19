@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Claims from './pages/Claims.jsx';
@@ -35,7 +36,9 @@ export default function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <ErrorBoundary>
+              <Dashboard />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -43,7 +46,9 @@ export default function App() {
         path="/claims"
         element={
           <ProtectedRoute>
-            <Claims />
+            <ErrorBoundary>
+              <Claims />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -51,7 +56,9 @@ export default function App() {
         path="/claims/new"
         element={
           <ProtectedRoute roles={['ADMIN']}>
-            <NewClaim />
+            <ErrorBoundary>
+              <NewClaim />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -59,7 +66,9 @@ export default function App() {
         path="/claims/:id"
         element={
           <ProtectedRoute>
-            <ClaimDetail />
+            <ErrorBoundary>
+              <ClaimDetail />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -67,7 +76,9 @@ export default function App() {
         path="/master-data"
         element={
           <ProtectedRoute>
-            <MasterData />
+            <ErrorBoundary>
+              <MasterData />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -75,7 +86,9 @@ export default function App() {
         path="/audit-logs"
         element={
           <ProtectedRoute roles={['ADMIN']}>
-            <AuditLogs />
+            <ErrorBoundary>
+              <AuditLogs />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -83,7 +96,9 @@ export default function App() {
         path="/templates"
         element={
           <ProtectedRoute roles={['ADMIN']}>
-            <Templates />
+            <ErrorBoundary>
+              <Templates />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -91,7 +106,9 @@ export default function App() {
         path="/employees"
         element={
           <ProtectedRoute>
-            <Employees />
+            <ErrorBoundary>
+              <Employees />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />
@@ -99,7 +116,9 @@ export default function App() {
         path="/imports"
         element={
           <ProtectedRoute roles={['ADMIN']}>
-            <ImportWizard />
+            <ErrorBoundary>
+              <ImportWizard />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       />

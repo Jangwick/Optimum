@@ -3,11 +3,15 @@ import { AppError } from '../middleware/error.js';
 
 export async function listUsers(req, res, next) {
   try {
-    const users = await userService.getUsers({
+    const result = await userService.getUsers({
       role: req.query.role,
       search: req.query.search,
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      sortField: req.query.sortField,
+      sortOrder: req.query.sortOrder,
     });
-    res.json({ success: true, users });
+    res.json({ success: true, users: result.users, count: result.count });
   } catch (err) {
     next(err);
   }
@@ -102,8 +106,8 @@ export async function resetPassword(req, res, next) {
 
 export async function listEngineers(req, res, next) {
   try {
-    const users = await userService.getUsers({ role: 'ENGINEER' });
-    res.json({ success: true, users });
+    const result = await userService.getUsers({ role: 'ENGINEER' });
+    res.json({ success: true, users: result.users });
   } catch (err) {
     next(err);
   }
@@ -111,8 +115,8 @@ export async function listEngineers(req, res, next) {
 
 export async function listAccountants(req, res, next) {
   try {
-    const users = await userService.getUsers({ role: 'ACCOUNTANT' });
-    res.json({ success: true, users });
+    const result = await userService.getUsers({ role: 'ACCOUNTANT' });
+    res.json({ success: true, users: result.users });
   } catch (err) {
     next(err);
   }
