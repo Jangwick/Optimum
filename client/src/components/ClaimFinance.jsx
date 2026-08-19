@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getFees, createFee, getInvoices, createInvoice, recordPayment } from '../services/fee.service.js';
 import { getUsers } from '../services/user.service.js';
+import { formatCurrency } from '../utils/currency.js';
 
 export default function ClaimFinance({ claimId }) {
   const [tab, setTab] = useState('fees');
@@ -96,7 +97,7 @@ export default function ClaimFinance({ claimId }) {
                   <p className="text-body-md font-semibold">{f.feeType}</p>
                   <p className="text-body-sm text-on-surface-variant">{f.description} · {f.user?.firstName} {f.user?.lastName}</p>
                 </div>
-                <p className="font-mono text-body-lg font-semibold">${f.amount}</p>
+                <p className="font-mono text-body-lg font-semibold">{formatCurrency(f.amount)}</p>
               </div>
             ))}
             {fees.length === 0 && <p className="text-body-md text-on-surface-variant">No fees recorded.</p>}
@@ -112,7 +113,7 @@ export default function ClaimFinance({ claimId }) {
             {fees.filter((f) => !f.isInvoiced).map((f) => (
               <label key={f.id} className="flex items-center gap-2 text-body-md">
                 <input type="checkbox" checked={invoiceForm.feeIds.includes(f.id)} onChange={() => toggleFee(f.id)} />
-                {f.feeType} — ${f.amount}
+                {f.feeType} — {formatCurrency(f.amount)}
               </label>
             ))}
             <input type="date" value={invoiceForm.dueDate} onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
@@ -127,7 +128,7 @@ export default function ClaimFinance({ claimId }) {
                   <p className="text-body-md font-semibold">{inv.invoiceNumber}</p>
                   <span className="px-2 py-0.5 rounded text-label-md font-medium" style={{ background: inv.status === 'PAID' ? '#e8f5e9' : '#fff3e0', color: inv.status === 'PAID' ? '#28a745' : '#f26522' }}>{inv.status}</span>
                 </div>
-                <p className="text-body-sm text-on-surface-variant">{new Date(inv.issueDate).toLocaleDateString()} · Total: ${inv.totalAmount}</p>
+                <p className="text-body-sm text-on-surface-variant">{new Date(inv.issueDate).toLocaleDateString()} · Total: {formatCurrency(inv.totalAmount)}</p>
                 <p className="text-body-md mt-1">{inv.notes}</p>
                 {inv.status !== 'PAID' && (
                   <div className="mt-3 flex gap-2">

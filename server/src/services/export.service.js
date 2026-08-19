@@ -61,8 +61,8 @@ export async function exportClaimsToExcel(filters, user) {
       accountant: c.accountant ? `${c.accountant.firstName} ${c.accountant.lastName}` : '',
       dateOfLoss: c.dateOfLoss ? new Date(c.dateOfLoss).toLocaleDateString() : '',
       dateReceived: new Date(c.dateReceived).toLocaleDateString(),
-      estimatedLoss: Number(c.estimatedLoss || 0).toFixed(2),
-      reserve: Number(c.reserve || 0).toFixed(2),
+      estimatedLoss: new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(c.estimatedLoss || 0)),
+      reserve: new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(c.reserve || 0)),
       closed: c.isClosed ? 'Yes' : 'No',
     });
   }

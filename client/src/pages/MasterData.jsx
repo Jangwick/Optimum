@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatCurrency } from '../utils/currency.js';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { getInsuranceCompanies, getClients, getPolicies } from '../services/master-data.service.js';
@@ -133,8 +134,8 @@ export default function MasterData() {
                       <td className="px-4 py-2">{p.client?.name}</td>
                       <td className="px-4 py-2">{p.insuranceCompany?.name}</td>
                       <td className="px-4 py-2">{p.claimType?.name}</td>
-                      <td className="px-4 py-2 font-mono">{p.sumInsured ? `$${p.sumInsured}` : '—'}</td>
-                      <td className="px-4 py-2 font-mono">{p.premium ? `$${p.premium}` : '—'}</td>
+                      <td className="px-4 py-2 font-mono">{formatCurrency(p.sumInsured)}</td>
+                      <td className="px-4 py-2 font-mono">{formatCurrency(p.premium)}</td>
                     </tr>
                   ))}
                 </tbody>

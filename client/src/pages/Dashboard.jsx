@@ -3,6 +3,7 @@ import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
+import { formatCurrency } from '../utils/currency.js';
 
 const MetricCard = ({ title, value, color }) => (
   <div className="bg-surface border border-surface-border rounded shadow-sm p-6">
@@ -42,8 +43,8 @@ export default function Dashboard() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MetricCard title="Total Claims" value={data.counts?.total} color="text-primary" />
-                <MetricCard title="Estimated Loss" value={`$${Number(data.counts?.estimated || 0).toLocaleString()}`} color="text-primary" />
-                <MetricCard title="Reserve" value={`$${Number(data.counts?.reserve || 0).toLocaleString()}`} color="text-primary" />
+                <MetricCard title="Estimated Loss" value={formatCurrency(data.counts?.estimated)} color="text-primary" />
+                <MetricCard title="Reserve" value={formatCurrency(data.counts?.reserve)} color="text-primary" />
                 <MetricCard title="Open Tasks" value={data.counts?.openTasks} color="text-accent" />
               </div>
 

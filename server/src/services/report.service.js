@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
+import { formatCurrency } from '../utils/currency.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
@@ -65,8 +66,8 @@ export async function generateReport(id, userId) {
     engineerName: claim.engineer ? `${claim.engineer.firstName} ${claim.engineer.lastName}` : '—',
     statusName: claim.status?.name || '',
     dateOfLoss: claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—',
-    estimatedLoss: claim.estimatedLoss ? String(claim.estimatedLoss) : '—',
-    reserve: claim.reserve ? String(claim.reserve) : '—',
+    estimatedLoss: formatCurrency(claim.estimatedLoss),
+    reserve: formatCurrency(claim.reserve),
   };
   const html = `
 <!DOCTYPE html>
@@ -92,6 +93,8 @@ export async function generateReport(id, userId) {
     <p><strong>Type:</strong> ${claim.claimType?.name}</p>
     <p><strong>Engineer:</strong> ${claim.engineer ? `${claim.engineer.firstName} ${claim.engineer.lastName}` : '—'}</p>
     <p><strong>Status:</strong> ${claim.status?.name}</p>
+    <p><strong>Estimated Loss:</strong> ${formatCurrency(claim.estimatedLoss)}</p>
+    <p><strong>Reserve:</strong> ${formatCurrency(claim.reserve)}</p>
     <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
   </div>
   <div class="section">

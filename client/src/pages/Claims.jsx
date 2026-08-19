@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClaims } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
+import { formatCurrency } from '../utils/currency.js';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 
@@ -124,7 +125,7 @@ export default function Claims() {
                         <StatusPill code={claim.status?.code} color={claim.status?.color} />
                       </td>
                       <td className="px-6 py-3 text-body-md">{claim.engineer?.fullName || '—'}</td>
-                      <td className="px-6 py-3 font-mono text-body-md">{claim.reserve ? `$${claim.reserve}` : '—'}</td>
+                      <td className="px-6 py-3 font-mono text-body-md">{formatCurrency(claim.reserve)}</td>
                       <td className="px-6 py-3 text-body-sm text-on-surface-variant">
                         {new Date(claim.dateReceived).toLocaleDateString()}
                       </td>

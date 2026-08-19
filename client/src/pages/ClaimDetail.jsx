@@ -10,6 +10,7 @@ import { getTasks, createTask, updateTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories } from '../services/master-data.service.js';
 import { api } from '../services/api.js';
+import { formatCurrency } from '../utils/currency.js';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
@@ -131,8 +132,8 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Insurer" value={claim.insuranceCompany?.name} />
             <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
             <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
-            <Info label="Estimated Loss" value={claim.estimatedLoss ? `$${claim.estimatedLoss}` : '—'} money />
-            <Info label="Reserve" value={claim.reserve ? `$${claim.reserve}` : '—'} money />
+            <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
+            <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
           </div>
           <div className="mt-4">
             <span className="text-label-md text-outline uppercase">Description</span>
@@ -392,7 +393,7 @@ function AssessmentTab({ claimId }) {
           <button type="button" onClick={addItem} className="text-primary text-body-md font-semibold hover:underline">
             + Add Line
           </button>
-          <p className="font-mono text-body-lg font-semibold text-primary">Total: ${total.toFixed(2)}</p>
+          <p className="font-mono text-body-lg font-semibold text-primary">Total: {formatCurrency(total)}</p>
         </div>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
         <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors">
@@ -408,15 +409,15 @@ function AssessmentTab({ claimId }) {
               <p className="text-body-md">{a.notes}</p>
             </div>
             <div className="text-right">
-              <p className="font-mono text-headline-sm font-semibold text-primary">${a.totalAmount}</p>
+              <p className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(a.totalAmount)}</p>
               <button onClick={() => handleDelete(a.id)} className="text-red-600 text-label-md hover:underline">Delete</button>
             </div>
           </div>
           <ul className="text-body-md divide-y divide-surface-border">
             {a.items.map((it) => (
               <li key={it.id} className="py-2 flex justify-between">
-                <span>{it.description} × {it.quantity} @ ${it.unitCost}</span>
-                <span className="font-mono">${it.amount}</span>
+                <span>{it.description} × {it.quantity} @ {formatCurrency(it.unitCost)}</span>
+                <span className="font-mono">{formatCurrency(it.amount)}</span>
               </li>
             ))}
           </ul>
@@ -495,7 +496,7 @@ function SettlementTab({ claimId }) {
           {offers.map((o) => (
             <div key={o.id} className="p-3 bg-surface-container-low rounded">
               <div className="flex justify-between items-center">
-                <p className="font-mono text-body-lg font-semibold">${o.offeredAmount}</p>
+                <p className="font-mono text-body-lg font-semibold">{formatCurrency(o.offeredAmount)}</p>
                 <span className="px-2 py-0.5 rounded text-label-md font-medium" style={{ background: o.status === 'ACCEPTED' ? '#e8f5e9' : '#fff3e0', color: o.status === 'ACCEPTED' ? '#28a745' : '#f26522' }}>
                   {o.status}
                 </span>
