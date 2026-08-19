@@ -1,16 +1,25 @@
-feat: replace row-click navigation with View action button in Claims
+feat: add photo viewer modal for inspection photos
 
-Removed the clickable-row behavior from the Claims registry table.
-Added a formal "View" action button in a new Actions column at the
-right of each row.
+Clicking an inspection photo now opens a full-screen modal showing
+the image at full size with download and close actions.
 
-- Removed onRowClick from DataTable usage (rows no longer have
-  cursor-pointer or click handlers)
-- Added rowActions prop with a "View" button (Eye icon) that
-  navigates to the claim detail page
-- Button has hover state (fills with primary color) and tooltip
-- Uses stopPropagation to avoid any parent click handlers
-- DataTable already supported rowActions — just needed to use it
+Backend:
+- Added GET /api/claims/:claimId/inspections/photos/:photoId route
+  that streams the photo file with correct Content-Type
+- Added getPhoto service and getInspectionPhoto controller
+
+Frontend:
+- Photo thumbnails now render as actual <img> elements (with Camera
+  icon fallback on error) instead of just a placeholder icon
+- Each photo thumbnail is a clickable button that opens the modal
+- Photo viewer modal features:
+  - Full-size image display (object-contain, max 65vh height)
+  - Header with filename and caption
+  - Download button (downloads original file)
+  - Close button (X icon)
+  - Click outside or ESC-style backdrop to close
+  - Backdrop overlay (bg-black/80)
+  - Stop propagation on modal content to prevent accidental close
 
 Generated with [Devin](https://devin.ai)
 

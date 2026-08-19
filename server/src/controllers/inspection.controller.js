@@ -57,3 +57,15 @@ export async function uploadInspectionPhoto(req, res, next) {
     next(err);
   }
 }
+
+export async function getInspectionPhoto(req, res, next) {
+  try {
+    const photo = await inspectionService.getPhoto(req.params.photoId);
+    res.setHeader('Content-Type', photo.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${photo.originalName}"`);
+    const { createReadStream } = await import('fs');
+    createReadStream(photo.path).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}

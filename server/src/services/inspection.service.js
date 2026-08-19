@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import path from 'path';
+import fs from 'fs';
 
 export async function listInspections(claimId) {
   return prisma.inspection.findMany({
@@ -66,5 +67,12 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
   });
 
   await logAction('INSPECTION_PHOTO_UPLOADED', 'InspectionPhoto', photo.id, userId, { inspectionId });
+  return photo;
+}
+
+export async function getPhoto(photoId) {
+  const photo = await prisma.inspectionPhoto.findUnique({ where: { id: Number(photoId) } });
+  if (!photo) throw new AppError('Photo not found', 404);
+  if (!fs.existsSync(photo.path)) throw new AppError('Photo file not found', 404);
   return photo;
 }

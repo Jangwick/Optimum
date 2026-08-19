@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
-import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2, X, Download } from 'lucide-react';
 
 export default function ClaimInvestigation({ claimId }) {
   const [tab, setTab] = useState('investigations');
@@ -8,6 +8,7 @@ export default function ClaimInvestigation({ claimId }) {
   const [contacts, setContacts] = useState([]);
   const [inspections, setInspections] = useState([]);
   const [refresh, setRefresh] = useState(0);
+  const [viewingPhoto, setViewingPhoto] = useState(null);
 
   const load = useCallback(async () => {
     const [inv, con, ins] = await Promise.all([
@@ -393,11 +394,27 @@ export default function ClaimInvestigation({ claimId }) {
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                           {i.photos.map((p) => (
-                            <div key={p.id} className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border">
-                              <Camera size={24} className="text-on-surface-variant mx-auto" />
-                              <p className="text-label-sm mt-1 truncate" title={p.originalName}>{p.originalName}</p>
+                            <button
+                              key={p.id}
+                              onClick={() => setViewingPhoto(p)}
+                              className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all cursor-pointer group"
+                              title={`View ${p.originalName}`}
+                            >
+                              <div className="w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
+                                <img
+                                  src={`/api/claims/${claimId}/inspections/photos/${p.id}`}
+                                  alt={p.originalName}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                />
+                                <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
+                                  <Camera size={24} className="text-on-surface-variant" />
+                                </div>
+                              </div>
+                              <p className="text-label-sm truncate" title={p.originalName}>{p.originalName}</p>
                               {p.caption && <p className="text-label-sm text-outline truncate">{p.caption}</p>}
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -454,6 +471,52 @@ export default function ClaimInvestigation({ claimId }) {
                 <p className="text-body-sm text-outline mt-1">Use the form above to schedule one.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Photo Viewer Modal */}
+      {viewingPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div
+            className="bg-surface rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-surface-border">
+              <div className="min-w-0">
+                <p className="text-body-md font-semibold text-on-surface truncate">{viewingPhoto.originalName}</p>
+                {viewingPhoto.caption && (
+                  <p className="text-body-sm text-on-surface-variant truncate">{viewingPhoto.caption}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`}
+                  download={viewingPhoto.originalName}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  title="Download"
+                >
+                  <Download size={18} />
+                </a>
+                <button
+                  onClick={() => setViewingPhoto(null)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
+              <img
+                src={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`}
+                alt={viewingPhoto.originalName}
+                className="max-w-full max-h-[65vh] rounded-lg object-contain"
+              />
+            </div>
           </div>
         </div>
       )}
