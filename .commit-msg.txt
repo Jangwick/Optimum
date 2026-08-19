@@ -1,35 +1,46 @@
-feat: add Active/Closed/Cancelled view tabs to Claims Registry
+feat: convert New Claim from page navigation to modal dialog
 
-Adds view-based filtering tabs to the Claims Registry page so users can
-switch between active, closed, and cancelled claims without using the
-process status dropdown.
+Replaces the /claims/new page navigation with a modal dialog on both
+the Claims Registry and Dashboard pages.
 
-Frontend (Claims.jsx):
-- New `view` state with three tabs above the table:
-  - Active (default) — shows editable, non-read-only claims
-  - Closed — shows read-only, non-cancelled claims
-  - Cancelled — shows cancelled claims
-- Each tab has an icon (ClipboardList, Lock, Ban)
-- Active tab highlighted with primary background
-- View param sent to API in both list and export requests
-- Clear filters button resets view to Active
-- Switching tabs resets to page 1
+New component (NewClaimModal.jsx):
+- Reusable modal built on the existing Modal component (size: xl)
+- Two modes preserved: From Policy and Record Assignment
+- All fields from the original page retained:
+  - Policy mode: policy select, date of loss, location, estimated loss,
+    reserve, description, engineer, accountant
+  - Assignment mode: OCS ref, insurer claim #, assigned by, handling
+    adjuster, insured name, client, insurer, claim type, policy details,
+    nature of loss, claimed amount, estimated loss, reserve, engineer,
+    accountant
+- Loading state for reference data
+- Saving state on submit button (disabled while creating)
+- Error banner for API failures
+- Form resets on close or successful creation
+- onCreated callback navigates to the new claim detail page
+- Labels on all fields (uppercase, label-md style)
+- Focus styles consistent with design system
 
-Backend (claim.service.js):
-- getClaims now accepts `view` param:
-  - active: where.isReadOnly = false
-  - closed: where.isReadOnly = true, where.isCancelled = false
-  - cancelled: where.isCancelled = true
+Claims.jsx changes:
+- New Claim button now opens modal instead of navigating
+- Empty state "New Claim" button also opens modal
+- Modal rendered at end of page with onCreated → navigate to claim
 
-Backend (export.service.js):
-- exportClaimsToExcel now accepts `view` param with same filtering logic
+Dashboard.jsx changes:
+- New Claim button now opens modal instead of navigating
+- Modal rendered at end of page with onCreated → navigate to claim
+
+NewClaim.jsx:
+- Left in place for backward compatibility (route still exists)
 
 Verified in browser:
-1. Active tab (default): shows 4 claims (all active)
-2. Closed tab: shows "No claims found" (no closed claims exist)
-3. Cancelled tab: shows "No claims found" (no cancelled claims exist)
-4. Switching back to Active: shows 4 claims again
-5. Clear button appears when view is not Active
+1. Clicked "New Claim" on Claims Registry → modal opened
+2. Switched to "Record Assignment" mode → all Excel-style fields shown
+3. Filled form: OCS-TEST123/MDL, Modal Test Insured, date 2026-08-15,
+   client XYZ Retail, insurer Global Insurance, claim type Property
+   Damage, engineer Field Engineer, accountant Senior Accountant
+4. Clicked "Create Claim" → navigated to /claims/5
+5. New claim detail page shows OCS-TEST123/MDL with correct data
 6. No JS errors
 
 Generated with [Devin](https://devin.ai)

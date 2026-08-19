@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { NewClaimModal } from '../components/NewClaimModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
 import { formatCurrency } from '../utils/currency.js';
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showNewClaim, setShowNewClaim] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function Dashboard() {
               </p>
             </div>
             <button
-              onClick={() => navigate('/claims/new')}
+              onClick={() => setShowNewClaim(true)}
               className="bg-primary text-white px-4 py-2 rounded text-label-md font-medium uppercase hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2"
             >
               <Plus size={18} />
@@ -402,6 +404,14 @@ export default function Dashboard() {
           )}
         </main>
       </div>
+      <NewClaimModal
+        open={showNewClaim}
+        onClose={() => setShowNewClaim(false)}
+        onCreated={(claim) => {
+          setShowNewClaim(false);
+          navigate(`/claims/${claim.id}`);
+        }}
+      />
     </div>
   );
 }

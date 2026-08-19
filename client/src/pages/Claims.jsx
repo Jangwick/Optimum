@@ -6,6 +6,7 @@ import { formatCurrency } from '../utils/currency.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
+import { NewClaimModal } from '../components/NewClaimModal.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import {
@@ -128,6 +129,7 @@ export default function Claims() {
     () => Object.fromEntries(ALL_COLUMNS.map((c) => [c.key, c.default]))
   );
   const navigate = useNavigate();
+  const [showNewClaim, setShowNewClaim] = useState(false);
 
   useEffect(() => {
     getProcessStatuses()
@@ -338,7 +340,7 @@ export default function Claims() {
                 {exporting ? 'Exporting...' : 'Export'}
               </button>
               <button
-                onClick={() => navigate('/claims/new')}
+                onClick={() => setShowNewClaim(true)}
                 className="bg-primary text-white px-4 py-2 rounded text-label-md font-medium uppercase hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2"
               >
                 <Plus size={18} />
@@ -528,7 +530,7 @@ export default function Claims() {
                   </p>
                   {!hasActiveFilters && (
                     <button
-                      onClick={() => navigate('/claims/new')}
+                      onClick={() => setShowNewClaim(true)}
                       className="mt-4 inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded text-body-md font-medium hover:bg-primary-container transition-colors"
                     >
                       <Plus size={16} /> New Claim
@@ -549,6 +551,15 @@ export default function Claims() {
               />
             </div>
           </div>
+
+          <NewClaimModal
+            open={showNewClaim}
+            onClose={() => setShowNewClaim(false)}
+            onCreated={(claim) => {
+              setShowNewClaim(false);
+              navigate(`/claims/${claim.id}`);
+            }}
+          />
         </main>
       </div>
     </div>
