@@ -6,6 +6,7 @@ import Claims from './pages/Claims.jsx';
 import ClaimDetail from './pages/ClaimDetail.jsx';
 import NewClaim from './pages/NewClaim.jsx';
 import MasterData from './pages/MasterData.jsx';
+import AuditLogs from './pages/AuditLogs.jsx';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -64,6 +65,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <MasterData />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/audit-logs"
+        element={
+          <ProtectedRoute roles={['ADMIN']}>
+            <AuditLogs />
           </ProtectedRoute>
         }
       />
