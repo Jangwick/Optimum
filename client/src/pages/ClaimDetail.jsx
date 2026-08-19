@@ -790,14 +790,36 @@ function AssessmentTab({ claimId }) {
 
 function SettlementTab({ claimId }) {
   const [offers, setOffers] = useState([]);
+  const [settlement, setSettlement] = useState(null);
   const [form, setForm] = useState({ settledAmount: '', settlementDate: '', status: 'PENDING', notes: '' });
   const [offerForm, setOfferForm] = useState({ offeredAmount: '', notes: '' });
   const [response, setResponse] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    const [s, o] = await Promise.all([getSettlement(claimId), getOffers(claimId)]);
-    if (s.item) setForm({ ...s.item, settlementDate: s.item.settlementDate?.slice(0, 10) || '' });
-    setOffers(o.items || []);
+    setLoading(true);
+    setError(null);
+    try {
+      const [s, o] = await Promise.all([getSettlement(claimId), getOffers(claimId)]);
+      if (s.item) {
+        setSettlement(s.item);
+        setForm({
+          settledAmount: s.item.settledAmount?.toString() || '',
+          settlementDate: s.item.settlementDate?.slice(0, 10) || '',
+          status: s.item.status || 'PENDING',
+          notes: s.item.notes || '',
+        });
+      } else {
+        setSettlement(null);
+      }
+      setOffers(o.items || []);
+    } catch {
+      setError('Failed to load settlement data');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
@@ -806,98 +828,328 @@ function SettlementTab({ claimId }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    await saveSettlement(claimId, form);
-    await load();
+    setSaving(true);
+    setError(null);
+    try {
+      await saveSettlement(claimId, form);
+      await load();
+    } catch {
+      setError('Failed to save settlement');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleOffer = async (e) => {
     e.preventDefault();
-    await createOffer(claimId, offerForm);
-    setOfferForm({ offeredAmount: '', notes: '' });
-    await load();
+    if (!offerForm.offeredAmount) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await createOffer(claimId, offerForm);
+      setOfferForm({ offeredAmount: '', notes: '' });
+      await load();
+    } catch {
+      setError('Failed to create offer');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResponse = async (offerId) => {
-    await respondToOffer(claimId, offerId, response[offerId]);
-    setResponse({ ...response, [offerId]: {} });
-    await load();
+    const r = response[offerId];
+    if (!r?.status) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await respondToOffer(claimId, offerId, r);
+      setResponse({ ...response, [offerId]: {} });
+      await load();
+    } catch {
+      setError('Failed to respond to offer');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-6">
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Handshake size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Settlement</h3>
-          </div>
-          <form onSubmit={handleSave} className="space-y-4">
-            <input type="date" value={form.settlementDate} onChange={(e) => setForm({ ...form, settlementDate: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-            <input type="number" step="0.01" value={form.settledAmount} onChange={(e) => setForm({ ...form, settledAmount: e.target.value })} placeholder="Settled amount" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md">
-              <option value="PENDING">Pending</option>
-              <option value="AGREED">Agreed</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-            <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">Save Settlement</button>
-          </form>
-        </section>
+  const SETTLEMENT_STATUS_COLORS = {
+    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+    AGREED: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+    REJECTED: { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
+  };
 
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Handshake size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">New Offer</h3>
+  const OFFER_STATUS_COLORS = {
+    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+    ACCEPTED: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+    REJECTED: { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
+    COUNTERED: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
+  };
+
+  function StatusPill({ status, colors }) {
+    const c = colors[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' };
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium whitespace-nowrap ${c.bg} ${c.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${c.dot} shrink-0`} />
+        {status}
+      </span>
+    );
+  }
+
+  const acceptedOffer = offers.find((o) => o.status === 'ACCEPTED');
+
+  return (
+    <div className="space-y-6">
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Handshake size={18} />
           </div>
-          <form onSubmit={handleOffer} className="space-y-4">
-            <input type="number" step="0.01" value={offerForm.offeredAmount} onChange={(e) => setOfferForm({ ...offerForm, offeredAmount: e.target.value })} placeholder="Offered amount" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-            <textarea value={offerForm.notes} onChange={(e) => setOfferForm({ ...offerForm, notes: e.target.value })} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-            <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">Create Offer</button>
-          </form>
-        </section>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Settled</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono">{formatCurrency(settlement?.settledAmount || 0)}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
+            <Clock size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Offers</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{offers.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <CheckCircle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Accepted</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono">{formatCurrency(acceptedOffer?.offeredAmount || 0)}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <FileText size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Status</p>
+            <p className="text-headline-sm font-semibold text-on-surface">{settlement?.status || 'PENDING'}</p>
+          </div>
+        </div>
       </div>
 
-      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Handshake size={18} className="text-primary" />
-          <h3 className="text-headline-sm font-semibold text-primary">Offers</h3>
-        </div>
-        <div className="space-y-4">
-          {offers.map((o) => (
-            <div key={o.id} className="p-3 bg-surface-container-low rounded">
-              <div className="flex justify-between items-center">
-                <p className="font-mono text-body-lg font-semibold">{formatCurrency(o.offeredAmount)}</p>
-                <span className="px-2 py-0.5 rounded text-label-md font-medium" style={{ background: o.status === 'ACCEPTED' ? '#e8f5e9' : '#fff3e0', color: o.status === 'ACCEPTED' ? '#28a745' : '#f26522' }}>
-                  {o.status}
-                </span>
-              </div>
-              <p className="text-body-md mt-1">{o.notes}</p>
-              {o.status === 'PENDING' && (
-                <div className="mt-3 flex gap-2">
-                  <select
-                    value={response[o.id]?.status || ''}
-                    onChange={(e) => setResponse({ ...response, [o.id]: { ...response[o.id], status: e.target.value } })}
-                    className="h-10 px-3 rounded border border-outline bg-surface text-body-md"
-                  >
-                    <option value="">Respond</option>
-                    <option value="ACCEPTED">Accepted</option>
-                    <option value="REJECTED">Rejected</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={response[o.id]?.notes || ''}
-                    onChange={(e) => setResponse({ ...response, [o.id]: { ...response[o.id], notes: e.target.value } })}
-                    placeholder="Response notes"
-                    className="flex-1 h-10 px-3 rounded border border-outline bg-surface text-body-md"
-                  />
-                  <button onClick={() => handleResponse(o.id)} className="h-10 px-3 bg-primary text-white rounded font-semibold">Submit</button>
-                </div>
-              )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column: Settlement form + New Offer form */}
+        <div className="space-y-6">
+          {/* Settlement form */}
+          <section className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 p-4 bg-surface-container-low border-b border-surface-border">
+              <Handshake size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Settlement</h3>
+              {settlement && <StatusPill status={settlement.status} colors={SETTLEMENT_STATUS_COLORS} />}
             </div>
-          ))}
-          {offers.length === 0 && <p className="text-body-md text-on-surface-variant">No offers yet.</p>}
+            <form onSubmit={handleSave} className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-label-md text-outline uppercase mb-1.5">Settlement Date</label>
+                  <input
+                    type="date"
+                    value={form.settlementDate}
+                    onChange={(e) => setForm({ ...form, settlementDate: e.target.value })}
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-label-md text-outline uppercase mb-1.5">Settled Amount</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.settledAmount}
+                    onChange={(e) => setForm({ ...form, settledAmount: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Status</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                >
+                  <option value="PENDING">Pending</option>
+                  <option value="AGREED">Agreed</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Settlement notes..."
+                  className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+                  rows={2}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full h-10 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Handshake size={16} />
+                {saving ? 'Saving...' : 'Save Settlement'}
+              </button>
+            </form>
+          </section>
+
+          {/* New Offer form */}
+          <section className="bg-surface border border-surface-border border-l-4 border-l-accent-orange rounded-lg shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 p-4 bg-surface-container-low border-b border-surface-border">
+              <Plus size={18} className="text-accent-orange" />
+              <h3 className="text-headline-sm font-semibold text-primary">New Offer</h3>
+            </div>
+            <form onSubmit={handleOffer} className="p-4 space-y-3">
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Offered Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={offerForm.offeredAmount}
+                  onChange={(e) => setOfferForm({ ...offerForm, offeredAmount: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+                <textarea
+                  value={offerForm.notes}
+                  onChange={(e) => setOfferForm({ ...offerForm, notes: e.target.value })}
+                  placeholder="Offer notes..."
+                  className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+                  rows={2}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full h-10 bg-accent-orange text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus size={16} />
+                {saving ? 'Creating...' : 'Create Offer'}
+              </button>
+            </form>
+          </section>
         </div>
-      </section>
+
+        {/* Right column: Offers list */}
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2 p-4 bg-surface-container-low border-b border-surface-border">
+            <Handshake size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Offers ({offers.length})</h3>
+          </div>
+          <div className="p-4 space-y-3">
+            {loading ? (
+              <p className="text-body-md text-on-surface-variant text-center py-8">Loading offers...</p>
+            ) : offers.length === 0 ? (
+              <div className="text-center py-8">
+                <Handshake size={32} className="text-outline mx-auto mb-2" />
+                <p className="text-body-md text-on-surface-variant">No offers yet.</p>
+                <p className="text-body-sm text-outline mt-1">Use the form on the left to create one.</p>
+              </div>
+            ) : (
+              offers.map((o) => (
+                <div key={o.id} className="bg-surface-container-low border border-surface-border rounded-lg overflow-hidden">
+                  {/* Offer header */}
+                  <div className="flex items-center justify-between p-3 border-b border-surface-border">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
+                        <Handshake size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-mono text-body-md font-semibold text-on-surface">{formatCurrency(o.offeredAmount)}</p>
+                        <p className="text-label-sm text-outline font-mono mt-0.5">
+                          {new Date(o.createdAt || o.offerDate).toLocaleDateString()}
+                          {o.createdBy && ' \u00b7 ' + o.createdBy.firstName + ' ' + o.createdBy.lastName}
+                        </p>
+                      </div>
+                    </div>
+                    <StatusPill status={o.status} colors={OFFER_STATUS_COLORS} />
+                  </div>
+
+                  {/* Offer body */}
+                  <div className="p-3 space-y-2">
+                    {o.notes && (
+                      <div>
+                        <span className="text-label-md text-outline uppercase">Notes</span>
+                        <p className="text-body-sm text-on-surface mt-0.5">{o.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Response info */}
+                    {o.status !== 'PENDING' && (
+                      <div className="pt-2 border-t border-surface-border">
+                        <span className="text-label-md text-outline uppercase">Response</span>
+                        <p className="text-body-sm text-on-surface mt-0.5">
+                          {o.responseDate && <span className="font-mono">{new Date(o.responseDate).toLocaleDateString()}</span>}
+                          {o.responseBy && ' \u00b7 ' + o.responseBy.firstName + ' ' + o.responseBy.lastName}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Response form (only for pending offers) */}
+                    {o.status === 'PENDING' && (
+                      <div className="pt-2 border-t border-surface-border space-y-2">
+                        <span className="text-label-md text-outline uppercase font-medium">Respond to Offer</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={response[o.id]?.status || ''}
+                            onChange={(e) => setResponse({ ...response, [o.id]: { ...response[o.id], status: e.target.value } })}
+                            className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                          >
+                            <option value="">Select response</option>
+                            <option value="ACCEPTED">Accept</option>
+                            <option value="REJECTED">Reject</option>
+                            <option value="COUNTERED">Counter</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={response[o.id]?.notes || ''}
+                            onChange={(e) => setResponse({ ...response, [o.id]: { ...response[o.id], notes: e.target.value } })}
+                            placeholder="Response notes"
+                            className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleResponse(o.id)}
+                          disabled={saving || !response[o.id]?.status}
+                          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <CheckCircle size={16} />
+                          Submit Response
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

@@ -1,62 +1,66 @@
-feat: redesign ClaimFinance with full CRUD, payments, and polished UX
+feat: redesign SettlementTab with full CRUD, offers, and polished UX
 
-Complete rewrite of ClaimFinance component (Fees + Invoices tabs):
+Complete rewrite of SettlementTab in ClaimDetail:
 
 Summary cards (always visible):
-- Total Fees (sum of all fee amounts)
-- Invoiced (sum of all invoice totals)
-- Collected (sum of all payments received)
+- Settled amount (from saved settlement)
+- Offers count
+- Accepted amount (from accepted offer, if any)
+- Status (current settlement status)
 
-Fees tab:
-- Fee Type dropdown with 7 predefined types (INSPECTION,
-  INVESTIGATION, ASSESSMENT, REPORT, TRAVEL, CONSULTATION, OTHER)
-  instead of free-text input
-- Amount input with min=0, step=0.01, monospace font
-- Description input with label
-- Linked User dropdown with label
-- Add Fee button with Plus icon and loading state
-- Fee cards with primary left border, icon badge, fee type,
-  linked user, amount, and "Invoiced" badge when applicable
+Settlement form (left column):
+- Card with primary left border and header showing status pill
+- Settlement Date input with label
+- Settled Amount input with label, min=0, monospace
+- Status dropdown (Pending/Agreed/Rejected) with label
+- Notes textarea with label
+- Save Settlement button with icon and loading state
+- Form pre-populates from existing settlement (upsert behavior)
+
+New Offer form (left column):
+- Card with accent-orange left border
+- Offered Amount input with label, min=0, monospace
+- Notes textarea with label
+- Create Offer button with accent-orange color and loading state
+- Form resets after successful creation
+
+Offers list (right column):
+- Card with header showing offer count
+- Each offer card shows:
+  - Header: icon badge, offered amount, date, created by, status pill
+  - Status pills with semantic colors:
+    PENDING=orange, ACCEPTED=success, REJECTED=error, COUNTERED=primary
+  - Notes section with label
+  - Response info section (when status != PENDING):
+    shows response date and response by user
+  - Response form (only for PENDING offers):
+    - Status dropdown (Accept/Reject/Counter)
+    - Response notes input
+    - Submit Response button with CheckCircle icon
 - Empty state with icon and hint
 - Loading state during fetch
-- Error banner on failures
-
-Invoices tab:
-- Generate Invoice form with:
-  - Unbilled fees checklist (only shows fees not yet invoiced)
-  - Selected total calculation (live)
-  - Due Date and Notes inputs with labels
-  - Generate button disabled when no unbilled fees or none selected
-  - "No unbilled fees available" message when applicable
-- Invoice cards with:
-  - Header: invoice number, issue/due dates, created by, status pill
-  - Status pills using semantic colors (ISSUED=orange, PARTIAL=primary,
-    PAID=success, OVERDUE=error) instead of inline styles
-  - Fees section listing all billed fees
-  - Payment summary grid: Total, Paid, Balance
-  - Payment History section with all recorded payments
-  - Record Payment form (hidden when PAID) with Amount, Date,
-    Method, Reference inputs in a responsive grid
-  - Record Payment button with DollarSign icon and success color
-- Empty state with icon and hint
 
 State management:
 - Loading state during fetch
-- Saving state during create/payment
-- Error state with AlertTriangle banner
-- Form validation (require fee selection for invoices)
+- Saving state during save/offer/response
+- Error banner with AlertTriangle icon
+- Form validation (require offered amount, require response status)
 - Form reset after successful save
 
 Verified in browser:
-- Created fee (INSPECTION, ₱5,000, Site inspection fee)
-- Total Fees updated to ₱5,000
-- Generated invoice from unbilled fee
-- Invoiced updated to ₱5,000
-- Recorded payment (₱5,000, Bank Transfer, REF-001)
-- Collected updated to ₱5,000
-- Invoice status changed to PAID
-- Payment history displayed correctly
-- Record Payment form hidden after full payment
+1. Saved settlement (₱15,000, AGREED status)
+   - Settled card updated to ₱15,000
+   - Status card updated to AGREED
+   - AGREED status pill in settlement header
+2. Created offer (₱12,000, "Initial offer based on assessment")
+   - Offers count updated to 1
+   - Offer card with PENDING status pill
+   - Response form visible
+3. Responded to offer (ACCEPTED, "Offer accepted by client")
+   - Accepted card updated to ₱12,000
+   - Offer status changed to ACCEPTED (green pill)
+   - Response section showing date and user
+   - Response form hidden after response
 
 Generated with [Devin](https://devin.ai)
 
