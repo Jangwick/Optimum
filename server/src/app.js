@@ -15,6 +15,7 @@ import investigationRoutes from './routes/investigation.routes.js';
 import contactRoutes from './routes/contact.routes.js';
 import inspectionRoutes from './routes/inspection.routes.js';
 import documentRoutes from './routes/document.routes.js';
+import assessmentRoutes from './routes/assessment.routes.js';
 import exportRoutes from './routes/export.routes.js';
 
 const app = express();
@@ -49,6 +50,7 @@ app.use('/api/claims/:claimId/investigations', investigationRoutes);
 app.use('/api/claims/:claimId/contacts', contactRoutes);
 app.use('/api/claims/:claimId/inspections', inspectionRoutes);
 app.use('/api/claims/:claimId/documents', documentRoutes);
+app.use('/api/claims/:claimId/assessments', assessmentRoutes);
 app.use('/api/export', exportRoutes);
 
 app.use((req, res) => {
