@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getClaim, updateClaimStatus } from '../services/claim.service.js';
+import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
 import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../services/import.service.js';
 import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument } from '../services/document.service.js';
@@ -9,7 +9,7 @@ import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer }
 import { getReports, createReport, generateReport, askClarification } from '../services/report.service.js';
 import { getTasks, createTask, updateTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
-import { getDocumentCategories } from '../services/master-data.service.js';
+import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { api } from '../services/api.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -18,7 +18,7 @@ import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -635,7 +635,7 @@ function AssessmentTab({ claimId }) {
       </form>
 
       {assessments.map((a) => (
-        <div key={a.id} className="bg-surface border border-surface-border rounded shadow-sm p-4">
+        <div key={a.id} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
           <div className="flex justify-between items-start mb-3">
             <div>
               <p className="text-body-md text-on-surface-variant">{new Date(a.assessmentDate).toLocaleString()}</p>
@@ -816,7 +816,7 @@ function ReportsTab({ claimId }) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <FileBarChart size={18} className="text-primary" />
           <h3 className="text-headline-sm font-semibold text-primary">New Report Draft</h3>
@@ -835,7 +835,7 @@ function ReportsTab({ claimId }) {
       </form>
 
       {reports.map((r) => (
-        <div key={r.id} className="bg-surface border border-surface-border rounded shadow-sm p-4">
+        <div key={r.id} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-body-lg font-semibold text-primary">{r.title}</p>
@@ -884,7 +884,10 @@ function TasksTab({ claimId }) {
   const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '' });
 
   const load = useCallback(async () => {
-    const [t, u] = await Promise.all([getTasks({ claimId }), getUsers()]);
+    const [t, u] = await Promise.all([
+      getTasks({ claimId }),
+      getUsers().catch(() => ({ users: [] })),
+    ]);
     setTasks(t.items || []);
     setUsers(u.users || []);
   }, [claimId]);
@@ -907,15 +910,15 @@ function TasksTab({ claimId }) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <ListTodo size={18} className="text-primary" />
           <h3 className="text-headline-sm font-semibold text-primary">New Task</h3>
         </div>
         <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-        <select value={form.assignedToId} onChange={(e) => setForm({ ...form, assignedToId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required>
-          <option value="">Assign to</option>
+        <select value={form.assignedToId} onChange={(e) => setForm({ ...form, assignedToId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30" required disabled={users.length === 0}>
+          <option value="">{users.length === 0 ? 'No users available' : 'Assign to'}</option>
           {users.map((u) => (
             <option key={u.id} value={u.id}>
               {u.fullName} ({u.role})
@@ -926,7 +929,7 @@ function TasksTab({ claimId }) {
         <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Create Task</button>
       </form>
 
-      <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+      <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
         {tasks.map((t) => (
           <div key={t.id} className="p-3 bg-surface-container-low rounded flex justify-between items-center">
             <div>
@@ -965,42 +968,52 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
             <h3 className="text-headline-sm font-semibold text-primary">18-Stage Workflow Status</h3>
           </div>
           <div className="mb-4">
-            <p className="text-label-md text-outline uppercase">Current Process Status</p>
+            <p className="text-label-md text-outline uppercase mb-1.5">Current Process Status</p>
             {claim.processStatus && (
-              <div
-                className="inline-block mt-1 px-4 py-1.5 rounded-full text-label-md font-medium"
-                style={{ backgroundColor: `${claim.processStatus.color}20`, color: claim.processStatus.color }}
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-md font-medium"
+                style={{ backgroundColor: `${claim.processStatus.color}1a`, color: claim.processStatus.color }}
               >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: claim.processStatus.color }} />
                 {claim.processStatus.name}
-              </div>
+              </span>
             )}
           </div>
 
           {claim.isReadOnly && (
-            <div className="mb-4 bg-amber-50 border border-amber-300 rounded p-3 text-amber-800 text-body-sm">
-              <p className="font-medium">This is a read-only historical record.</p>
-              <p className="mt-0.5">Any status change requires an Admin override with a reason.</p>
+            <div className="mb-4 bg-accent-orange/5 border border-accent-orange/30 rounded-lg p-3 text-accent-orange text-body-sm flex items-start gap-2">
+              <Lock size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium">This is a read-only historical record.</p>
+                <p className="mt-0.5 text-on-surface-variant">Any status change requires an Admin override with a reason.</p>
+              </div>
             </div>
           )}
 
           {isAdmin && (
             <form onSubmit={onTransition} className="space-y-4">
-              <select
-                value={selectedProcessStatus}
-                onChange={(e) => setSelectedProcessStatus(e.target.value)}
-                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-              >
-                {processStatuses.map((s) => (
-                  <option key={s.code} value={s.code}>{s.name}</option>
-                ))}
-              </select>
-              <textarea
-                value={processNote}
-                onChange={(e) => setProcessNote(e.target.value)}
-                rows={3}
-                placeholder="Notes"
-                className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-              />
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">New Status</label>
+                <select
+                  value={selectedProcessStatus}
+                  onChange={(e) => setSelectedProcessStatus(e.target.value)}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                >
+                  {processStatuses.map((s) => (
+                    <option key={s.code} value={s.code}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+                <textarea
+                  value={processNote}
+                  onChange={(e) => setProcessNote(e.target.value)}
+                  rows={3}
+                  placeholder="Add transition notes..."
+                  className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+                />
+              </div>
               {guardsNotMet && (
                 <div className="bg-error-container/10 border border-error/30 rounded p-4 space-y-3">
                   <p className="text-body-md font-medium text-error">Guards not met:</p>
@@ -1011,7 +1024,7 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
               )}
               {needsOverride && (
                 <div>
-                  <label className="block text-label-md text-on-surface-variant mb-1">
+                  <label className="block text-label-md text-outline uppercase mb-1.5">
                     Override reason {claim.isReadOnly ? '(required for read-only records)' : '(Admin only)'}
                   </label>
                   <input
@@ -1019,11 +1032,12 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
                     value={overrideReason}
                     onChange={(e) => setOverrideReason(e.target.value)}
                     placeholder="Provide a reason to override"
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   />
                 </div>
               )}
-              <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">
+              <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors inline-flex items-center justify-center gap-2">
+                <GitBranch size={16} />
                 Update Process Status
               </button>
             </form>
@@ -1041,22 +1055,24 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
             <Clock size={18} className="text-primary" />
             <h3 className="text-headline-sm font-semibold text-primary">Process History</h3>
           </div>
-          <ul className="space-y-3 text-body-sm">
-            {claim.processHistory?.length ? (
-              claim.processHistory.map((h) => (
-                <li key={h.id} className="border-l-2 border-primary pl-3">
-                  <p className="font-medium">{h.status?.name || h.status?.code}</p>
-                  <p className="text-on-surface-variant">{h.notes || 'No notes'}</p>
-                  {h.isOverride && <p className="text-label-sm text-error">Override: {h.overrideReason}</p>}
-                  <p className="text-label-sm text-outline mt-1">
+          {claim.processHistory?.length ? (
+            <ul className="space-y-4 text-body-sm">
+              {claim.processHistory.map((h) => (
+                <li key={h.id} className="relative pl-6 pb-4 last:pb-0">
+                  <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
+                  <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
+                  <p className="font-medium text-on-surface">{h.status?.name || h.status?.code}</p>
+                  <p className="text-on-surface-variant mt-0.5">{h.notes || 'No notes'}</p>
+                  {h.isOverride && <p className="text-label-sm text-error mt-1">Override: {h.overrideReason}</p>}
+                  <p className="text-label-sm text-outline mt-1 font-mono">
                     {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
                   </p>
                 </li>
-              ))
-            ) : (
-              <p className="text-on-surface-variant">No process history yet.</p>
-            )}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-on-surface-variant text-body-sm">No process history yet.</p>
+          )}
         </section>
 
         {closingGuards && (
@@ -1080,17 +1096,141 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
   );
 }
 
-function InsurerPanelTab({ claim, claimId: _claimId, isAdmin }) {
-  const panel = claim.insurerPanel || [];
+function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
+  const [insurers, setInsurers] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ insuranceCompanyId: '', isLead: false, participationPercent: '', insurerClaimNumber: '', notes: '' });
+  const [refresh, setRefresh] = useState(0);
+  const [claim, setClaim] = useState(initialClaim);
+
+  useEffect(() => {
+    if (isAdmin) {
+      getInsuranceCompanies().then((res) => setInsurers(res.items || []));
+    }
+  }, [isAdmin]);
+
+  // Reload claim data when refresh changes
+  useEffect(() => {
+    if (refresh > 0) {
+      getClaim(claimId).then((res) => setClaim(res.item));
+    }
+  }, [refresh, claimId]);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!form.insuranceCompanyId) return;
+    await addClaimInsurer(claimId, form);
+    setForm({ insuranceCompanyId: '', isLead: false, participationPercent: '', insurerClaimNumber: '', notes: '' });
+    setShowForm(false);
+    setRefresh((r) => r + 1);
+  };
+
+  const handleToggleLead = async (ci) => {
+    await updateClaimInsurer(claimId, ci.id, { isLead: !ci.isLead });
+    setRefresh((r) => r + 1);
+  };
+
+  const handleRemove = async (ci) => {
+    if (!confirm(`Remove ${ci.insuranceCompany?.name} from the panel?`)) return;
+    await removeClaimInsurer(claimId, ci.id);
+    setRefresh((r) => r + 1);
+  };
+
+  const currentPanel = claim.insurerPanel || [];
+
   return (
     <div className="space-y-6">
       <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Building2 size={18} className="text-primary" />
-          <h3 className="text-headline-sm font-semibold text-primary">Insurer Panel</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Building2 size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Insurer Panel</h3>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-body-sm font-semibold hover:bg-primary-container transition-colors"
+            >
+              <Plus size={16} />
+              Add Insurer
+            </button>
+          )}
         </div>
-        {panel.length === 0 ? (
-          <p className="text-body-md text-on-surface-variant">No insurers on the panel. Use the API to add panel members.</p>
+
+        {showForm && isAdmin && (
+          <form onSubmit={handleAdd} className="mb-6 p-4 bg-surface-container-low rounded-lg space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Insurance Company</label>
+                <select
+                  value={form.insuranceCompanyId}
+                  onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  required
+                >
+                  <option value="">Select insurer</option>
+                  {insurers.map((ic) => (
+                    <option key={ic.id} value={ic.id}>{ic.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Participation %</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.participationPercent}
+                  onChange={(e) => setForm({ ...form, participationPercent: e.target.value })}
+                  placeholder="e.g. 50"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Insurer Claim #</label>
+                <input
+                  type="text"
+                  value={form.insurerClaimNumber}
+                  onChange={(e) => setForm({ ...form, insurerClaimNumber: e.target.value })}
+                  placeholder="Claim reference"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Lead Insurer</label>
+                <label className="flex items-center gap-2 h-10">
+                  <input
+                    type="checkbox"
+                    checked={form.isLead}
+                    onChange={(e) => setForm({ ...form, isLead: e.target.checked })}
+                    className="w-5 h-5 rounded border-outline text-primary focus:ring-primary/30"
+                  />
+                  <span className="text-body-md text-on-surface-variant">Set as lead insurer</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+              <input
+                type="text"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Optional notes"
+                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors">
+                Add to Panel
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} className="h-10 px-4 border border-outline text-on-surface-variant rounded font-semibold hover:bg-surface-container-low transition-colors">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {currentPanel.length === 0 ? (
+          <p className="text-body-md text-on-surface-variant">No insurers on the panel.</p>
         ) : (
           <table className="w-full text-body-sm">
             <thead>
@@ -1099,21 +1239,49 @@ function InsurerPanelTab({ claim, claimId: _claimId, isAdmin }) {
                 <th className="py-2 pr-4">Lead</th>
                 <th className="py-2 pr-4">Participation</th>
                 <th className="py-2 pr-4">Insurer Claim #</th>
+                {isAdmin && <th className="py-2 pr-4 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {panel.map((ci) => (
+              {currentPanel.map((ci) => (
                 <tr key={ci.id} className="border-b border-surface-border/50">
-                  <td className="py-2 pr-4 text-on-surface">{ci.insuranceCompany?.name}</td>
-                  <td className="py-2 pr-4">{ci.isLead ? <span className="text-primary font-medium">Yes</span> : '—'}</td>
-                  <td className="py-2 pr-4 text-on-surface-variant">{ci.participationPercent ? `${ci.participationPercent}%` : '—'}</td>
-                  <td className="py-2 pr-4 text-on-surface-variant">{ci.insurerClaimNumber || '—'}</td>
+                  <td className="py-2 pr-4 text-on-surface font-medium">{ci.insuranceCompany?.name}</td>
+                  <td className="py-2 pr-4">
+                    {isAdmin ? (
+                      <button
+                        onClick={() => handleToggleLead(ci)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-md font-medium transition-colors ${
+                          ci.isLead ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant hover:text-primary'
+                        }`}
+                      >
+                        {ci.isLead && <CheckCircle size={12} />}
+                        {ci.isLead ? 'Yes' : 'No'}
+                      </button>
+                    ) : ci.isLead ? (
+                      <span className="text-primary font-medium">Yes</span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-on-surface-variant font-mono">{ci.participationPercent ? `${ci.participationPercent}%` : '—'}</td>
+                  <td className="py-2 pr-4 text-on-surface-variant font-mono">{ci.insurerClaimNumber || '—'}</td>
+                  {isAdmin && (
+                    <td className="py-2 pr-4 text-right">
+                      <button
+                        onClick={() => handleRemove(ci)}
+                        className="inline-flex items-center gap-1 text-error hover:text-error/80 text-label-md font-medium transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-        {!isAdmin && panel.length === 0 && (
+        {!isAdmin && currentPanel.length === 0 && (
           <p className="text-label-sm text-on-surface-variant mt-2">Contact an Admin to add insurers to this panel.</p>
         )}
       </section>
@@ -1141,16 +1309,17 @@ function TimelineTab({ claim }) {
         ) : (
           <ul className="space-y-4">
             {allEvents.map((evt, i) => (
-              <li key={i} className="border-l-2 border-primary pl-4 relative">
-                <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-primary" />
+              <li key={i} className="relative pl-6 pb-4 last:pb-0">
+                <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
+                <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-label-sm ${evt.type === 'activity' ? 'bg-primary-container/20 text-primary' : 'bg-surface-variant/20 text-on-surface-variant'}`}>
+                  <span className={`px-2 py-0.5 rounded text-label-sm font-medium ${evt.type === 'activity' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
                     {evt.type}
                   </span>
-                  <p className="font-medium text-body-md">{evt.title}</p>
+                  <p className="font-medium text-body-md text-on-surface">{evt.title}</p>
                 </div>
                 {evt.desc && <p className="text-body-sm text-on-surface-variant mt-1">{evt.desc}</p>}
-                <p className="text-label-sm text-outline mt-1">
+                <p className="text-label-sm text-outline mt-1 font-mono">
                   {evt.date ? new Date(evt.date).toLocaleString() : 'No date'}
                   {evt.actor && ` · ${evt.actor}`}
                   {evt.source && ` · ${evt.source}`}

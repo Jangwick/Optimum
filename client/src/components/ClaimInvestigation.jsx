@@ -96,13 +96,13 @@ export default function ClaimInvestigation({ claimId }) {
 
       {tab === 'investigations' && (
         <div className="space-y-6">
-          <form onSubmit={saveInvestigation} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <form onSubmit={saveInvestigation} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             <h3 className="text-headline-sm font-semibold text-primary">Add Investigation</h3>
             <textarea value={invForm.findings} onChange={(e) => setInvForm({ ...invForm, findings: e.target.value })} placeholder="Findings" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
             <textarea value={invForm.notes} onChange={(e) => setInvForm({ ...invForm, notes: e.target.value })} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Save</button>
           </form>
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             {investigations.map((i) => (
               <div key={i.id} className="p-3 bg-surface-container-low rounded">
                 <p className="text-body-md font-semibold">Investigation #{i.id}</p>
@@ -117,7 +117,7 @@ export default function ClaimInvestigation({ claimId }) {
 
       {tab === 'contacts' && (
         <div className="space-y-6">
-          <form onSubmit={saveContact} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <form onSubmit={saveContact} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             <h3 className="text-headline-sm font-semibold text-primary">Add Contact</h3>
             <input type="text" value={conForm.name} onChange={(e) => setConForm({ ...conForm, name: e.target.value })} placeholder="Name" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
             <input type="text" value={conForm.role} onChange={(e) => setConForm({ ...conForm, role: e.target.value })} placeholder="Role" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
@@ -125,7 +125,7 @@ export default function ClaimInvestigation({ claimId }) {
             <input type="email" value={conForm.email} onChange={(e) => setConForm({ ...conForm, email: e.target.value })} placeholder="Email" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Save</button>
           </form>
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             {contacts.map((c) => (
               <div key={c.id} className="p-3 bg-surface-container-low rounded">
                 <p className="text-body-md font-semibold">{c.name}</p>
@@ -139,7 +139,7 @@ export default function ClaimInvestigation({ claimId }) {
 
       {tab === 'inspections' && (
         <div className="space-y-6">
-          <form onSubmit={saveInspection} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <form onSubmit={saveInspection} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             <h3 className="text-headline-sm font-semibold text-primary">Schedule Inspection</h3>
             <input type="datetime-local" value={inspForm.scheduledDate} onChange={(e) => setInspForm({ ...inspForm, scheduledDate: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
             <input type="text" value={inspForm.location} onChange={(e) => setInspForm({ ...inspForm, location: e.target.value })} placeholder="Location" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
@@ -148,7 +148,7 @@ export default function ClaimInvestigation({ claimId }) {
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Schedule</button>
           </form>
 
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-4">
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-4">
             {inspections.map((i) => (
               <div key={i.id} className="p-3 bg-surface-container-low rounded">
                 <div className="flex justify-between items-center">

@@ -1,22 +1,45 @@
-feat: improve ClaimDetail UX/UI with icons, header card, and polished sections
+feat: complete ClaimDetail feature audit and fix all gaps
 
-- Add back button ("Back to Claims") at the top of claim detail pages
-- Wrap claim header in a card with FileText icon and monospace claim number
-- Status pills now show colored dots and use design-system token colors
-- Tabs now have Lucide icons (FileText, GitBranch, Search, FolderOpen,
-  ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo)
-- Tabs are horizontally scrollable with whitespace-nowrap to prevent wrapping
-- All section headers now have contextual Lucide icons
-- Sections use rounded-lg instead of rounded for consistency
-- Alert banners use design-system tokens (error, accent-orange) instead of
-  hardcoded Tailwind colors (red-50, amber-50)
-- Info component supports mono prop for monospace fields (claim IDs, policy
-  numbers, batch IDs)
-- Form fields in Update Status section now have proper labels
-- Status History redesigned as a vertical timeline with dots and connecting lines
-- Documents tab: improved upload form with labeled fields, flex-wrap, and
-  category group headers with FolderOpen icons
-- Update Status button includes GitBranch icon
+Audit findings and fixes across all 11 tabs:
+
+1. Insurer Panel tab — was read-only display only, no CRUD UI
+   - Added "Add Insurer" button with full form (insurance company,
+     participation %, insurer claim #, lead checkbox, notes)
+   - Added toggle lead insurer button (click Yes/No to toggle)
+   - Added remove insurer button with confirmation
+   - Added insurer panel CRUD service functions to claim.service.js
+   - Panel reloads after add/remove/toggle via getClaim()
+
+2. Tasks and Finance tabs — getUsers() calls GET /users which requires
+   ADMIN role, would 403 for Engineer/Accountant users
+   - Wrapped getUsers() in .catch() to gracefully degrade to empty array
+   - Disabled user dropdowns with "No users available" when empty
+   - Applied to both TasksTab and ClaimFinance
+
+3. Process Status tab — inconsistent styling with rest of claim detail
+   - Replaced old amber-50/amber-300 alert with design-system tokens
+     (accent-orange/5, accent-orange/30) and Lock icon
+   - Added labeled form fields (New Status, Notes) with focus rings
+   - Updated current status display to use pill with dot indicator
+   - Updated Process History to use timeline style (dots + connecting
+     lines) matching Status History
+   - Added GitBranch icon to Update Process Status button
+
+4. Timeline tab — old border-l-2 style
+   - Updated to use consistent timeline style with dots and connecting
+     lines matching Status History and Process History
+
+5. Visual consistency — all section containers
+   - Replaced remaining "rounded shadow-sm" with "rounded-lg shadow-sm"
+     across ClaimDetail, ClaimInvestigation, and ClaimFinance
+
+Verification:
+- Client lint: 0 errors
+- Client build: success
+- Server lint: 0 errors
+- Server tests: 47 passed, 5 suites
+- Browser: all 11 tabs verified via Chrome DevTools
+- No JS console errors
 
 Generated with [Devin](https://devin.ai)
 

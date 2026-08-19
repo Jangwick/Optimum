@@ -11,7 +11,11 @@ export default function ClaimFinance({ claimId }) {
   const [refresh, setRefresh] = useState(0);
 
   const load = useCallback(async () => {
-    const [f, inv, u] = await Promise.all([getFees(claimId), getInvoices(claimId), getUsers()]);
+    const [f, inv, u] = await Promise.all([
+      getFees(claimId),
+      getInvoices(claimId),
+      getUsers().catch(() => ({ users: [] })),
+    ]);
     setFees(f.items || []);
     setInvoices(inv.items || []);
     setUsers(u.users || []);
@@ -77,20 +81,20 @@ export default function ClaimFinance({ claimId }) {
 
       {tab === 'fees' && (
         <div className="space-y-6">
-          <form onSubmit={saveFee} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <form onSubmit={saveFee} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             <h3 className="text-headline-sm font-semibold text-primary">Add Fee</h3>
             <input type="text" value={feeForm.feeType} onChange={(e) => setFeeForm({ ...feeForm, feeType: e.target.value })} placeholder="Fee type" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
             <input type="number" step="0.01" value={feeForm.amount} onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value })} placeholder="Amount" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
             <input type="text" value={feeForm.description} onChange={(e) => setFeeForm({ ...feeForm, description: e.target.value })} placeholder="Description" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-            <select value={feeForm.userId} onChange={(e) => setFeeForm({ ...feeForm, userId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required>
-              <option value="">Linked user</option>
+            <select value={feeForm.userId} onChange={(e) => setFeeForm({ ...feeForm, userId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30" required disabled={users.length === 0}>
+              <option value="">{users.length === 0 ? 'No users available' : 'Linked user'}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>{u.fullName}</option>
               ))}
             </select>
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Add Fee</button>
           </form>
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             {fees.map((f) => (
               <div key={f.id} className="p-3 bg-surface-container-low rounded flex justify-between">
                 <div>
@@ -107,7 +111,7 @@ export default function ClaimFinance({ claimId }) {
 
       {tab === 'invoices' && (
         <div className="space-y-6">
-          <form onSubmit={saveInvoice} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
+          <form onSubmit={saveInvoice} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             <h3 className="text-headline-sm font-semibold text-primary">Generate Invoice</h3>
             <p className="text-body-sm text-on-surface-variant">Select unbilled fees:</p>
             {fees.filter((f) => !f.isInvoiced).map((f) => (
@@ -121,7 +125,7 @@ export default function ClaimFinance({ claimId }) {
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Generate Invoice</button>
           </form>
 
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-4">
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-4">
             {invoices.map((inv) => (
               <div key={inv.id} className="p-3 bg-surface-container-low rounded">
                 <div className="flex justify-between items-center">
