@@ -81,6 +81,28 @@ function formatClaim(c) {
     accountant: c.accountant
       ? { id: c.accountant.id, fullName: `${c.accountant.firstName} ${c.accountant.lastName}` }
       : null,
+    brokerId: c.brokerId,
+    broker: c.broker ? { id: c.broker.id, name: c.broker.name, code: c.broker.code } : null,
+    brokerReference: c.brokerReference,
+    insurerClaimNumber: c.insurerClaimNumber,
+    assignedByName: c.assignedByName,
+    natureOfLoss: c.natureOfLoss,
+    claimedAmount: formatMoney(c.claimedAmount),
+    claimedAmountRaw: c.claimedAmountRaw,
+    proposedSettlement: formatMoney(c.proposedSettlement),
+    proposedSettlementRaw: c.proposedSettlementRaw,
+    agreedSettlement: formatMoney(c.agreedSettlement),
+    agreedSettlementRaw: c.agreedSettlementRaw,
+    reserveRaw: c.reserveRaw,
+    policyPeriodText: c.policyPeriodText,
+    policyCoverageText: c.policyCoverageText,
+    remarksRaw: c.remarksRaw,
+    latestStatusRaw: c.latestStatusRaw,
+    letterFollowUpRaw: c.letterFollowUpRaw,
+    isIncomplete: c.isIncomplete,
+    incompleteReasons: c.incompleteReasons,
+    importBatchId: c.importBatchId,
+    importedAt: c.importedAt?.toISOString(),
     createdById: c.createdById,
     closedById: c.closedById,
   };
@@ -149,6 +171,7 @@ export async function getClaims(filters, user) {
         claimType: true,
         status: true,
         processStatus: true,
+        broker: true,
         engineer: { select: { id: true, firstName: true, lastName: true } },
         accountant: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -169,9 +192,11 @@ export async function getClaim(id, user) {
       claimType: true,
       status: true,
       processStatus: true,
+      broker: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
       assignments: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+      insurerPanel: { include: { insuranceCompany: { select: { id: true, name: true, code: true } } } },
       statusHistory: {
         include: { changedBy: { select: { id: true, firstName: true, lastName: true } } },
         orderBy: { createdAt: 'desc' },
@@ -216,17 +241,41 @@ export async function getClaim(id, user) {
     createdAt: h.createdAt.toISOString(),
   }));
 
-  return { ...formatClaim(claim), history, processHistory };
+  const insurerPanel = (claim.insurerPanel || []).map((ci) => ({
+    id: ci.id,
+    insuranceCompany: ci.insuranceCompany,
+    isLead: ci.isLead,
+    participationPercent: ci.participationPercent ? Number(ci.participationPercent) : null,
+    insurerClaimNumber: ci.insurerClaimNumber,
+  }));
+
+  return { ...formatClaim(claim), history, processHistory, insurerPanel };
 }
 
 export async function createClaim(data, createdBy) {
-  const claimNumber = await generateClaimNumber();
+  const claimNumber = data.claimNumber || (await generateClaimNumber());
 
-  const policy = await prisma.policy.findUnique({
-    where: { id: Number(data.policyId) },
-    include: { client: true, insuranceCompany: true, claimType: true },
-  });
-  if (!policy) throw new AppError('Policy not found', 404);
+  // Resolve policy if provided; otherwise require direct client/insurer
+  let policy = null;
+  let clientId = null;
+  let insuranceCompanyId = null;
+  let claimTypeId = null;
+
+  if (data.policyId) {
+    policy = await prisma.policy.findUnique({
+      where: { id: Number(data.policyId) },
+      include: { client: true, insuranceCompany: true, claimType: true },
+    });
+    if (!policy) throw new AppError('Policy not found', 404);
+    clientId = policy.clientId;
+    insuranceCompanyId = policy.insuranceCompanyId;
+    claimTypeId = data.claimTypeId || policy.claimTypeId;
+  } else {
+    // Registry-style intake: direct client/insurer/type selection
+    clientId = data.clientId ? Number(data.clientId) : null;
+    insuranceCompanyId = data.insuranceCompanyId ? Number(data.insuranceCompanyId) : null;
+    claimTypeId = data.claimTypeId ? Number(data.claimTypeId) : null;
+  }
 
   const defaultStatus = await prisma.claimStatus.findFirst({ where: { code: 'NEW' } });
   if (!defaultStatus) throw new AppError('Default claim status not found', 500);
@@ -237,19 +286,39 @@ export async function createClaim(data, createdBy) {
   const claim = await prisma.claim.create({
     data: {
       claimNumber,
-      policyId: policy.id,
-      clientId: policy.clientId,
-      insuranceCompanyId: policy.insuranceCompanyId,
-      claimTypeId: data.claimTypeId || policy.claimTypeId,
+      policyId: policy?.id || null,
+      clientId,
+      insuranceCompanyId,
+      claimTypeId,
       statusId: defaultStatus.id,
       processStatusId: defaultProcessStatus.id,
       createdById: createdBy,
-      description: data.description,
+      // Registry fields
+      assignmentNumber: data.assignmentNumber || null,
+      insurerClaimNumber: data.insurerClaimNumber || null,
+      brokerId: data.brokerId ? Number(data.brokerId) : null,
+      brokerReference: data.brokerReference || null,
+      assignedByName: data.assignedByName || null,
+      // Descriptive
+      description: data.description || null,
+      natureOfLoss: data.natureOfLoss || null,
+      locationOfLoss: data.locationOfLoss || null,
       dateOfLoss: data.dateOfLoss ? new Date(data.dateOfLoss) : null,
-      classification: data.locationOfLoss,
+      classification: data.classification || data.locationOfLoss || null,
+      policyPeriodText: data.policyPeriodText || null,
+      policyCoverageText: data.policyCoverageText || null,
+      // Financial
       estimatedLoss: data.estimatedLoss ? Number(data.estimatedLoss) : 0,
       reserve: data.reserve ? Number(data.reserve) : 0,
       actualLoss: data.actualLoss ? Number(data.actualLoss) : 0,
+      claimedAmount: data.claimedAmount ? Number(data.claimedAmount) : null,
+      claimedAmountRaw: data.claimedAmountRaw || null,
+      reserveRaw: data.reserveRaw || null,
+      proposedSettlement: data.proposedSettlement ? Number(data.proposedSettlement) : null,
+      proposedSettlementRaw: data.proposedSettlementRaw || null,
+      agreedSettlement: data.agreedSettlement ? Number(data.agreedSettlement) : null,
+      agreedSettlementRaw: data.agreedSettlementRaw || null,
+      // Assignments
       engineerId: data.engineerId ? Number(data.engineerId) : null,
       accountantId: data.accountantId ? Number(data.accountantId) : null,
     },
@@ -371,4 +440,167 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
   }
 
   return formatClaim(updated);
+}
+
+// Update a claim's registry and descriptive fields (not status — use updateStatus/updateProcessStatus)
+export async function updateClaim(claimId, data, updatedBy) {
+  const claim = await prisma.claim.findUnique({ where: { id: claimId } });
+  if (!claim) throw new AppError('Claim not found', 404);
+
+  const updateData = { lastUserModifiedAt: new Date() };
+
+  // Registry fields
+  if (data.assignmentNumber !== undefined) updateData.assignmentNumber = data.assignmentNumber;
+  if (data.insurerClaimNumber !== undefined) updateData.insurerClaimNumber = data.insurerClaimNumber;
+  if (data.brokerId !== undefined) updateData.brokerId = data.brokerId ? Number(data.brokerId) : null;
+  if (data.brokerReference !== undefined) updateData.brokerReference = data.brokerReference;
+  if (data.assignedByName !== undefined) updateData.assignedByName = data.assignedByName;
+
+  // Relations
+  if (data.clientId !== undefined) updateData.clientId = data.clientId ? Number(data.clientId) : null;
+  if (data.insuranceCompanyId !== undefined) updateData.insuranceCompanyId = data.insuranceCompanyId ? Number(data.insuranceCompanyId) : null;
+  if (data.claimTypeId !== undefined) updateData.claimTypeId = data.claimTypeId ? Number(data.claimTypeId) : null;
+  if (data.policyId !== undefined) updateData.policyId = data.policyId ? Number(data.policyId) : null;
+  if (data.engineerId !== undefined) updateData.engineerId = data.engineerId ? Number(data.engineerId) : null;
+  if (data.accountantId !== undefined) updateData.accountantId = data.accountantId ? Number(data.accountantId) : null;
+
+  // Descriptive
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.natureOfLoss !== undefined) updateData.natureOfLoss = data.natureOfLoss;
+  if (data.locationOfLoss !== undefined) updateData.locationOfLoss = data.locationOfLoss;
+  if (data.classification !== undefined) updateData.classification = data.classification;
+  if (data.dateOfLoss !== undefined) updateData.dateOfLoss = data.dateOfLoss ? new Date(data.dateOfLoss) : null;
+  if (data.policyPeriodText !== undefined) updateData.policyPeriodText = data.policyPeriodText;
+  if (data.policyCoverageText !== undefined) updateData.policyCoverageText = data.policyCoverageText;
+
+  // Financial
+  if (data.estimatedLoss !== undefined) updateData.estimatedLoss = data.estimatedLoss ? Number(data.estimatedLoss) : 0;
+  if (data.reserve !== undefined) updateData.reserve = data.reserve ? Number(data.reserve) : 0;
+  if (data.actualLoss !== undefined) updateData.actualLoss = data.actualLoss ? Number(data.actualLoss) : 0;
+  if (data.claimedAmount !== undefined) updateData.claimedAmount = data.claimedAmount ? Number(data.claimedAmount) : null;
+  if (data.claimedAmountRaw !== undefined) updateData.claimedAmountRaw = data.claimedAmountRaw;
+  if (data.reserveRaw !== undefined) updateData.reserveRaw = data.reserveRaw;
+  if (data.proposedSettlement !== undefined) updateData.proposedSettlement = data.proposedSettlement ? Number(data.proposedSettlement) : null;
+  if (data.proposedSettlementRaw !== undefined) updateData.proposedSettlementRaw = data.proposedSettlementRaw;
+  if (data.agreedSettlement !== undefined) updateData.agreedSettlement = data.agreedSettlement ? Number(data.agreedSettlement) : null;
+  if (data.agreedSettlementRaw !== undefined) updateData.agreedSettlementRaw = data.agreedSettlementRaw;
+
+  const updated = await prisma.claim.update({
+    where: { id: claimId },
+    data: updateData,
+    include: {
+      policy: { include: { client: true, insuranceCompany: true } },
+      client: true,
+      insuranceCompany: true,
+      claimType: true,
+      status: true,
+      processStatus: true,
+      broker: true,
+      engineer: { select: { id: true, firstName: true, lastName: true } },
+      accountant: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+
+  await logAction('CLAIM_UPDATED', 'Claim', claimId, updatedBy, { fields: Object.keys(updateData) });
+  return formatClaim(updated);
+}
+
+// ============================================================================
+// Insurer panel CRUD
+// ============================================================================
+
+export async function getClaimInsurers(claimId) {
+  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+  if (!claim) throw new AppError('Claim not found', 404);
+
+  const panel = await prisma.claimInsurer.findMany({
+    where: { claimId },
+    include: {
+      insuranceCompany: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { isLead: 'desc' },
+  });
+
+  return panel.map((ci) => ({
+    id: ci.id,
+    insuranceCompany: ci.insuranceCompany,
+    isLead: ci.isLead,
+    participationPercent: ci.participationPercent ? Number(ci.participationPercent) : null,
+    insurerClaimNumber: ci.insurerClaimNumber,
+    proposedSettlement: ci.proposedSettlement ? Number(ci.proposedSettlement) : null,
+    proposedSettlementRaw: ci.proposedSettlementRaw,
+    agreedSettlement: ci.agreedSettlement ? Number(ci.agreedSettlement) : null,
+    agreedSettlementRaw: ci.agreedSettlementRaw,
+    paidAmount: ci.paidAmount ? Number(ci.paidAmount) : null,
+    offerStatus: ci.offerStatus,
+    paymentStatus: ci.paymentStatus,
+    notes: ci.notes,
+  }));
+}
+
+export async function addClaimInsurer(claimId, data, addedBy) {
+  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+  if (!claim) throw new AppError('Claim not found', 404);
+
+  const insurer = await prisma.claimInsurer.create({
+    data: {
+      claimId,
+      insuranceCompanyId: Number(data.insuranceCompanyId),
+      isLead: data.isLead || false,
+      participationPercent: data.participationPercent ? Number(data.participationPercent) : null,
+      insurerClaimNumber: data.insurerClaimNumber || null,
+      proposedSettlement: data.proposedSettlement ? Number(data.proposedSettlement) : null,
+      proposedSettlementRaw: data.proposedSettlementRaw || null,
+      agreedSettlement: data.agreedSettlement ? Number(data.agreedSettlement) : null,
+      agreedSettlementRaw: data.agreedSettlementRaw || null,
+      paidAmount: data.paidAmount ? Number(data.paidAmount) : null,
+      offerStatus: data.offerStatus || null,
+      paymentStatus: data.paymentStatus || null,
+      notes: data.notes || null,
+    },
+    include: { insuranceCompany: { select: { id: true, name: true, code: true } } },
+  });
+
+  await logAction('CLAIM_INSURER_ADDED', 'Claim', claimId, addedBy, { insurerId: data.insuranceCompanyId });
+  return insurer;
+}
+
+export async function updateClaimInsurer(claimId, insurerId, data, updatedBy) {
+  const existing = await prisma.claimInsurer.findFirst({
+    where: { id: insurerId, claimId },
+  });
+  if (!existing) throw new AppError('Insurer panel entry not found', 404);
+
+  const updateData = {};
+  if (data.isLead !== undefined) updateData.isLead = data.isLead;
+  if (data.participationPercent !== undefined) updateData.participationPercent = data.participationPercent ? Number(data.participationPercent) : null;
+  if (data.insurerClaimNumber !== undefined) updateData.insurerClaimNumber = data.insurerClaimNumber;
+  if (data.proposedSettlement !== undefined) updateData.proposedSettlement = data.proposedSettlement ? Number(data.proposedSettlement) : null;
+  if (data.proposedSettlementRaw !== undefined) updateData.proposedSettlementRaw = data.proposedSettlementRaw;
+  if (data.agreedSettlement !== undefined) updateData.agreedSettlement = data.agreedSettlement ? Number(data.agreedSettlement) : null;
+  if (data.agreedSettlementRaw !== undefined) updateData.agreedSettlementRaw = data.agreedSettlementRaw;
+  if (data.paidAmount !== undefined) updateData.paidAmount = data.paidAmount ? Number(data.paidAmount) : null;
+  if (data.offerStatus !== undefined) updateData.offerStatus = data.offerStatus;
+  if (data.paymentStatus !== undefined) updateData.paymentStatus = data.paymentStatus;
+  if (data.notes !== undefined) updateData.notes = data.notes;
+
+  const updated = await prisma.claimInsurer.update({
+    where: { id: insurerId },
+    data: updateData,
+    include: { insuranceCompany: { select: { id: true, name: true, code: true } } },
+  });
+
+  await logAction('CLAIM_INSURER_UPDATED', 'Claim', claimId, updatedBy, { insurerId, fields: Object.keys(updateData) });
+  return updated;
+}
+
+export async function removeClaimInsurer(claimId, insurerId, removedBy) {
+  const existing = await prisma.claimInsurer.findFirst({
+    where: { id: insurerId, claimId },
+  });
+  if (!existing) throw new AppError('Insurer panel entry not found', 404);
+
+  await prisma.claimInsurer.delete({ where: { id: insurerId } });
+  await logAction('CLAIM_INSURER_REMOVED', 'Claim', claimId, removedBy, { insurerId });
+  return { id: insurerId, deleted: true };
 }
