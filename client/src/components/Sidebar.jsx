@@ -15,7 +15,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: FileText, label: 'Claims', href: '/claims' },
   { icon: Users, label: 'Employees', href: '/employees' },
-  { icon: Building2, label: 'Clients', href: '/clients' },
+  { icon: Building2, label: 'Master Data', href: '/master-data' },
   { icon: FileSpreadsheet, label: 'Templates', href: '/templates' },
   { icon: BarChart3, label: 'Reports', href: '/reports' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },

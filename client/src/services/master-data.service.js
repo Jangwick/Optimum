@@ -10,6 +10,11 @@ export async function getClaimStatuses() {
   return data;
 }
 
+export async function getDocumentCategories() {
+  const { data } = await api.get('/master-data/document-categories');
+  return data;
+}
+
 export async function getClients() {
   const { data } = await api.get('/master-data/clients');
   return data;
