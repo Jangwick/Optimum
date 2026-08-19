@@ -38,3 +38,14 @@ export const upload = multer({
   fileFilter,
   limits: { fileSize: config.maxFileSize || 20 * 1024 * 1024 },
 });
+
+const templateFileFilter = (req, file, cb) => {
+  if (file.originalname.toLowerCase().endsWith('.docx')) return cb(null, true);
+  cb(new Error('Only .docx templates are allowed'), false);
+};
+
+export const templateUpload = multer({
+  storage,
+  fileFilter: templateFileFilter,
+  limits: { fileSize: config.maxFileSize || 20 * 1024 * 1024 },
+});
