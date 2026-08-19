@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getClaim, updateClaimStatus } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
+import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../services/import.service.js';
 import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument } from '../services/document.service.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
@@ -11,6 +12,7 @@ import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories } from '../services/master-data.service.js';
 import { api } from '../services/api.js';
 import { formatCurrency } from '../utils/currency.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
@@ -18,9 +20,15 @@ import { TopBar } from '../components/TopBar.jsx';
 
 export default function ClaimDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [claim, setClaim] = useState(null);
   const [statuses, setStatuses] = useState([]);
+  const [processStatuses, setProcessStatuses] = useState([]);
+  const [closingGuards, setClosingGuards] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedProcessStatus, setSelectedProcessStatus] = useState('');
+  const [processNote, setProcessNote] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
   const [statusNote, setStatusNote] = useState('');
   const [activeTab, setActiveTab] = useState('summary');
   const [loading, setLoading] = useState(true);
@@ -28,16 +36,29 @@ export default function ClaimDetail() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [claimData, statusesData] = await Promise.all([getClaim(id), getClaimStatuses()]);
+    const [claimData, statusesData, processData] = await Promise.all([
+      getClaim(id),
+      getClaimStatuses(),
+      getProcessStatuses(),
+    ]);
     setClaim(claimData.item);
     setStatuses(statusesData.items);
+    setProcessStatuses(processData.items || []);
     setSelectedStatus(claimData.item.status?.code || '');
+    setSelectedProcessStatus(claimData.item.processStatus?.code || '');
     setLoading(false);
   }, [id]);
 
   useEffect(() => {
     load();
   }, [load, refresh]);
+
+  // Load closing guards when process status approaches CLOSED
+  useEffect(() => {
+    if (claim?.processStatus?.code === 'SETTLEMENT' || selectedProcessStatus === 'CLOSED') {
+      getClosingGuards(id).then((res) => setClosingGuards(res.item)).catch(() => {});
+    }
+  }, [id, claim?.processStatus?.code, selectedProcessStatus]);
 
   const handleTransition = async (e) => {
     e.preventDefault();
@@ -47,14 +68,36 @@ export default function ClaimDetail() {
     setRefresh((r) => r + 1);
   };
 
+  const handleProcessTransition = async (e) => {
+    e.preventDefault();
+    if (!selectedProcessStatus || selectedProcessStatus === claim.processStatus?.code) return;
+    const payload = { processStatusCode: selectedProcessStatus, notes: processNote };
+    if (selectedProcessStatus === 'CLOSED' && overrideReason) {
+      payload.override = true;
+      payload.overrideReason = overrideReason;
+    }
+    try {
+      await updateProcessStatus(id, payload);
+      setProcessNote('');
+      setOverrideReason('');
+      setRefresh((r) => r + 1);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Transition failed';
+      alert(msg);
+    }
+  };
+
   const tabs = [
     { key: 'summary', label: 'Summary' },
+    { key: 'process', label: 'Process Status' },
     { key: 'investigation', label: 'Investigation' },
     { key: 'documents', label: 'Documents' },
     { key: 'assessment', label: 'Assessment' },
     { key: 'settlement', label: 'Settlement' },
     { key: 'finance', label: 'Finance' },
     { key: 'reports', label: 'Reports' },
+    { key: 'insurers', label: 'Insurer Panel' },
+    { key: 'timeline', label: 'Timeline' },
     { key: 'tasks', label: 'Tasks' },
   ];
 
@@ -83,11 +126,23 @@ export default function ClaimDetail() {
                 {claim.claimType?.name} · {claim.client?.name}
               </p>
             </div>
-            <div
-              className="px-4 py-1.5 rounded-full text-label-md font-medium"
-              style={{ backgroundColor: `${claim.status?.color}20`, color: claim.status?.color }}
-            >
-              {claim.status?.code}
+            <div className="flex flex-col items-end gap-1">
+              {claim.processStatus && (
+                <div
+                  className="px-4 py-1.5 rounded-full text-label-md font-medium"
+                  style={{ backgroundColor: `${claim.processStatus.color}20`, color: claim.processStatus.color }}
+                >
+                  {claim.processStatus.name}
+                </div>
+              )}
+              {claim.status && (
+                <div
+                  className="px-3 py-0.5 rounded-full text-label-sm font-medium opacity-70"
+                  style={{ backgroundColor: `${claim.status.color}20`, color: claim.status.color }}
+                >
+                  Internal: {claim.status.code}
+                </div>
+              )}
             </div>
           </div>
 
@@ -108,12 +163,15 @@ export default function ClaimDetail() {
           </div>
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} />}
+          {activeTab === 'process' && <ProcessStatusTab claim={claim} processStatuses={processStatuses} selectedProcessStatus={selectedProcessStatus} setSelectedProcessStatus={setSelectedProcessStatus} processNote={processNote} setProcessNote={setProcessNote} overrideReason={overrideReason} setOverrideReason={setOverrideReason} onTransition={handleProcessTransition} closingGuards={closingGuards} isAdmin={user?.role === 'ADMIN'} />}
           {activeTab === 'investigation' && <ClaimInvestigation claimId={id} />}
           {activeTab === 'documents' && <DocumentsTab claimId={id} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={id} />}
           {activeTab === 'settlement' && <SettlementTab claimId={id} />}
           {activeTab === 'finance' && <ClaimFinance claimId={id} />}
           {activeTab === 'reports' && <ReportsTab claimId={id} />}
+          {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={id} isAdmin={user?.role === 'ADMIN'} />}
+          {activeTab === 'timeline' && <TimelineTab claim={claim} />}
           {activeTab === 'tasks' && <TasksTab claimId={id} />}
         </main>
       </div>
@@ -128,17 +186,34 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
           <h3 className="text-headline-sm font-semibold text-primary mb-4">Claim Summary</h3>
           <div className="grid grid-cols-2 gap-4 text-body-md">
+            <Info label="Assignment #" value={claim.assignmentNumber} />
+            <Info label="Insurer Claim #" value={claim.insurerClaimNumber} />
             <Info label="Policy" value={claim.policy?.policyNumber} />
             <Info label="Insurer" value={claim.insuranceCompany?.name} />
+            <Info label="Broker" value={claim.broker?.name} />
             <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
             <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
+            <Info label="Nature of Loss" value={claim.natureOfLoss} />
             <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
             <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
+            <Info label="Claimed Amount" value={formatCurrency(claim.claimedAmount)} money />
+            <Info label="Proposed Settlement" value={formatCurrency(claim.proposedSettlement)} money />
+            <Info label="Agreed Settlement" value={formatCurrency(claim.agreedSettlement)} money />
           </div>
           <div className="mt-4">
             <span className="text-label-md text-outline uppercase">Description</span>
-            <p className="text-body-md mt-1">{claim.description}</p>
+            <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
+          {claim.isIncomplete && (
+            <div className="mt-4 bg-error-container/10 border border-error/30 rounded p-3">
+              <p className="text-body-sm font-medium text-error">Incomplete Record</p>
+              {claim.incompleteReasons?.length > 0 && (
+                <ul className="text-label-sm text-on-surface list-disc list-inside mt-1">
+                  {claim.incompleteReasons.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
@@ -146,6 +221,8 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           <div className="grid grid-cols-2 gap-4 text-body-md">
             <Info label="Engineer" value={claim.engineer?.fullName} />
             <Info label="Accountant" value={claim.accountant?.fullName} />
+            <Info label="Assigned By" value={claim.assignedByName} />
+            <Info label="Broker Reference" value={claim.brokerReference} />
           </div>
         </section>
       </div>
@@ -697,6 +774,190 @@ function TasksTab({ claimId }) {
         ))}
         {tasks.length === 0 && <p className="text-body-md text-on-surface-variant">No tasks yet.</p>}
       </div>
+    </div>
+  );
+}
+
+function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSelectedProcessStatus, processNote, setProcessNote, overrideReason, setOverrideReason, onTransition, closingGuards, isAdmin }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+          <h3 className="text-headline-sm font-semibold text-primary mb-4">OCS Process Status</h3>
+          <div className="mb-4">
+            <p className="text-label-md text-outline uppercase">Current Process Status</p>
+            {claim.processStatus && (
+              <div
+                className="inline-block mt-1 px-4 py-1.5 rounded-full text-label-md font-medium"
+                style={{ backgroundColor: `${claim.processStatus.color}20`, color: claim.processStatus.color }}
+              >
+                {claim.processStatus.name}
+              </div>
+            )}
+          </div>
+
+          {isAdmin && (
+            <form onSubmit={onTransition} className="space-y-4">
+              <select
+                value={selectedProcessStatus}
+                onChange={(e) => setSelectedProcessStatus(e.target.value)}
+                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+              >
+                {processStatuses.map((s) => (
+                  <option key={s.code} value={s.code}>{s.name}</option>
+                ))}
+              </select>
+              <textarea
+                value={processNote}
+                onChange={(e) => setProcessNote(e.target.value)}
+                rows={3}
+                placeholder="Notes"
+                className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+              />
+              {selectedProcessStatus === 'CLOSED' && closingGuards && !closingGuards.canClose && (
+                <div className="bg-error-container/10 border border-error/30 rounded p-4 space-y-3">
+                  <p className="text-body-md font-medium text-error">Closing guards not met:</p>
+                  <ul className="text-body-sm text-on-surface list-disc list-inside">
+                    {closingGuards.reasons?.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                  <div>
+                    <label className="block text-label-md text-on-surface-variant mb-1">Override reason (Admin only)</label>
+                    <input
+                      type="text"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      placeholder="Provide a reason to override closing guards"
+                      className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                    />
+                  </div>
+                </div>
+              )}
+              <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">
+                Update Process Status
+              </button>
+            </form>
+          )}
+
+          {!isAdmin && (
+            <p className="text-body-md text-on-surface-variant">Only Admins can change process status.</p>
+          )}
+        </section>
+      </div>
+
+      <div className="space-y-6">
+        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+          <h3 className="text-headline-sm font-semibold text-primary mb-4">Process History</h3>
+          <ul className="space-y-3 text-body-sm">
+            {claim.processHistory?.length ? (
+              claim.processHistory.map((h) => (
+                <li key={h.id} className="border-l-2 border-primary pl-3">
+                  <p className="font-medium">{h.status?.name || h.status?.code}</p>
+                  <p className="text-on-surface-variant">{h.notes || 'No notes'}</p>
+                  {h.isOverride && <p className="text-label-sm text-error">Override: {h.overrideReason}</p>}
+                  <p className="text-label-sm text-outline mt-1">
+                    {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
+                  </p>
+                </li>
+              ))
+            ) : (
+              <p className="text-on-surface-variant">No process history yet.</p>
+            )}
+          </ul>
+        </section>
+
+        {closingGuards && (
+          <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+            <h3 className="text-headline-sm font-semibold text-primary mb-4">Closing Guards</h3>
+            <p className={`text-body-md font-medium ${closingGuards.canClose ? 'text-success' : 'text-error'}`}>
+              {closingGuards.canClose ? 'Ready to close' : 'Not ready to close'}
+            </p>
+            {closingGuards.reasons?.length > 0 && (
+              <ul className="mt-2 text-body-sm text-on-surface-variant list-disc list-inside">
+                {closingGuards.reasons.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            )}
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InsurerPanelTab({ claim, claimId: _claimId, isAdmin }) {
+  const panel = claim.insurerPanel || [];
+  return (
+    <div className="space-y-6">
+      <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+        <h3 className="text-headline-sm font-semibold text-primary mb-4">Insurer Panel</h3>
+        {panel.length === 0 ? (
+          <p className="text-body-md text-on-surface-variant">No insurers on the panel. Use the API to add panel members.</p>
+        ) : (
+          <table className="w-full text-body-sm">
+            <thead>
+              <tr className="text-left text-on-surface-variant border-b border-surface-border">
+                <th className="py-2 pr-4">Insurer</th>
+                <th className="py-2 pr-4">Lead</th>
+                <th className="py-2 pr-4">Participation</th>
+                <th className="py-2 pr-4">Insurer Claim #</th>
+              </tr>
+            </thead>
+            <tbody>
+              {panel.map((ci) => (
+                <tr key={ci.id} className="border-b border-surface-border/50">
+                  <td className="py-2 pr-4 text-on-surface">{ci.insuranceCompany?.name}</td>
+                  <td className="py-2 pr-4">{ci.isLead ? <span className="text-primary font-medium">Yes</span> : '—'}</td>
+                  <td className="py-2 pr-4 text-on-surface-variant">{ci.participationPercent ? `${ci.participationPercent}%` : '—'}</td>
+                  <td className="py-2 pr-4 text-on-surface-variant">{ci.insurerClaimNumber || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {!isAdmin && panel.length === 0 && (
+          <p className="text-label-sm text-on-surface-variant mt-2">Contact an Admin to add insurers to this panel.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function TimelineTab({ claim }) {
+  const activities = claim.activities || [];
+  const correspondence = claim.correspondence || [];
+  const allEvents = [
+    ...activities.map((a) => ({ type: 'activity', date: a.occurredAt, title: a.activityType, desc: a.description, actor: a.actor, source: a.source })),
+    ...correspondence.map((c) => ({ type: 'correspondence', date: c.sentAt, title: c.type, desc: c.notes, actor: null, source: null, followUp: c.followUpDate })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  return (
+    <div className="space-y-6">
+      <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+        <h3 className="text-headline-sm font-semibold text-primary mb-4">Activity Timeline</h3>
+        {allEvents.length === 0 ? (
+          <p className="text-body-md text-on-surface-variant">No activities or correspondence recorded.</p>
+        ) : (
+          <ul className="space-y-4">
+            {allEvents.map((evt, i) => (
+              <li key={i} className="border-l-2 border-primary pl-4 relative">
+                <div className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-primary" />
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-label-sm ${evt.type === 'activity' ? 'bg-primary-container/20 text-primary' : 'bg-surface-variant/20 text-on-surface-variant'}`}>
+                    {evt.type}
+                  </span>
+                  <p className="font-medium text-body-md">{evt.title}</p>
+                </div>
+                {evt.desc && <p className="text-body-sm text-on-surface-variant mt-1">{evt.desc}</p>}
+                <p className="text-label-sm text-outline mt-1">
+                  {evt.date ? new Date(evt.date).toLocaleString() : 'No date'}
+                  {evt.actor && ` · ${evt.actor}`}
+                  {evt.source && ` · ${evt.source}`}
+                  {evt.followUp && ` · Follow-up: ${new Date(evt.followUp).toLocaleDateString()}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

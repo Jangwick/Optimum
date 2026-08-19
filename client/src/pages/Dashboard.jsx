@@ -65,12 +65,24 @@ export default function Dashboard() {
                             <p className="text-body-md font-medium text-primary">{c.claimNumber}</p>
                             <p className="text-body-sm text-on-surface-variant">{c.client}</p>
                           </div>
-                          <span
-                            className="px-2.5 py-0.5 rounded-full text-label-md font-medium"
-                            style={{ backgroundColor: `${c.status?.color}20`, color: c.status?.color }}
-                          >
-                            {c.status?.code}
-                          </span>
+                          <div className="flex flex-col items-end gap-1">
+                            {c.processStatus && (
+                              <span
+                                className="px-2.5 py-0.5 rounded-full text-label-md font-medium"
+                                style={{ backgroundColor: `${c.processStatus.color}20`, color: c.processStatus.color }}
+                              >
+                                {c.processStatus.code}
+                              </span>
+                            )}
+                            {c.status && (
+                              <span
+                                className="px-2 py-0.5 rounded-full text-label-sm opacity-60"
+                                style={{ backgroundColor: `${c.status.color}20`, color: c.status.color }}
+                              >
+                                {c.status.code}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))
                     ) : (
