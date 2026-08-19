@@ -2,6 +2,8 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import puppeteer from 'puppeteer';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
 import fs from 'fs';
 import path from 'path';
 
@@ -46,11 +48,26 @@ export async function createReportDraft(claimId, data, _userId) {
 export async function generateReport(id, userId) {
   const report = await prisma.report.findUnique({
     where: { id },
-    include: { claim: { include: { client: true, insuranceCompany: true, claimType: true, engineer: true, status: true } } },
+    include: { reportTemplate: true, claim: { include: { client: true, insuranceCompany: true, claimType: true, engineer: true, status: true } } },
   });
   if (!report) throw new AppError('Report not found', 404);
 
   const claim = report.claim;
+
+  const docData = {
+    title: report.title,
+    notes: report.notes || 'No summary provided.',
+    generatedAt: new Date().toLocaleString(),
+    claimNumber: claim.claimNumber,
+    clientName: claim.client?.name || '',
+    insurerName: claim.insuranceCompany?.name || '',
+    claimType: claim.claimType?.name || '',
+    engineerName: claim.engineer ? `${claim.engineer.firstName} ${claim.engineer.lastName}` : '—',
+    statusName: claim.status?.name || '',
+    dateOfLoss: claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—',
+    estimatedLoss: claim.estimatedLoss ? String(claim.estimatedLoss) : '—',
+    reserve: claim.reserve ? String(claim.reserve) : '—',
+  };
   const html = `
 <!DOCTYPE html>
 <html>
@@ -94,6 +111,24 @@ export async function generateReport(id, userId) {
   await page.pdf({ path: filePath, format: 'A4', printBackground: true });
   await browser.close();
 
+  let docxPath = null;
+  if (report.reportTemplate?.path && fs.existsSync(report.reportTemplate.path)) {
+    try {
+      const content = fs.readFileSync(report.reportTemplate.path, 'binary');
+      const zip = new PizZip(content);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      doc.setData(docData);
+      doc.render();
+      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+      const docxFileName = `report-${id}-${Date.now()}.docx`;
+      docxPath = path.join(reportOutputDir, String(claim.id), docxFileName);
+      fs.writeFileSync(docxPath, buffer);
+    } catch (err) {
+      // If DOCX generation fails, still continue with PDF
+      console.error('DOCX generation failed', err);
+    }
+  }
+
   const versionCount = await prisma.reportVersion.count({ where: { reportId: id } });
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -102,14 +137,15 @@ export async function generateReport(id, userId) {
         reportId: id,
         versionNumber: versionCount + 1,
         pdfPath: filePath,
+        docxPath,
         generatedById: userId,
-        notes: 'Generated from HTML template',
+        notes: 'Generated from template',
       },
     });
 
     return tx.report.update({
       where: { id },
-      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: userId, pdfPath: filePath },
+      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: userId, pdfPath: filePath, docxPath },
       include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
     });
   });

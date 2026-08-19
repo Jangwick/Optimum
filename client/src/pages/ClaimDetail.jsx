@@ -9,6 +9,7 @@ import { getReports, createReport, generateReport, askClarification } from '../s
 import { getTasks, createTask, updateTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories } from '../services/master-data.service.js';
+import { api } from '../services/api.js';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
@@ -532,13 +533,16 @@ function SettlementTab({ claimId }) {
 
 function ReportsTab({ claimId }) {
   const [reports, setReports] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
+  const [reportTemplateId, setReportTemplateId] = useState('');
   const [clarification, setClarification] = useState({});
 
   const load = async () => {
-    const { items } = await getReports(claimId);
+    const [{ items }, { data: tData }] = await Promise.all([getReports(claimId), api.get('/report-templates')]);
     setReports(items || []);
+    setTemplates(tData.items || []);
   };
 
   useEffect(() => {
@@ -547,9 +551,12 @@ function ReportsTab({ claimId }) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    await createReport(claimId, { title, notes });
+    const payload = { title, notes };
+    if (reportTemplateId) payload.reportTemplateId = reportTemplateId;
+    await createReport(claimId, payload);
     setTitle('');
     setNotes('');
+    setReportTemplateId('');
     await load();
   };
 
@@ -569,6 +576,14 @@ function ReportsTab({ claimId }) {
       <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
         <h3 className="text-headline-sm font-semibold text-primary">New Report Draft</h3>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Report title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
+        <select value={reportTemplateId} onChange={(e) => setReportTemplateId(e.target.value)} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md">
+          <option value="">Default HTML template</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.type})
+            </option>
+          ))}
+        </select>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes / summary" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
         <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Create Draft</button>
       </form>
@@ -586,7 +601,12 @@ function ReportsTab({ claimId }) {
                   Download PDF
                 </a>
               )}
-              <button onClick={() => handleGenerate(r.id)} className="h-10 px-4 bg-primary text-white rounded font-semibold">Generate PDF</button>
+              {r.docxPath && (
+                <a href={`/api/claims/${claimId}/reports/${r.id}/download/docx`} target="_blank" rel="noreferrer" className="h-10 px-4 bg-secondary text-white rounded font-semibold flex items-center">
+                  Download DOCX
+                </a>
+              )}
+              <button onClick={() => handleGenerate(r.id)} className="h-10 px-4 bg-primary text-white rounded font-semibold">Generate</button>
             </div>
           </div>
           <div className="mt-4 flex gap-2">

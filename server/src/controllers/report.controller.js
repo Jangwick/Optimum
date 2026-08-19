@@ -71,3 +71,18 @@ export async function downloadReport(req, res, next) {
     next(err);
   }
 }
+
+export async function downloadDocx(req, res, next) {
+  try {
+    const id = idParam(req);
+    const report = await prisma.report.findUnique({ where: { id } });
+    if (!report || !report.docxPath) throw new AppError('DOCX not found', 404);
+    if (!fs.existsSync(report.docxPath)) throw new AppError('File not found', 404);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(report.docxPath)}"`);
+    res.sendFile(path.resolve(report.docxPath));
+  } catch (err) {
+    next(err);
+  }
+}
