@@ -11,6 +11,10 @@ import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import masterDataRoutes from './routes/master-data.routes.js';
 import claimRoutes from './routes/claim.routes.js';
+import investigationRoutes from './routes/investigation.routes.js';
+import contactRoutes from './routes/contact.routes.js';
+import inspectionRoutes from './routes/inspection.routes.js';
+import exportRoutes from './routes/export.routes.js';
 
 const app = express();
 
@@ -40,6 +44,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/master-data', masterDataRoutes);
 app.use('/api/claims', claimRoutes);
+app.use('/api/claims/:claimId/investigations', investigationRoutes);
+app.use('/api/claims/:claimId/contacts', contactRoutes);
+app.use('/api/claims/:claimId/inspections', inspectionRoutes);
+app.use('/api/export', exportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found' });
