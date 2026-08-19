@@ -20,7 +20,8 @@
 
 ## Phase 3 — Master Data
 
-- [~] 3.1 Insurance companies, clients, policies CRUD + UI.
+- [x] 3.1 Insurance companies, clients, policies CRUD backend.
+- [~] 3.1b Insurance companies, clients, policies UI pages.
 - [ ] 3.2 Claim types and document categories CRUD + seed.
 - [ ] 3.3 18 claim statuses seed data and lookup endpoint.
 

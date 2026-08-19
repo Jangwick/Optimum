@@ -10,6 +10,7 @@ import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import masterDataRoutes from './routes/master-data.routes.js';
+import claimRoutes from './routes/claim.routes.js';
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/master-data', masterDataRoutes);
+app.use('/api/claims', claimRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found' });
