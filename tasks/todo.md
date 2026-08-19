@@ -88,8 +88,8 @@
 
 ## Phase 11 — Testing & Quality
 
-- [~] 11.1 Backend integration tests (Jest infra in place; ESM + Prisma adapter requires test DB tuning).
-- [~] 11.2 Frontend component and hook tests (Vitest not configured).
+- [x] 11.1 Backend integration tests (Jest + Supertest + dedicated MySQL test DB).
+- [x] 11.2 Frontend Vitest sanity test.
 - [x] 11.3 End-to-end manual QA checklist.
 
 ## Phase 12 — Deployment
