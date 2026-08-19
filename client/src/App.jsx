@@ -9,6 +9,7 @@ import MasterData from './pages/MasterData.jsx';
 import AuditLogs from './pages/AuditLogs.jsx';
 import Templates from './pages/Templates.jsx';
 import Employees from './pages/Employees.jsx';
+import ImportWizard from './pages/ImportWizard.jsx';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -91,6 +92,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Employees />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/imports"
+        element={
+          <ProtectedRoute roles={['ADMIN']}>
+            <ImportWizard />
           </ProtectedRoute>
         }
       />

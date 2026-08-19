@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   History,
   LogOut,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -17,6 +18,10 @@ const navItems = [
   { icon: Building2, label: 'Master Data', href: '/master-data' },
   { icon: FileSpreadsheet, label: 'Templates', href: '/templates' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },
+];
+
+const adminNavItems = [
+  { icon: Upload, label: 'Import Wizard', href: '/imports' },
 ];
 
 export function Sidebar() {
@@ -65,6 +70,32 @@ export function Sidebar() {
             )}
           </NavLink>
         ))}
+        {user?.role === 'ADMIN' && (
+          <>
+            <div className="my-2 border-t border-white/10" />
+            {adminNavItems.map((item) => (
+              <NavLink
+                key={item.label}
+                to={item.href}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors relative ${
+                    isActive
+                      ? 'bg-primary-container/30 text-white'
+                      : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r" aria-hidden="true" />}
+                    <item.icon size={20} strokeWidth={1.5} />
+                    {item.label}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="px-4 mt-auto flex flex-col gap-1">
