@@ -2,25 +2,25 @@
 
 ## Phase 1 — Foundation
 
-- [ ] 1.1 Initialize monorepo, root package, ESLint/Prettier, `.gitignore`, README.
-- [ ] 1.2 Set up MySQL 8 with `docker-compose.yml`, Prisma init, schema base, first migration.
-- [ ] 1.3 Express bootstrap with env config, pino, helmet, CORS, rate limit, error handler, health endpoint.
-- [ ] 1.4 React Vite client with Tailwind v4, design tokens from `design.md`, Hanken Grotesk + JetBrains Mono fonts, `lucide-react` 20px icons, `logo.png` in sidebar/login, and dev proxy.
+- [x] 1.1 Initialize monorepo, root package, ESLint/Prettier, `.gitignore`, README.
+- [x] 1.2 Set up MySQL 8 with `docker-compose.yml`, Prisma init, schema base, first migration.
+- [x] 1.3 Express bootstrap with env config, pino, helmet, CORS, rate limit, error handler, health endpoint.
+- [x] 1.4 React Vite client with Tailwind v4, design tokens from `design.md`, Hanken Grotesk + JetBrains Mono fonts, `lucide-react` 20px icons, `logo.png` in sidebar/login, and dev proxy.
 
 **Checkpoint 1**: `npm run lint`, `npm run build`, `npm run dev` succeed; `/api/health` and login page load.
 
 ## Phase 2 — Authentication & RBAC
 
-- [ ] 2.1 `Role` and `User` Prisma models, seed roles + initial admin, bcrypt.
-- [ ] 2.2 Login/logout/me endpoints with JWT in HTTP-only cookie, auth and RBAC middleware.
-- [ ] 2.3 Login page, `AuthContext`, role-based redirect, protected routes, role layouts.
-- [ ] 2.4 Users CRUD (admin) + profile + tests.
+- [x] 2.1 `Role` and `User` Prisma models, seed roles + initial admin, bcrypt.
+- [x] 2.2 Login/logout/me endpoints with JWT in HTTP-only cookie, auth and RBAC middleware.
+- [x] 2.3 Login page, `AuthContext`, role-based redirect, protected routes, role layouts.
+- [x] 2.4 Users CRUD (admin) + profile.
 
 **Checkpoint 2**: Login works for all three roles; RBAC blocks cross-role API calls.
 
 ## Phase 3 — Master Data
 
-- [ ] 3.1 Insurance companies, clients, policies CRUD + UI.
+- [~] 3.1 Insurance companies, clients, policies CRUD + UI.
 - [ ] 3.2 Claim types and document categories CRUD + seed.
 - [ ] 3.3 18 claim statuses seed data and lookup endpoint.
 

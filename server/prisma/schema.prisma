@@ -67,6 +67,7 @@ model User {
 model InsuranceCompany {
   id            Int      @id @default(autoincrement())
   name          String   @db.VarChar(255)
+  code          String?  @unique @db.VarChar(50)
   contactPerson String?  @db.VarChar(100)
   email         String?  @db.VarChar(255)
   phone         String?  @db.VarChar(50)
@@ -81,6 +82,7 @@ model InsuranceCompany {
 model Client {
   id            Int      @id @default(autoincrement())
   name          String   @db.VarChar(255)
+  code          String?  @unique @db.VarChar(50)
   contactPerson String?  @db.VarChar(100)
   email         String?  @db.VarChar(255)
   phone         String?  @db.VarChar(50)
@@ -99,10 +101,16 @@ model Policy {
   insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
   clientId           Int
   client             Client           @relation(fields: [clientId], references: [id])
+  claimTypeId        Int
+  claimType          ClaimType        @relation(fields: [claimTypeId], references: [id])
   coverageDetails    String?          @db.Text
+  policyType         String?          @db.VarChar(100)
   startDate          DateTime
   endDate            DateTime?
+  sumInsured         Decimal?         @db.Decimal(15,2)
   premium            Decimal?         @db.Decimal(15,2)
+  excess             Decimal?         @db.Decimal(15,2)
+  notes              String?          @db.Text
   claims             Claim[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -114,6 +122,7 @@ model ClaimType {
   name        String                @db.VarChar(100)
   code        String                @unique @db.VarChar(50)
   description String?               @db.Text
+  policies    Policy[]
   claims      Claim[]
   requirements DocumentRequirement[]
   createdAt   DateTime              @default(now())
