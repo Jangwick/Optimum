@@ -1,77 +1,36 @@
-feat: redesign TasksTab with full CRUD, priority, status flow, and polished UX
+feat: add Active/Closed/Cancelled view tabs to Claims Registry
 
-Complete rewrite of TasksTab in ClaimDetail plus backend enhancements:
+Adds view-based filtering tabs to the Claims Registry page so users can
+switch between active, closed, and cancelled claims without using the
+process status dropdown.
 
-Summary cards (always visible):
-- Total Tasks (count)
-- Pending (PENDING + IN_PROGRESS count)
-- Completed (COMPLETED count)
-- Overdue (tasks past due date, not completed/cancelled)
+Frontend (Claims.jsx):
+- New `view` state with three tabs above the table:
+  - Active (default) — shows editable, non-read-only claims
+  - Closed — shows read-only, non-cancelled claims
+  - Cancelled — shows cancelled claims
+- Each tab has an icon (ClipboardList, Lock, Ban)
+- Active tab highlighted with primary background
+- View param sent to API in both list and export requests
+- Clear filters button resets view to Active
+- Switching tabs resets to page 1
 
-Create form:
-- Card with primary left border
-- All fields with labels:
-  - Title (text, required)
-  - Assign To (select, required, disabled if no users)
-  - Description (textarea)
-  - Due Date (date picker)
-  - Priority (select: Low/Medium/High/Urgent, default Medium)
-- Create Task button with loading state, disabled until valid
-- Form resets after successful creation
+Backend (claim.service.js):
+- getClaims now accepts `view` param:
+  - active: where.isReadOnly = false
+  - closed: where.isReadOnly = true, where.isCancelled = false
+  - cancelled: where.isCancelled = true
 
-Task cards:
-- Card with left border (primary or error if overdue)
-- Header:
-  - Icon badge (success if completed, error if overdue, primary otherwise)
-  - Title (strikethrough if completed)
-  - Priority badge (LOW=neutral, MEDIUM=primary, HIGH=orange, URGENT=error)
-  - Assigned to / Created by metadata
-  - Status pill with dot indicator:
-    - PENDING (orange)
-    - IN_PROGRESS (primary)
-    - COMPLETED (success)
-    - CANCELLED (neutral)
-- Body:
-  - Description
-  - Due date (red if overdue)
-  - Completed date (if completed)
-  - Created date
-- Status transitions:
-  - PENDING: Start, Complete, Cancel
-  - IN_PROGRESS: Complete, Cancel
-  - CANCELLED: Reopen
-  - COMPLETED: (no status actions)
-- Delete button (with confirmation) on all tasks
-
-Empty state with icon and hint.
-Loading state.
-Error banner with dismiss button.
-Saving state on all async operations.
-
-Backend enhancements (task.service.js):
-- createTask now accepts and persists priority field (default MEDIUM)
-- updateTask now:
-  - Uses explicit field allowlist instead of spreading all data
-  - Sets completedAt when status changes to COMPLETED
-  - Clears completedAt when status changes away from COMPLETED
-  - Accepts priority updates
-
-Frontend service (task.service.js):
-- Added deleteTask function
+Backend (export.service.js):
+- exportClaimsToExcel now accepts `view` param with same filtering logic
 
 Verified in browser:
-1. Created task: "Schedule site inspection", assigned to Field Engineer,
-   HIGH priority, description "Coordinate with client for access to
-   the property"
-   - Total Tasks: 1, Pending: 1
-   - Task card: HIGH badge, PENDING status pill, Start/Complete/Cancel/Delete
-2. Clicked Start: status changed to IN PROGRESS (primary blue)
-   - Pending: 1, actions changed to Complete/Cancel
-3. Clicked Complete: status changed to COMPLETED (success green)
-   - Pending: 0, Completed: 1
-   - Title strikethrough, Completed date shown
-   - Only Delete button remains
-4. No JS errors
+1. Active tab (default): shows 4 claims (all active)
+2. Closed tab: shows "No claims found" (no closed claims exist)
+3. Cancelled tab: shows "No claims found" (no cancelled claims exist)
+4. Switching back to Active: shows 4 claims again
+5. Clear button appears when view is not Active
+6. No JS errors
 
 Generated with [Devin](https://devin.ai)
 

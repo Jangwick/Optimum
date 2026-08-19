@@ -16,6 +16,15 @@ export async function exportClaimsToExcel(filters, user) {
   if (filters.processStatus) where.processStatus = { code: filters.processStatus };
   if (filters.clientId) where.clientId = Number(filters.clientId);
 
+  if (filters.view === 'active') {
+    where.isReadOnly = false;
+  } else if (filters.view === 'closed') {
+    where.isReadOnly = true;
+    where.isCancelled = false;
+  } else if (filters.view === 'cancelled') {
+    where.isCancelled = true;
+  }
+
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
 

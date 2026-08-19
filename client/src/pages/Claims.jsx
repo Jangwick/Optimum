@@ -123,6 +123,7 @@ export default function Claims() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
+  const [view, setView] = useState('active');
   const [visibleCols, setVisibleCols] = useState(
     () => Object.fromEntries(ALL_COLUMNS.map((c) => [c.key, c.default]))
   );
@@ -141,18 +142,19 @@ export default function Claims() {
       limit,
       search,
       processStatus: filters.processStatus || '',
+      view,
       sortField,
       sortOrder,
     };
     getClaims(params)
       .then((res) => setData(res))
       .finally(() => setLoading(false));
-  }, [page, limit, search, filters, sortField, sortOrder, refresh]);
+  }, [page, limit, search, filters, view, sortField, sortOrder, refresh]);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportClaims({ search, processStatus: filters.processStatus });
+      const blob = await exportClaims({ search, processStatus: filters.processStatus, view });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
@@ -166,7 +168,7 @@ export default function Claims() {
     }
   };
 
-  const hasActiveFilters = search || filters.processStatus;
+  const hasActiveFilters = search || filters.processStatus || view !== 'active';
 
   const summaryStats = useMemo(() => {
     const items = data.items;
@@ -308,6 +310,7 @@ export default function Claims() {
   const clearFilters = () => {
     applySearch('');
     applyFilters({ ...filters, processStatus: '' });
+    setView('active');
     setPage(1);
   };
 
@@ -382,6 +385,35 @@ export default function Claims() {
                 <p className="text-headline-sm font-semibold text-on-surface tabular-nums">{summaryStats.cancelled}</p>
               </div>
             </div>
+          </div>
+
+          {/* View Tabs */}
+          <div className="flex items-center gap-1 mb-4 bg-surface border border-surface-border rounded-lg p-1 w-fit">
+            {[
+              { key: 'active', label: 'Active', icon: ClipboardList },
+              { key: 'closed', label: 'Closed', icon: Lock },
+              { key: 'cancelled', label: 'Cancelled', icon: Ban },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = view === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    setView(tab.key);
+                    setPage(1);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-body-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-white'
+                      : 'text-on-surface-variant hover:bg-surface-container-high'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Unified Table Container: Filters + Table + Pagination */}

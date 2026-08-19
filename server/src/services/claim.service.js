@@ -137,6 +137,7 @@ export async function getClaims(filters, user) {
     clientId,
     engineerId,
     accountantId,
+    view,
     page = 1,
     limit = 25,
     sortField = 'createdAt',
@@ -166,6 +167,16 @@ export async function getClaims(filters, user) {
   if (clientId) where.clientId = Number(clientId);
   if (engineerId) where.engineerId = Number(engineerId);
   if (accountantId) where.accountantId = Number(accountantId);
+
+  // View-based filtering: active, closed, cancelled
+  if (view === 'active') {
+    where.isReadOnly = false;
+  } else if (view === 'closed') {
+    where.isReadOnly = true;
+    where.isCancelled = false;
+  } else if (view === 'cancelled') {
+    where.isCancelled = true;
+  }
 
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
