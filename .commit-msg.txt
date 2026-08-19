@@ -1,70 +1,55 @@
-feat: redesign InsurerPanelTab with full CRUD, financials, and polished UX
+feat: redesign TimelineTab with unified events, filters, and polished UX
 
-Complete rewrite of InsurerPanelTab in ClaimDetail plus backend fix:
+Complete rewrite of TimelineTab in ClaimDetail:
 
 Summary cards (always visible):
-- Insurers (count of panel members)
-- Lead Insurer (name of lead insurer, or None)
-- Total Participation (sum of participation percentages)
+- Total Events (count of all events)
+- Activities (count of activity events)
+- Correspondence (count of correspondence events)
+- Status Changes (count of process status changes)
 
-Add/Edit form (admin only):
-- Card form with all fields:
-  - Insurance Company dropdown (disabled when editing)
-  - Participation % (0-100, monospace)
-  - Insurer Claim # (monospace)
-  - Proposed Settlement (monospace, PHP)
-  - Agreed Settlement (monospace, PHP)
-  - Paid Amount (monospace, PHP)
-  - Offer Status dropdown (None/Pending/Accepted/Rejected/Countered)
-  - Payment Status dropdown (None/Pending/Partial/Paid)
-  - Lead Insurer checkbox
-  - Notes
-- Add to Panel / Update Insurer button with loading state
-- Cancel button
-- Form resets after successful save
-- Edit mode pre-populates all fields from existing entry
+Unified timeline:
+- Combines three event sources into one chronological view:
+  1. Activities (from claim.activities)
+  2. Correspondence (from claim.correspondence)
+  3. Status Changes (from claim.processHistory) — previously missing
+- All events sorted by date (newest first)
+- Each event has a unique ID prefix (a-, c-, s-) for proper React keys
 
-Insurer cards:
-- Header: icon badge (primary if lead), insurer name, Lead badge
-  (if lead), code, claim #, participation %
-- Admin actions: Edit, Toggle Lead, Remove (with confirmation)
-- Financial details grid:
-  - Proposed (PHP formatted)
-  - Agreed (PHP formatted)
-  - Paid (PHP formatted)
-  - Balance (auto-calculated: Agreed - Paid)
-- Status badges:
-  - Offer status (PENDING=orange, ACCEPTED=success, REJECTED=error,
-    COUNTERED=primary)
-  - Payment status (PENDING=orange, PARTIAL=primary, PAID=success)
-- Notes display
+Filter tabs:
+- All Events (total count)
+- Activities (count)
+- Correspondence (count)
+- Status Changes (count)
+- Active filter highlighted with primary background
+- Count badges on each filter tab
+- Empty state adapts to selected filter
 
-Empty state with icon and contextual hint.
-Error banner with dismiss button.
-Saving state on all async operations.
-
-Backend fix (claim.service.js):
-- getClaimDetails insurerPanel mapping now includes all financial
-  fields: proposedSettlement, agreedSettlement, paidAmount,
-  offerStatus, paymentStatus, notes
-- Previously only returned id, insuranceCompany, isLead,
-  participationPercent, insurerClaimNumber
+Timeline visual design:
+- Card with primary left border and header
+- Vertical timeline with icon badges:
+  - Activities: GitBranch icon, primary color
+  - Correspondence: FileText icon, secondary color
+  - Status Changes: CheckCircle icon, success color
+- Connecting line between events (hidden on last item)
+- Each event in a rounded card with:
+  - Type badge (color-coded)
+  - Event title
+  - Historical badge (for historical correspondence)
+  - Description
+  - Metadata: date, actor, source, follow-up date
+- Empty state with icon and contextual hint
 
 Verified in browser:
-1. Added Global Insurance to panel (60% participation, CLM-2026-001,
-   lead insurer)
-   - Insurers: 1, Lead Insurer: Global Insurance
-2. Toggled lead status (Set as lead → Remove lead → Set as lead)
-3. Edited insurer with financial data:
-   - Proposed: ₱25,000, Agreed: ₱22,000, Paid: ₱15,000
-   - Offer: ACCEPTED, Payment: PARTIAL
-   - Notes: "Lead insurer handling majority of claim"
-4. After update:
-   - Total Participation: 60%
-   - Proposed: ₱25,000.00, Agreed: ₱22,000.00, Paid: ₱15,000.00
-   - Balance: ₱7,000.00 (auto-calculated)
-   - ACCEPTED and PARTIAL badges shown
-   - Notes displayed
+1. Timeline shows 1 status change event (Claim Assigned)
+   - Total Events: 1, Activities: 0, Correspondence: 0, Status Changes: 1
+2. Filter tabs work:
+   - All Events: shows 1 event
+   - Activities: shows empty state "No activity events recorded"
+   - Status Changes: shows 1 event
+3. Event card displays: status badge, title, description, date, actor
+4. No JS errors
+5. Accessibility warnings reduced from 12+11 to 2+2
 
 Generated with [Devin](https://devin.ai)
 

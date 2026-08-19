@@ -2428,45 +2428,187 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
 }
 
 function TimelineTab({ claim }) {
-  const activities = claim.activities || [];
-  const correspondence = claim.correspondence || [];
-  const allEvents = [
-    ...activities.map((a) => ({ type: 'activity', date: a.occurredAt, title: a.activityType, desc: a.description, actor: a.actor, source: a.source })),
-    ...correspondence.map((c) => ({ type: 'correspondence', date: c.sentAt, title: c.type, desc: c.notes, actor: null, source: null, followUp: c.followUpDate })),
-  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const [filter, setFilter] = useState('all');
+
+  const activities = (claim.activities || []).map((a) => ({
+    id: `a-${a.id}`,
+    type: 'activity',
+    date: a.occurredAt,
+    title: a.activityType,
+    desc: a.description,
+    actor: a.actor,
+    source: a.source,
+  }));
+  const correspondence = (claim.correspondence || []).map((c) => ({
+    id: `c-${c.id}`,
+    type: 'correspondence',
+    date: c.sentAt,
+    title: c.type,
+    desc: c.notes,
+    actor: c.recipient,
+    source: null,
+    followUp: c.followUpDate,
+    isHistorical: c.isHistorical,
+  }));
+  const statusChanges = (claim.processHistory || []).map((h) => ({
+    id: `s-${h.id}`,
+    type: 'status',
+    date: h.createdAt,
+    title: h.status?.name || h.status?.code || 'Status Change',
+    desc: h.notes,
+    actor: h.changedBy,
+    source: h.isOverride ? `Override: ${h.overrideReason}` : null,
+  }));
+
+  const allEvents = [...activities, ...correspondence, ...statusChanges].sort(
+    (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
+  );
+
+  const filteredEvents = filter === 'all' ? allEvents : allEvents.filter((e) => e.type === filter);
+
+  const EVENT_CONFIG = {
+    activity: { icon: GitBranch, badgeBg: 'bg-primary/10', badgeText: 'text-primary' },
+    correspondence: { icon: FileText, badgeBg: 'bg-secondary/10', badgeText: 'text-secondary' },
+    status: { icon: CheckCircle, badgeBg: 'bg-success/10', badgeText: 'text-success' },
+  };
+
+  const filters = [
+    { key: 'all', label: 'All Events', count: allEvents.length },
+    { key: 'activity', label: 'Activities', count: activities.length },
+    { key: 'correspondence', label: 'Correspondence', count: correspondence.length },
+    { key: 'status', label: 'Status Changes', count: statusChanges.length },
+  ];
 
   return (
     <div className="space-y-6">
-      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-        <Clock size={18} className="text-primary" />
-        <h3 className="text-headline-sm font-semibold text-primary">Activity Timeline</h3>
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Clock size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Total Events</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{allEvents.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <GitBranch size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Activities</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{activities.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+            <FileText size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Correspondence</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{correspondence.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <CheckCircle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Status Changes</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{statusChanges.length}</p>
+          </div>
+        </div>
       </div>
-        {allEvents.length === 0 ? (
-          <p className="text-body-md text-on-surface-variant">No activities or correspondence recorded.</p>
-        ) : (
-          <ul className="space-y-4">
-            {allEvents.map((evt, i) => (
-              <li key={i} className="relative pl-6 pb-4 last:pb-0">
-                <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
-                <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-label-sm font-medium ${evt.type === 'activity' ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
-                    {evt.type}
-                  </span>
-                  <p className="font-medium text-body-md text-on-surface">{evt.title}</p>
-                </div>
-                {evt.desc && <p className="text-body-sm text-on-surface-variant mt-1">{evt.desc}</p>}
-                <p className="text-label-sm text-outline mt-1 font-mono">
-                  {evt.date ? new Date(evt.date).toLocaleString() : 'No date'}
-                  {evt.actor && ` · ${evt.actor}`}
-                  {evt.source && ` · ${evt.source}`}
-                  {evt.followUp && ` · Follow-up: ${new Date(evt.followUp).toLocaleDateString()}`}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+
+      <section className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <Clock size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Activity Timeline</h3>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 p-3 border-b border-surface-border overflow-x-auto">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body-sm font-medium transition-colors whitespace-nowrap ${
+                filter === f.key ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-container-high'
+              }`}
+            >
+              {f.label}
+              <span className={`px-1.5 py-0.5 rounded text-label-sm font-mono ${
+                filter === f.key ? 'bg-white/20' : 'bg-surface-container-high'
+              }`}>
+                {f.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Timeline */}
+        <div className="p-4">
+          {filteredEvents.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock size={32} className="text-outline mx-auto mb-2" />
+              <p className="text-body-md text-on-surface-variant">
+                {filter === 'all'
+                  ? 'No events recorded yet.'
+                  : `No ${filter} events recorded.`}
+              </p>
+              <p className="text-body-sm text-outline mt-1">
+                Events will appear here as the claim progresses through the workflow.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-0">
+              {filteredEvents.map((evt, i) => {
+                const config = EVENT_CONFIG[evt.type] || EVENT_CONFIG.activity;
+                const Icon = config.icon;
+                const isLast = i === filteredEvents.length - 1;
+                return (
+                  <li key={evt.id} className="relative pl-10 pb-6 last:pb-0">
+                    {!isLast && (
+                      <span className="absolute left-[15px] top-8 bottom-0 w-px bg-surface-border" />
+                    )}
+                    <span className={`absolute left-0 top-1 w-8 h-8 rounded-full ${config.badgeBg} ${config.badgeText} flex items-center justify-center ring-4 ring-surface`}>
+                      <Icon size={16} />
+                    </span>
+                    <div className="bg-surface-container-low border border-surface-border rounded-lg p-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-md font-medium ${config.badgeBg} ${config.badgeText}`}>
+                          {evt.type}
+                        </span>
+                        <p className="font-medium text-body-md text-on-surface">{evt.title}</p>
+                        {evt.isHistorical && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-label-sm font-medium bg-accent-orange/10 text-accent-orange">
+                            Historical
+                          </span>
+                        )}
+                      </div>
+                      {evt.desc && (
+                        <p className="text-body-sm text-on-surface-variant mt-1.5">{evt.desc}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2 text-label-sm text-outline font-mono flex-wrap">
+                        <span>
+                          {evt.date ? new Date(evt.date).toLocaleString() : 'No date'}
+                        </span>
+                        {evt.actor && <span>· {evt.actor}</span>}
+                        {evt.source && <span>· {evt.source}</span>}
+                        {evt.followUp && (
+                          <span className="text-accent-orange">· Follow-up: {new Date(evt.followUp).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </section>
     </div>
   );
