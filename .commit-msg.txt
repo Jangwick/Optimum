@@ -1,25 +1,38 @@
-feat: add photo viewer modal for inspection photos
+feat: redesign AssessmentTab with full CRUD and polished UX
 
-Clicking an inspection photo now opens a full-screen modal showing
-the image at full size with download and close actions.
+Complete rewrite of the Assessment tab in ClaimDetail:
 
-Backend:
-- Added GET /api/claims/:claimId/inspections/photos/:photoId route
-  that streams the photo file with correct Content-Type
-- Added getPhoto service and getInspectionPhoto controller
+Form improvements:
+- Column headers (Description, Qty, Unit Cost) for line items
+- Grid layout with fixed-width columns for qty/unit cost
+- Remove line button per row (disabled when only 1 line)
+- Add Line button with Plus icon
+- Notes textarea with proper label
+- Focus styles on all inputs (border-primary + ring)
+- Min/max attributes on number inputs
+- Monospace font for qty and unit cost fields
+- Save button with icon and loading state ("Saving...")
+- Form resets after successful save
 
-Frontend:
-- Photo thumbnails now render as actual <img> elements (with Camera
-  icon fallback on error) instead of just a placeholder icon
-- Each photo thumbnail is a clickable button that opens the modal
-- Photo viewer modal features:
-  - Full-size image display (object-contain, max 65vh height)
-  - Header with filename and caption
-  - Download button (downloads original file)
-  - Close button (X icon)
-  - Click outside or ESC-style backdrop to close
-  - Backdrop overlay (bg-black/80)
-  - Stop propagation on modal content to prevent accidental close
+Assessment cards:
+- Card design with primary left border, header, and body sections
+- Header: icon badge, Assessment #ID, timestamp + preparedBy
+- Total amount in header right with delete button
+- Notes section with label
+- Line items in a clean table-like layout with proper alignment
+- Depreciation row (if > 0)
+- Total row at bottom with border separator
+
+State management:
+- Loading state during fetch
+- Saving state during create
+- Error state with AlertTriangle banner
+- Confirmation dialog before delete
+- Empty state with icon and hint text
+
+Verified in browser: created assessment with 2 line items,
+total calculated correctly (₱10,000.00), card displayed with
+all metadata, delete button works with confirmation.
 
 Generated with [Devin](https://devin.ai)
 

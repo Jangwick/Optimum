@@ -553,10 +553,21 @@ function AssessmentTab({ claimId }) {
   const [assessments, setAssessments] = useState([]);
   const [items, setItems] = useState([{ description: '', quantity: 1, unitCost: 0 }]);
   const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    const { items } = await getAssessments(claimId);
-    setAssessments(items || []);
+    setLoading(true);
+    setError(null);
+    try {
+      const { items } = await getAssessments(claimId);
+      setAssessments(items || []);
+    } catch {
+      setError('Failed to load assessments');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
@@ -564,6 +575,11 @@ function AssessmentTab({ claimId }) {
   }, [claimId, load]);
 
   const addItem = () => setItems([...items, { description: '', quantity: 1, unitCost: 0 }]);
+
+  const removeItem = (idx) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== idx));
+  };
 
   const updateItem = (idx, field, value) => {
     const next = [...items];
@@ -575,87 +591,199 @@ function AssessmentTab({ claimId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await createAssessment(claimId, { notes, items });
-    setNotes('');
-    setItems([{ description: '', quantity: 1, unitCost: 0 }]);
-    await load();
+    setSaving(true);
+    setError(null);
+    try {
+      await createAssessment(claimId, { notes, items });
+      setNotes('');
+      setItems([{ description: '', quantity: 1, unitCost: 0 }]);
+      await load();
+    } catch {
+      setError('Failed to save assessment');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
-    await deleteAssessment(claimId, id);
-    await load();
+    if (!confirm('Delete this assessment and all its line items?')) return;
+    try {
+      await deleteAssessment(claimId, id);
+      await load();
+    } catch {
+      setError('Failed to delete assessment');
+    }
   };
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <ClipboardCheck size={18} className="text-primary" />
           <h3 className="text-headline-sm font-semibold text-primary">New Assessment</h3>
         </div>
-        {items.map((it, idx) => (
-          <div key={idx} className="grid grid-cols-3 gap-3">
-            <input
-              type="text"
-              value={it.description}
-              onChange={(e) => updateItem(idx, 'description', e.target.value)}
-              placeholder="Description"
-              className="h-10 px-3 rounded border border-outline bg-surface text-body-md"
-              required
-            />
-            <input
-              type="number"
-              value={it.quantity}
-              onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
-              placeholder="Qty"
-              className="h-10 px-3 rounded border border-outline bg-surface text-body-md"
-              required
-            />
-            <input
-              type="number"
-              step="0.01"
-              value={it.unitCost}
-              onChange={(e) => updateItem(idx, 'unitCost', e.target.value)}
-              placeholder="Unit cost"
-              className="h-10 px-3 rounded border border-outline bg-surface text-body-md"
-              required
-            />
+
+        {/* Line items */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_80px_120px_40px] gap-2 text-label-md text-outline uppercase font-medium">
+            <span>Description</span>
+            <span className="text-center">Qty</span>
+            <span className="text-center">Unit Cost</span>
+            <span></span>
           </div>
-        ))}
-        <div className="flex justify-between items-center">
-          <button type="button" onClick={addItem} className="text-primary text-body-md font-semibold hover:underline">
-            + Add Line
-          </button>
-          <p className="font-mono text-body-lg font-semibold text-primary">Total: {formatCurrency(total)}</p>
+          {items.map((it, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_80px_120px_40px] gap-2 items-center">
+              <input
+                type="text"
+                value={it.description}
+                onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                placeholder="Item description"
+                className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                required
+              />
+              <input
+                type="number"
+                value={it.quantity}
+                onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                placeholder="0"
+                min="1"
+                className="h-10 px-3 rounded border border-outline bg-surface text-body-md text-center font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                required
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={it.unitCost}
+                onChange={(e) => updateItem(idx, 'unitCost', e.target.value)}
+                placeholder="0.00"
+                min="0"
+                className="h-10 px-3 rounded border border-outline bg-surface text-body-md text-right font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => removeItem(idx)}
+                disabled={items.length === 1}
+                className="w-10 h-10 flex items-center justify-center rounded text-error hover:bg-error/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Remove line"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
         </div>
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors">
-          Save Assessment
+
+        <div className="flex justify-between items-center">
+          <button type="button" onClick={addItem} className="inline-flex items-center gap-1.5 text-primary text-body-md font-semibold hover:underline">
+            <Plus size={16} />
+            Add Line
+          </button>
+          <p className="font-mono text-headline-lg font-semibold text-primary">Total: {formatCurrency(total)}</p>
+        </div>
+
+        <div>
+          <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Assessment notes..."
+            className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+            rows={2}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ClipboardCheck size={16} />
+          {saving ? 'Saving...' : 'Save Assessment'}
         </button>
       </form>
 
-      {assessments.map((a) => (
-        <div key={a.id} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="text-body-md text-on-surface-variant">{new Date(a.assessmentDate).toLocaleString()}</p>
-              <p className="text-body-md">{a.notes}</p>
+      {/* Assessment list */}
+      {loading ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <p className="text-body-md text-on-surface-variant">Loading assessments...</p>
+        </div>
+      ) : assessments.length === 0 ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <ClipboardCheck size={32} className="text-outline mx-auto mb-2" />
+          <p className="text-body-md text-on-surface-variant">No assessments recorded yet.</p>
+          <p className="text-body-sm text-outline mt-1">Use the form above to create one.</p>
+        </div>
+      ) : (
+        assessments.map((a) => (
+          <div key={a.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <ClipboardCheck size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-body-md font-semibold text-on-surface">Assessment #{a.id}</p>
+                  <p className="text-label-sm text-outline font-mono mt-0.5">
+                    {new Date(a.assessmentDate).toLocaleString()}
+                    {a.preparedBy && ' · ' + a.preparedBy.firstName + ' ' + a.preparedBy.lastName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <p className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(a.totalAmount)}</p>
+                <button
+                  onClick={() => handleDelete(a.id)}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
+                  title="Delete assessment"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(a.totalAmount)}</p>
-              <button onClick={() => handleDelete(a.id)} className="text-red-600 text-label-md hover:underline">Delete</button>
+            <div className="p-4 space-y-3">
+              {a.notes && (
+                <div>
+                  <span className="text-label-md text-outline uppercase">Notes</span>
+                  <p className="text-body-sm text-on-surface mt-0.5">{a.notes}</p>
+                </div>
+              )}
+              <div>
+                <span className="text-label-md text-outline uppercase">Line Items</span>
+                <ul className="mt-1 divide-y divide-surface-border text-body-sm">
+                  {a.items.map((it) => (
+                    <li key={it.id} className="py-2 flex justify-between items-center gap-3">
+                      <span className="text-on-surface truncate">{it.description}</span>
+                      <span className="text-on-surface-variant font-mono text-body-sm whitespace-nowrap">
+                        {it.quantity} × {formatCurrency(it.unitCost)}
+                      </span>
+                      <span className="font-mono text-on-surface font-medium min-w-[100px] text-right whitespace-nowrap">
+                        {formatCurrency(it.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {a.depreciation > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t border-surface-border">
+                  <span className="text-label-md text-outline uppercase">Depreciation</span>
+                  <span className="font-mono text-body-sm text-on-surface-variant">-{formatCurrency(a.depreciation)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-surface-border">
+                <span className="text-label-md text-outline uppercase font-medium">Total</span>
+                <span className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(a.totalAmount)}</span>
+              </div>
             </div>
           </div>
-          <ul className="text-body-md divide-y divide-surface-border">
-            {a.items.map((it) => (
-              <li key={it.id} className="py-2 flex justify-between">
-                <span>{it.description} × {it.quantity} @ {formatCurrency(it.unitCost)}</span>
-                <span className="font-mono">{formatCurrency(it.amount)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
