@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
@@ -24,6 +24,7 @@ const navItems = [
 export function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -46,14 +47,18 @@ export function Sidebar() {
 
       <div className="flex-1 flex flex-col gap-1 px-4">
         {navItems.map((item) => (
-          <a
+          <button
             key={item.label}
-            href={item.href}
-            className="flex items-center gap-3 px-4 py-3 rounded text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-colors text-label-md"
+            onClick={() => navigate(item.href)}
+            className={`flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors ${
+              location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href))
+                ? 'bg-primary-container/30 text-white'
+                : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
+            }`}
           >
             <item.icon size={20} strokeWidth={1.5} />
             {item.label}
-          </a>
+          </button>
         ))}
       </div>
 
@@ -69,7 +74,7 @@ export function Sidebar() {
         </div>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-colors text-label-md"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded text-left text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-colors text-label-md"
         >
           <LogOut size={20} strokeWidth={1.5} />
           Logout

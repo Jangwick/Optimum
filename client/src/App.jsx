@@ -2,8 +2,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Claims from './pages/Claims.jsx';
+import ClaimDetail from './pages/ClaimDetail.jsx';
+import NewClaim from './pages/NewClaim.jsx';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -14,7 +17,9 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  return children;
 }
 
 export default function App() {
@@ -26,6 +31,30 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/claims"
+        element={
+          <ProtectedRoute>
+            <Claims />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/claims/new"
+        element={
+          <ProtectedRoute roles={['ADMIN']}>
+            <NewClaim />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/claims/:id"
+        element={
+          <ProtectedRoute>
+            <ClaimDetail />
           </ProtectedRoute>
         }
       />
