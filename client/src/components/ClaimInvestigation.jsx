@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getInvestigations, createInvestigation, getContacts, createContact, getInspections, createInspection, updateInspection } from '../services/investigation.service.js';
 
 export default function ClaimInvestigation({ claimId }) {
@@ -8,7 +8,7 @@ export default function ClaimInvestigation({ claimId }) {
   const [inspections, setInspections] = useState([]);
   const [refresh, setRefresh] = useState(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [inv, con, ins] = await Promise.all([
       getInvestigations(claimId),
       getContacts(claimId),
@@ -17,11 +17,11 @@ export default function ClaimInvestigation({ claimId }) {
     setInvestigations(inv.items || []);
     setContacts(con.items || []);
     setInspections(ins.items || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId, refresh]);
+  }, [claimId, refresh, load]);
 
   const [invForm, setInvForm] = useState({ findings: '', notes: '' });
   const [conForm, setConForm] = useState({ name: '', role: '', phone: '', email: '' });

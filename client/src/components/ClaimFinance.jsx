@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getFees, createFee, getInvoices, createInvoice, recordPayment } from '../services/fee.service.js';
 import { getUsers } from '../services/user.service.js';
 
@@ -9,16 +9,16 @@ export default function ClaimFinance({ claimId }) {
   const [users, setUsers] = useState([]);
   const [refresh, setRefresh] = useState(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [f, inv, u] = await Promise.all([getFees(claimId), getInvoices(claimId), getUsers()]);
     setFees(f.items || []);
     setInvoices(inv.items || []);
     setUsers(u.users || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId, refresh]);
+  }, [claimId, refresh, load]);
 
   const [feeForm, setFeeForm] = useState({ feeType: 'INSPECTION', amount: '', description: '', userId: '' });
   const [invoiceForm, setInvoiceForm] = useState({ feeIds: [], dueDate: '', notes: '' });

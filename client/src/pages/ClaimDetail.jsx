@@ -217,17 +217,17 @@ function DocumentsTab({ claimId }) {
   const [categoryId, setCategoryId] = useState('');
   const [desc, setDesc] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const [docData, catData] = await Promise.all([getDocuments(claimId), getDocumentCategories()]);
     setChecklist(docData.items || []);
     setCategories(catData.items || []);
     setLoading(false);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId]);
+  }, [claimId, load]);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -323,14 +323,14 @@ function AssessmentTab({ claimId }) {
   const [items, setItems] = useState([{ description: '', quantity: 1, unitCost: 0 }]);
   const [notes, setNotes] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { items } = await getAssessments(claimId);
     setAssessments(items || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId]);
+  }, [claimId, load]);
 
   const addItem = () => setItems([...items, { description: '', quantity: 1, unitCost: 0 }]);
 
@@ -432,15 +432,15 @@ function SettlementTab({ claimId }) {
   const [offerForm, setOfferForm] = useState({ offeredAmount: '', notes: '' });
   const [response, setResponse] = useState({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [s, o] = await Promise.all([getSettlement(claimId), getOffers(claimId)]);
     if (s.item) setForm({ ...s.item, settlementDate: s.item.settlementDate?.slice(0, 10) || '' });
     setOffers(o.items || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId]);
+  }, [claimId, load]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -539,15 +539,15 @@ function ReportsTab({ claimId }) {
   const [reportTemplateId, setReportTemplateId] = useState('');
   const [clarification, setClarification] = useState({});
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [{ items }, { data: tData }] = await Promise.all([getReports(claimId), api.get('/report-templates')]);
     setReports(items || []);
     setTemplates(tData.items || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId]);
+  }, [claimId, load]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -637,15 +637,15 @@ function TasksTab({ claimId }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '' });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [t, u] = await Promise.all([getTasks({ claimId }), getUsers()]);
     setTasks(t.items || []);
     setUsers(u.users || []);
-  };
+  }, [claimId]);
 
   useEffect(() => {
     load();
-  }, [claimId]);
+  }, [claimId, load]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
