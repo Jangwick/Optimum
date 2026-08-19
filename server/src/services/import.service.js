@@ -178,34 +178,52 @@ export async function previewWorkbook(batchId, importedBy) {
     throw new AppError(`Batch is in ${batch.status} state, cannot preview`, 400);
   }
 
-  const result = await parseClaimWorkbook(batch.filePath);
+  const fileBuffer = fs.readFileSync(batch.filePath);
+  const result = await parseClaimWorkbook(fileBuffer);
+
+  const totalRows = result.rows.length;
+  const issuesCount = result.rows.reduce((sum, r) => sum + (r.issues?.length || 0), 0);
 
   await prisma.claimImportBatch.update({
     where: { id: batchId },
     data: {
       status: 'PARSED',
       sourceSheets: result.sheets.map((s) => ({ name: s.name, rowCount: s.rowCount })),
-      totalRows: result.totalRows,
+      totalRows,
     },
   });
 
   await logAction('IMPORT_PREVIEWED', 'ClaimImportBatch', batchId, importedBy, {
-    totalRows: result.totalRows,
+    totalRows,
     sheets: result.sheets.map((s) => s.name),
   });
 
   return {
     batchId,
     sheets: result.sheets,
-    totalRows: result.totalRows,
-    issuesCount: result.issues,
-    lowStatusCount: result.lowStatus,
+    totalRows,
+    issuesCount,
+    lowStatusCount: result.rows.filter((r) => r.statusConfidence === 'LOW').length,
     // Return first 20 rows as a sample preview
     sampleRows: result.rows.slice(0, 20).map((r) => ({
       sourceSheet: r.sourceSheet,
-      sourceRowNumber: r.sourceRowNumber,
-      mappedData: r.mappedData,
-      inferredStatus: r.inferredStatus,
+      sourceRowNumber: r.sourceRow,
+      mappedData: {
+        claimNumber: r.ocsReference,
+        assignmentNumber: r.itemNumber,
+        insuredName: r.insuredName,
+        insurerClaimNumber: r.insurerClaimNumber,
+        dateOfLoss: r.dateOfLoss,
+        claimedAmount: r.claimedAmount,
+        claimedAmountRaw: r.claimedAmountRaw,
+        natureOfLoss: r.natureOfLoss,
+        locationOfLoss: r.locationOfLoss,
+        remarks: r.remarks,
+        latestStatus: r.latestStatus,
+        brokerRaw: r.brokerRaw,
+        assignedBy: r.assignedBy,
+      },
+      inferredStatus: r.suggestedProcessStatus,
       statusConfidence: r.statusConfidence,
       issues: r.issues,
     })),
@@ -223,7 +241,8 @@ export async function persistRows(batchId, importedBy) {
     throw new AppError(`Batch is in ${batch.status} state, must be PARSED to persist rows`, 400);
   }
 
-  const result = await parseClaimWorkbook(batch.filePath);
+  const fileBuffer = fs.readFileSync(batch.filePath);
+  const result = await parseClaimWorkbook(fileBuffer);
 
   let accepted = 0;
   let flagged = 0;
@@ -234,16 +253,33 @@ export async function persistRows(batchId, importedBy) {
     if (hasIssues) flagged++;
     else accepted++;
 
+    // Map parser row to the structure expected by buildClaimDataFromMappedRow
+    const mappedData = {
+      claimNumber: row.ocsReference,
+      assignmentNumber: row.itemNumber,
+      insuredName: row.insuredName,
+      insurerClaimNumber: row.insurerClaimNumber,
+      dateOfLoss: row.dateOfLoss,
+      claimedAmount: row.claimedAmount,
+      claimedAmountRaw: row.claimedAmountRaw,
+      natureOfLoss: row.natureOfLoss,
+      locationOfLoss: row.locationOfLoss,
+      remarks: row.remarks,
+      latestStatus: row.latestStatus,
+      brokerRaw: row.brokerRaw,
+      assignedBy: row.assignedBy,
+    };
+
     await prisma.claimImportRow.create({
       data: {
         importBatchId: batchId,
         sourceSheet: row.sourceSheet,
-        sourceRowNumber: row.sourceRowNumber,
+        sourceRowNumber: row.sourceRow,
         rawData: row.rawData,
-        mappedData: row.mappedData,
+        mappedData,
         status,
         confidence: row.statusConfidence || null,
-        inferredStatus: row.inferredStatus || null,
+        inferredStatus: row.suggestedProcessStatus || null,
         issues: row.issues || null,
       },
     });
@@ -257,10 +293,10 @@ export async function persistRows(batchId, importedBy) {
   await logAction('IMPORT_PERSISTED', 'ClaimImportBatch', batchId, importedBy, {
     accepted,
     flagged,
-    total: result.totalRows,
+    total: result.rows.length,
   });
 
-  return { batchId, acceptedRows: accepted, flaggedRows: flagged, totalRows: result.totalRows };
+  return { batchId, acceptedRows: accepted, flaggedRows: flagged, totalRows: result.rows.length };
 }
 
 // ============================================================================

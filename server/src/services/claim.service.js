@@ -358,6 +358,7 @@ export async function createClaim(data, createdBy) {
       claimType: true,
       status: true,
       processStatus: true,
+      broker: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
     },
