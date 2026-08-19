@@ -58,6 +58,10 @@ function formatClaim(c) {
     status: c.status
       ? { id: c.status.id, name: c.status.name, code: c.status.code, color: c.status.color }
       : null,
+    processStatusId: c.processStatusId,
+    processStatus: c.processStatus
+      ? { id: c.processStatus.id, name: c.processStatus.name, code: c.processStatus.code, color: c.processStatus.color }
+      : null,
     description: c.description,
     dateOfLoss: c.dateOfLoss?.toISOString(),
     dateReceived: c.dateReceived.toISOString(),
@@ -93,6 +97,7 @@ export async function getClaims(filters, user) {
   const {
     search,
     status,
+    processStatus,
     claimType,
     clientId,
     engineerId,
@@ -114,6 +119,7 @@ export async function getClaims(filters, user) {
   }
 
   if (status) where.status = { code: status };
+  if (processStatus) where.processStatus = { code: processStatus };
   if (claimType) where.claimType = { code: claimType };
   if (clientId) where.clientId = Number(clientId);
   if (engineerId) where.engineerId = Number(engineerId);
@@ -142,6 +148,7 @@ export async function getClaims(filters, user) {
         insuranceCompany: true,
         claimType: true,
         status: true,
+        processStatus: true,
         engineer: { select: { id: true, firstName: true, lastName: true } },
         accountant: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -161,11 +168,19 @@ export async function getClaim(id, user) {
       insuranceCompany: true,
       claimType: true,
       status: true,
+      processStatus: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
       assignments: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
       statusHistory: {
         include: { changedBy: { select: { id: true, firstName: true, lastName: true } } },
+        orderBy: { createdAt: 'desc' },
+      },
+      processStatusHistory: {
+        include: {
+          processStatus: true,
+          changedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: 'desc' },
       },
     },
@@ -188,7 +203,20 @@ export async function getClaim(id, user) {
     createdAt: h.createdAt.toISOString(),
   }));
 
-  return { ...formatClaim(claim), history };
+  const processHistory = claim.processStatusHistory.map((h) => ({
+    id: h.id,
+    status: h.processStatus
+      ? { id: h.processStatus.id, name: h.processStatus.name, code: h.processStatus.code, color: h.processStatus.color }
+      : null,
+    notes: h.notes,
+    source: h.source,
+    isOverride: h.isOverride,
+    overrideReason: h.overrideReason,
+    changedBy: h.changedBy ? `${h.changedBy.firstName} ${h.changedBy.lastName}` : null,
+    createdAt: h.createdAt.toISOString(),
+  }));
+
+  return { ...formatClaim(claim), history, processHistory };
 }
 
 export async function createClaim(data, createdBy) {
@@ -203,6 +231,9 @@ export async function createClaim(data, createdBy) {
   const defaultStatus = await prisma.claimStatus.findFirst({ where: { code: 'NEW' } });
   if (!defaultStatus) throw new AppError('Default claim status not found', 500);
 
+  const defaultProcessStatus = await prisma.processStatus.findFirst({ where: { code: 'RECEIVED' } });
+  if (!defaultProcessStatus) throw new AppError('Default process status not found', 500);
+
   const claim = await prisma.claim.create({
     data: {
       claimNumber,
@@ -211,6 +242,7 @@ export async function createClaim(data, createdBy) {
       insuranceCompanyId: policy.insuranceCompanyId,
       claimTypeId: data.claimTypeId || policy.claimTypeId,
       statusId: defaultStatus.id,
+      processStatusId: defaultProcessStatus.id,
       createdById: createdBy,
       description: data.description,
       dateOfLoss: data.dateOfLoss ? new Date(data.dateOfLoss) : null,
@@ -227,6 +259,7 @@ export async function createClaim(data, createdBy) {
       insuranceCompany: true,
       claimType: true,
       status: true,
+      processStatus: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -238,6 +271,16 @@ export async function createClaim(data, createdBy) {
       statusId: defaultStatus.id,
       changedById: createdBy,
       notes: 'Claim registered',
+    },
+  });
+
+  await prisma.claimProcessStatusHistory.create({
+    data: {
+      claimId: claim.id,
+      processStatusId: defaultProcessStatus.id,
+      changedById: createdBy,
+      notes: 'Claim registered',
+      source: 'USER',
     },
   });
 
@@ -301,6 +344,7 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
       insuranceCompany: true,
       claimType: true,
       status: true,
+      processStatus: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
     },

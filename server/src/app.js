@@ -26,6 +26,7 @@ import auditRoutes from './routes/audit.routes.js';
 import taskRoutes from './routes/task.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import exportRoutes from './routes/export.routes.js';
+import processStatusRoutes from './routes/process-status.routes.js';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/audit-logs', auditRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/process-statuses', processStatusRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found' });
