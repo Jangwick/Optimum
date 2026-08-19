@@ -14,3 +14,8 @@ export async function updateTask(id, payload) {
   const { data } = await api.put(`/tasks/${id}`, payload);
   return data;
 }
+
+export async function deleteTask(id) {
+  const { data } = await api.delete(`/tasks/${id}`);
+  return data;
+}

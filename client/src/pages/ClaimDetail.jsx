@@ -7,7 +7,7 @@ import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, dow
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
-import { getTasks, createTask, updateTask } from '../services/task.service.js';
+import { getTasks, createTask, updateTask, deleteTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { api } from '../services/api.js';
@@ -1722,15 +1722,26 @@ function ReportsTab({ claimId }) {
 function TasksTab({ claimId }) {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '' });
+  const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    const [t, u] = await Promise.all([
-      getTasks({ claimId }),
-      getUsers().catch(() => ({ users: [] })),
-    ]);
-    setTasks(t.items || []);
-    setUsers(u.users || []);
+    setLoading(true);
+    setError(null);
+    try {
+      const [t, u] = await Promise.all([
+        getTasks({ claimId }),
+        getUsers().catch(() => ({ users: [] })),
+      ]);
+      setTasks(t.items || []);
+      setUsers(u.users || []);
+    } catch {
+      setError('Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
@@ -1739,56 +1750,339 @@ function TasksTab({ claimId }) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    await createTask({ ...form, claimId });
-    setForm({ title: '', description: '', assignedToId: '', dueDate: '' });
-    await load();
+    if (!form.title.trim() || !form.assignedToId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await createTask({ ...form, claimId });
+      setForm({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
+      await load();
+    } catch {
+      setError('Failed to create task');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStatus = async (id, status) => {
-    await updateTask(id, { status });
-    await load();
+    setSaving(true);
+    setError(null);
+    try {
+      await updateTask(id, { status });
+      await load();
+    } catch {
+      setError('Failed to update task status');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this task?')) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteTask(id);
+      await load();
+    } catch {
+      setError('Failed to delete task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const TASK_STATUS_COLORS = {
+    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+    IN_PROGRESS: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
+    COMPLETED: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+    CANCELLED: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' },
+  };
+
+  const PRIORITY_COLORS = {
+    LOW: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' },
+    MEDIUM: { bg: 'bg-primary/10', text: 'text-primary' },
+    HIGH: { bg: 'bg-accent-orange/10', text: 'text-accent-orange' },
+    URGENT: { bg: 'bg-error/10', text: 'text-error' },
+  };
+
+  function StatusPill({ status }) {
+    const c = TASK_STATUS_COLORS[status] || TASK_STATUS_COLORS.PENDING;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium whitespace-nowrap ${c.bg} ${c.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${c.dot} shrink-0`} />
+        {status?.replace(/_/g, ' ')}
+      </span>
+    );
+  }
+
+  function isOverdue(task) {
+    if (!task.dueDate || task.status === 'COMPLETED' || task.status === 'CANCELLED') return false;
+    return new Date(task.dueDate) < new Date();
+  }
+
+  const pendingCount = tasks.filter((t) => t.status === 'PENDING').length;
+  const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
+  const completedCount = tasks.filter((t) => t.status === 'COMPLETED').length;
+  const overdueCount = tasks.filter(isOverdue).length;
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+          <button onClick={() => setError(null)} className="ml-auto text-error hover:opacity-70 shrink-0">
+            <AlertTriangle size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <ListTodo size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Total Tasks</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{tasks.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
+            <Clock size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Pending</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{pendingCount + inProgressCount}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <CheckCircle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Completed</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{completedCount}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Overdue</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{overdueCount}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Create form */}
+      <form onSubmit={handleCreate} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2 mb-2">
           <ListTodo size={18} className="text-primary" />
           <h3 className="text-headline-sm font-semibold text-primary">New Task</h3>
         </div>
-        <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
-        <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
-        <select value={form.assignedToId} onChange={(e) => setForm({ ...form, assignedToId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30" required disabled={users.length === 0}>
-          <option value="">{users.length === 0 ? 'No users available' : 'Assign to'}</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.fullName} ({u.role})
-            </option>
-          ))}
-        </select>
-        <input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
-        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold">Create Task</button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Title</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Task title..."
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Assign To</label>
+            <select
+              value={form.assignedToId}
+              onChange={(e) => setForm({ ...form, assignedToId: e.target.value })}
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              required
+              disabled={users.length === 0}
+            >
+              <option value="">{users.length === 0 ? 'No users available' : 'Select user'}</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Task description..."
+            className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+            rows={2}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Due Date</label>
+            <input
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+            />
+          </div>
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Priority</label>
+            <select
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={saving || !form.title.trim() || !form.assignedToId}
+          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus size={16} />
+          {saving ? 'Creating...' : 'Create Task'}
+        </button>
       </form>
 
-      <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
-        {tasks.map((t) => (
-          <div key={t.id} className="p-3 bg-surface-container-low rounded flex justify-between items-center">
-            <div>
-              <p className="text-body-md font-semibold">{t.title}</p>
-              <p className="text-body-sm text-on-surface-variant">{t.description}</p>
-              <p className="text-label-sm text-outline">Assigned to {t.assignedTo?.firstName} {t.assignedTo?.lastName} · {t.status}</p>
-            </div>
-            <div className="flex gap-2">
-              {t.status !== 'COMPLETED' && (
-                <button onClick={() => handleStatus(t.id, 'COMPLETED')} className="h-8 px-3 bg-success text-white text-label-md rounded">
-                  Complete
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-        {tasks.length === 0 && <p className="text-body-md text-on-surface-variant">No tasks yet.</p>}
-      </div>
+      {/* Task list */}
+      {loading ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <p className="text-body-md text-on-surface-variant">Loading tasks...</p>
+        </div>
+      ) : tasks.length === 0 ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <ListTodo size={32} className="text-outline mx-auto mb-2" />
+          <p className="text-body-md text-on-surface-variant">No tasks yet.</p>
+          <p className="text-body-sm text-outline mt-1">Use the form above to create one.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {tasks.map((t) => {
+            const overdue = isOverdue(t);
+            const priorityColor = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.MEDIUM;
+            return (
+              <div key={t.id} className={`bg-surface border rounded-lg shadow-sm overflow-hidden ${overdue ? 'border-l-4 border-l-error' : 'border-l-4 border-l-primary'}`}>
+                <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      t.status === 'COMPLETED' ? 'bg-success/10 text-success' : overdue ? 'bg-error/10 text-error' : 'bg-primary/10 text-primary'
+                    }`}>
+                      <ListTodo size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-body-md font-semibold text-on-surface truncate ${t.status === 'COMPLETED' ? 'line-through' : ''}`}>
+                          {t.title}
+                        </p>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-label-sm font-medium shrink-0 ${priorityColor.bg} ${priorityColor.text}`}>
+                          {t.priority}
+                        </span>
+                      </div>
+                      <p className="text-label-sm text-outline font-mono mt-0.5">
+                        Assigned to {t.assignedTo?.firstName} {t.assignedTo?.lastName}
+                        {t.createdBy && ` · Created by ${t.createdBy.firstName} ${t.createdBy.lastName}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusPill status={t.status} />
+                  </div>
+                </div>
+
+                <div className="p-3 space-y-2">
+                  {t.description && (
+                    <p className="text-body-sm text-on-surface-variant">{t.description}</p>
+                  )}
+                  <div className="flex items-center gap-3 text-label-sm text-outline font-mono flex-wrap">
+                    {t.dueDate && (
+                      <span className={overdue ? 'text-error font-medium' : ''}>
+                        Due: {new Date(t.dueDate).toLocaleDateString()}
+                        {overdue && ' (overdue)'}
+                      </span>
+                    )}
+                    {t.completedAt && (
+                      <span className="text-success">Completed: {new Date(t.completedAt).toLocaleDateString()}</span>
+                    )}
+                    <span>Created: {new Date(t.createdAt).toLocaleDateString()}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-surface-border">
+                    {t.status === 'PENDING' && (
+                      <button
+                        onClick={() => handleStatus(t.id, 'IN_PROGRESS')}
+                        disabled={saving}
+                        className="h-8 px-3 bg-primary text-white text-label-md rounded font-medium hover:bg-primary-container transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Clock size={12} />
+                        Start
+                      </button>
+                    )}
+                    {t.status === 'IN_PROGRESS' && (
+                      <button
+                        onClick={() => handleStatus(t.id, 'COMPLETED')}
+                        disabled={saving}
+                        className="h-8 px-3 bg-success text-white text-label-md rounded font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <CheckCircle size={12} />
+                        Complete
+                      </button>
+                    )}
+                    {t.status === 'PENDING' && (
+                      <button
+                        onClick={() => handleStatus(t.id, 'COMPLETED')}
+                        disabled={saving}
+                        className="h-8 px-3 bg-success text-white text-label-md rounded font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <CheckCircle size={12} />
+                        Complete
+                      </button>
+                    )}
+                    {(t.status === 'PENDING' || t.status === 'IN_PROGRESS') && (
+                      <button
+                        onClick={() => handleStatus(t.id, 'CANCELLED')}
+                        disabled={saving}
+                        className="h-8 px-3 border border-outline text-on-surface-variant text-label-md rounded font-medium hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Ban size={12} />
+                        Cancel
+                      </button>
+                    )}
+                    {t.status === 'CANCELLED' && (
+                      <button
+                        onClick={() => handleStatus(t.id, 'PENDING')}
+                        disabled={saving}
+                        className="h-8 px-3 border border-outline text-on-surface-variant text-label-md rounded font-medium hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        Reopen
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      disabled={saving}
+                      className="h-8 px-3 text-error text-label-md rounded font-medium hover:bg-error/10 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 ml-auto"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

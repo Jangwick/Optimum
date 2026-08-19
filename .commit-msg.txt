@@ -1,55 +1,77 @@
-feat: redesign TimelineTab with unified events, filters, and polished UX
+feat: redesign TasksTab with full CRUD, priority, status flow, and polished UX
 
-Complete rewrite of TimelineTab in ClaimDetail:
+Complete rewrite of TasksTab in ClaimDetail plus backend enhancements:
 
 Summary cards (always visible):
-- Total Events (count of all events)
-- Activities (count of activity events)
-- Correspondence (count of correspondence events)
-- Status Changes (count of process status changes)
+- Total Tasks (count)
+- Pending (PENDING + IN_PROGRESS count)
+- Completed (COMPLETED count)
+- Overdue (tasks past due date, not completed/cancelled)
 
-Unified timeline:
-- Combines three event sources into one chronological view:
-  1. Activities (from claim.activities)
-  2. Correspondence (from claim.correspondence)
-  3. Status Changes (from claim.processHistory) — previously missing
-- All events sorted by date (newest first)
-- Each event has a unique ID prefix (a-, c-, s-) for proper React keys
+Create form:
+- Card with primary left border
+- All fields with labels:
+  - Title (text, required)
+  - Assign To (select, required, disabled if no users)
+  - Description (textarea)
+  - Due Date (date picker)
+  - Priority (select: Low/Medium/High/Urgent, default Medium)
+- Create Task button with loading state, disabled until valid
+- Form resets after successful creation
 
-Filter tabs:
-- All Events (total count)
-- Activities (count)
-- Correspondence (count)
-- Status Changes (count)
-- Active filter highlighted with primary background
-- Count badges on each filter tab
-- Empty state adapts to selected filter
-
-Timeline visual design:
-- Card with primary left border and header
-- Vertical timeline with icon badges:
-  - Activities: GitBranch icon, primary color
-  - Correspondence: FileText icon, secondary color
-  - Status Changes: CheckCircle icon, success color
-- Connecting line between events (hidden on last item)
-- Each event in a rounded card with:
-  - Type badge (color-coded)
-  - Event title
-  - Historical badge (for historical correspondence)
+Task cards:
+- Card with left border (primary or error if overdue)
+- Header:
+  - Icon badge (success if completed, error if overdue, primary otherwise)
+  - Title (strikethrough if completed)
+  - Priority badge (LOW=neutral, MEDIUM=primary, HIGH=orange, URGENT=error)
+  - Assigned to / Created by metadata
+  - Status pill with dot indicator:
+    - PENDING (orange)
+    - IN_PROGRESS (primary)
+    - COMPLETED (success)
+    - CANCELLED (neutral)
+- Body:
   - Description
-  - Metadata: date, actor, source, follow-up date
-- Empty state with icon and contextual hint
+  - Due date (red if overdue)
+  - Completed date (if completed)
+  - Created date
+- Status transitions:
+  - PENDING: Start, Complete, Cancel
+  - IN_PROGRESS: Complete, Cancel
+  - CANCELLED: Reopen
+  - COMPLETED: (no status actions)
+- Delete button (with confirmation) on all tasks
+
+Empty state with icon and hint.
+Loading state.
+Error banner with dismiss button.
+Saving state on all async operations.
+
+Backend enhancements (task.service.js):
+- createTask now accepts and persists priority field (default MEDIUM)
+- updateTask now:
+  - Uses explicit field allowlist instead of spreading all data
+  - Sets completedAt when status changes to COMPLETED
+  - Clears completedAt when status changes away from COMPLETED
+  - Accepts priority updates
+
+Frontend service (task.service.js):
+- Added deleteTask function
 
 Verified in browser:
-1. Timeline shows 1 status change event (Claim Assigned)
-   - Total Events: 1, Activities: 0, Correspondence: 0, Status Changes: 1
-2. Filter tabs work:
-   - All Events: shows 1 event
-   - Activities: shows empty state "No activity events recorded"
-   - Status Changes: shows 1 event
-3. Event card displays: status badge, title, description, date, actor
+1. Created task: "Schedule site inspection", assigned to Field Engineer,
+   HIGH priority, description "Coordinate with client for access to
+   the property"
+   - Total Tasks: 1, Pending: 1
+   - Task card: HIGH badge, PENDING status pill, Start/Complete/Cancel/Delete
+2. Clicked Start: status changed to IN PROGRESS (primary blue)
+   - Pending: 1, actions changed to Complete/Cancel
+3. Clicked Complete: status changed to COMPLETED (success green)
+   - Pending: 0, Completed: 1
+   - Title strikethrough, Completed date shown
+   - Only Delete button remains
 4. No JS errors
-5. Accessibility warnings reduced from 12+11 to 2+2
 
 Generated with [Devin](https://devin.ai)
 

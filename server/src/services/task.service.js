@@ -27,6 +27,7 @@ export async function createTask(data, createdBy) {
       assignedToId: Number(data.assignedToId),
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       status: 'PENDING',
+      priority: data.priority || 'MEDIUM',
       createdById: createdBy,
     },
     include: {
@@ -41,10 +42,21 @@ export async function updateTask(id, data) {
   const task = await prisma.task.findUnique({ where: { id } });
   if (!task) throw new AppError('Task not found', 404);
 
-  const update = { ...data };
+  const update = {};
+  if (data.title !== undefined) update.title = data.title;
+  if (data.description !== undefined) update.description = data.description;
   if (data.assignedToId !== undefined) update.assignedToId = Number(data.assignedToId);
   if (data.claimId !== undefined) update.claimId = Number(data.claimId) || null;
   if (data.dueDate !== undefined) update.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+  if (data.priority !== undefined) update.priority = data.priority;
+  if (data.status !== undefined) {
+    update.status = data.status;
+    if (data.status === 'COMPLETED' && !task.completedAt) {
+      update.completedAt = new Date();
+    } else if (data.status !== 'COMPLETED') {
+      update.completedAt = null;
+    }
+  }
 
   return prisma.task.update({
     where: { id },
