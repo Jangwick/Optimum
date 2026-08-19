@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
 import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2 } from 'lucide-react';
 
@@ -28,7 +28,6 @@ export default function ClaimInvestigation({ claimId }) {
   const [conForm, setConForm] = useState({ name: '', role: '', phone: '', email: '' });
   const [inspForm, setInspForm] = useState({ scheduledAt: '', location: '', scope: '', notes: '' });
   const [findings, setFindings] = useState({});
-  const [photos, setPhotos] = useState({});
 
   const saveInvestigation = async (e) => {
     e.preventDefault();
@@ -75,15 +74,18 @@ export default function ClaimInvestigation({ claimId }) {
     setRefresh((r) => r + 1);
   };
 
-  const uploadPhoto = async (inspectionId) => {
-    const file = photos[inspectionId];
+  const fileInputRefs = useRef({});
+
+  const handleFileSelect = async (inspectionId, e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     await uploadInspectionPhoto(claimId, inspectionId, file, 'Inspection photo');
-    setPhotos({ ...photos, [inspectionId]: null });
-    // Reset the file input
-    const input = document.getElementById(`photo-input-${inspectionId}`);
-    if (input) input.value = '';
+    e.target.value = '';
     setRefresh((r) => r + 1);
+  };
+
+  const triggerFileInput = (inspectionId) => {
+    fileInputRefs.current[inspectionId]?.click();
   };
 
   const tabs = [
@@ -424,16 +426,15 @@ export default function ClaimInvestigation({ claimId }) {
                           </button>
                           <div className="flex items-center gap-2 pl-2 border-l border-surface-border">
                             <input
-                              id={`photo-input-${i.id}`}
+                              ref={(el) => (fileInputRefs.current[i.id] = el)}
                               type="file"
                               accept="image/*"
-                              onChange={(e) => setPhotos({ ...photos, [i.id]: e.target.files[0] })}
-                              className="text-body-sm file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-surface-container-high file:text-on-surface file:font-medium file:cursor-pointer hover:file:bg-surface-container-high/80 transition-colors"
+                              onChange={(e) => handleFileSelect(i.id, e)}
+                              className="hidden"
                             />
                             <button
-                              onClick={() => uploadPhoto(i.id)}
-                              disabled={!photos[i.id]}
-                              className="h-10 px-4 bg-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => triggerFileInput(i.id)}
+                              className="h-10 px-4 bg-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
                             >
                               <Camera size={16} />
                               Upload Photo
