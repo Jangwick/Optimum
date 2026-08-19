@@ -1,31 +1,27 @@
-feat: redesign DocumentsTab file input as styled dropzone
+fix: remove required attr from hidden file input that blocked upload
 
-Replaces the native file input button with a polished drag-and-drop
-dropzone that matches the design system.
+The hidden file input in DocumentsTab had a `required` attribute.
+When a file input is hidden, some browsers silently fail form
+validation because they cannot display the validation message for
+a hidden element. This caused the Upload button to appear to do
+nothing when clicked, even when a file was selected.
 
-Before: native <input type="file"> with styled file::button pseudo-element
-After: custom dropzone with hidden file input
+The `required` attribute was redundant because:
+1. The Upload button is already disabled when no file is selected
+   (`disabled={uploading || !file || !categoryId}`)
+2. The handleUpload function already checks `if (!file || !categoryId)
+   return;`
 
-Features:
-- Dashed border dropzone area with UploadCloud icon
-- Click to browse (triggers hidden file input)
-- Drag and drop support (dragover/dragleave/drop events)
-- Visual feedback when dragging (primary border + bg tint)
-- File type hint text (PDF, DOC, DOCX, XLS, XLSX, JPG, PNG)
-- When file selected, shows a file card with:
-  - File icon badge
-  - File name (truncated)
-  - File size in KB
-  - Remove (X) button to clear selection
-- Hidden native input preserved for form validation
-- Category and Description fields span below the dropzone
-- Description field now spans 2 columns for more space
+Removed the `required` attribute from the hidden file input.
 
-Verified in browser:
-1. Documents tab shows new dropzone with "Click to browse or drag a
-   file here" text and file type hint
-2. Clicking dropzone opens native file picker
-3. No JS errors
+Verified end-to-end upload in browser:
+1. Selected file via dropzone → file card shown with name and size
+2. Selected category "Policy" → Upload button enabled
+3. Clicked Upload → document persisted to backend
+4. Total Documents increased from 1 to 2
+5. New document "test-upload.txt" appears in Policy category
+6. Form reset to empty state after upload
+7. No JS errors
 
 Generated with [Devin](https://devin.ai)
 

@@ -597,7 +597,6 @@ function DocumentsTab({ claimId }) {
               type="file"
               onChange={(e) => setFile(e.target.files[0])}
               className="hidden"
-              required
             />
             {file ? (
               <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/40 bg-primary/5">
