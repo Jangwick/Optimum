@@ -1,14 +1,15 @@
-fix: make Upload Photo button trigger file picker directly
+fix: add missing --color-success token so success-colored elements render
 
-Removed the visible file input and "Choose File" button. Now the
-"Upload Photo" button itself triggers the hidden file input via ref,
-and the selected file is uploaded immediately on selection.
+The CSS only defined --color-success-green but components used
+bg-success, text-success, border-success, and border-l-success.
+These classes resolved to nothing, making elements invisible
+(notably the "Complete Inspection" button had no background).
 
-- Hidden file input with ref keyed by inspection ID
-- Button click calls triggerFileInput() which clicks the hidden input
-- handleFileSelect() uploads the file immediately after selection
-- Removed the photos state (no longer needed for two-step flow)
-- Removed the disabled state on the button (always enabled now)
+Added --color-success: #28a745 as an alias alongside the existing
+--color-success-green token.
+
+Affected files: ClaimInvestigation, ClaimDetail, Claims, Templates,
+Employees, Dashboard.
 
 Generated with [Devin](https://devin.ai)
 
