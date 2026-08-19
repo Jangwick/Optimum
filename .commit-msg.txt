@@ -1,53 +1,21 @@
-fix: repair ClaimInvestigation inspections and photo upload
+feat: add delete buttons to investigations, contacts, and inspections
 
-The Investigation tab's Inspections sub-tab had multiple bugs:
+Added delete functionality to all three sub-tabs in ClaimInvestigation:
 
-1. "Invalid Date" — frontend used `i.scheduledDate` but the schema field
-   is `scheduledAt`. Fixed all field references to match the Prisma schema.
+- Investigations: delete button with Trash2 icon on each investigation card
+- Contacts: delete button with Trash2 icon on each contact card
+- Inspections: delete button with Trash2 icon on each inspection card
+  (confirms deletion of inspection and all its photos)
 
-2. Empty status span — the Inspection model has no `status` field. The
-   frontend tried to render `i.status` which was always undefined. Now
-   uses `conductedAt` as the completion indicator: if `conductedAt` is
-   set, the inspection is "Completed"; otherwise "Scheduled".
+Added frontend service functions:
+- deleteInvestigation(claimId, id)
+- deleteContact(claimId, id)
+- deleteInspection(claimId, id)
 
-3. "Complete" button not working — `completeInspection` sent
-   `{ status: 'COMPLETED', completedAt: new Date() }` but the backend
-   passed these directly to Prisma, which rejected the unknown fields.
-   Now sends `{ findings, conductedAt }` which are valid schema fields.
-   Also fixed `updateInspection` to only send known fields instead of
-   spreading all data blindly.
+All delete buttons use confirm() dialog before deletion and refresh
+the list after successful deletion.
 
-4. Photo upload not working — used raw `fetch()` without auth headers and
-   posted to the documents endpoint instead of an inspection-specific
-   endpoint. Added:
-   - Backend: `POST /api/claims/:claimId/inspections/:id/photos` route
-     with Multer upload, `uploadInspectionPhoto` controller, and
-     `uploadPhoto` service that creates `InspectionPhoto` records
-   - Frontend: `uploadInspectionPhoto` service function using the api
-     client with proper auth
-   - Upload button is now disabled until a file is selected
-   - File input accepts images only (`accept="image/*"`)
-   - File input resets after upload
-
-5. Visual improvements:
-   - Sub-tabs now have icons (Search, Users, Calendar)
-   - All forms have labeled fields with focus rings
-   - Inspection cards show location with MapPin icon
-   - Status pills use design-system colors (success/accent-orange)
-   - Completed inspections show findings section with timestamp
-   - Photos display in a responsive grid with Camera icon
-   - All containers use rounded-lg consistently
-
-Backend `listInspections` now includes photos and inspector relation.
-`createInspection` and `updateInspection` also return photos.
-
-Verification:
-- Client lint: 0 errors
-- Client build: success
-- Server lint: 0 errors
-- Server tests: 47 passed (5 suites)
-- Browser: inspection created, completed, and displayed correctly
-- No JS console errors
+Verified in browser: deleted a stale inspection record successfully.
 
 Generated with [Devin](https://devin.ai)
 

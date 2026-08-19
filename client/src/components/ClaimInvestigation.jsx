@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getInvestigations, createInvestigation, getContacts, createContact, getInspections, createInspection, updateInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
-import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus } from 'lucide-react';
+import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
+import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2 } from 'lucide-react';
 
 export default function ClaimInvestigation({ claimId }) {
   const [tab, setTab] = useState('investigations');
@@ -37,10 +37,22 @@ export default function ClaimInvestigation({ claimId }) {
     setRefresh((r) => r + 1);
   };
 
+  const removeInvestigation = async (id) => {
+    if (!confirm('Delete this investigation?')) return;
+    await deleteInvestigation(claimId, id);
+    setRefresh((r) => r + 1);
+  };
+
   const saveContact = async (e) => {
     e.preventDefault();
     await createContact(claimId, conForm);
     setConForm({ name: '', role: '', phone: '', email: '' });
+    setRefresh((r) => r + 1);
+  };
+
+  const removeContact = async (id) => {
+    if (!confirm('Delete this contact?')) return;
+    await deleteContact(claimId, id);
     setRefresh((r) => r + 1);
   };
 
@@ -54,6 +66,12 @@ export default function ClaimInvestigation({ claimId }) {
   const completeInspection = async (id) => {
     await updateInspection(claimId, id, { findings: findings[id] || '', conductedAt: new Date().toISOString() });
     setFindings({ ...findings, [id]: '' });
+    setRefresh((r) => r + 1);
+  };
+
+  const removeInspection = async (id) => {
+    if (!confirm('Delete this inspection and all its photos?')) return;
+    await deleteInspection(claimId, id);
     setRefresh((r) => r + 1);
   };
 
@@ -114,9 +132,18 @@ export default function ClaimInvestigation({ claimId }) {
           <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             {investigations.map((i) => (
               <div key={i.id} className="p-3 bg-surface-container-low rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <FileText size={14} className="text-primary" />
-                  <p className="text-body-md font-semibold">Investigation #{i.id}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-primary" />
+                    <p className="text-body-md font-semibold">Investigation #{i.id}</p>
+                  </div>
+                  <button
+                    onClick={() => removeInvestigation(i.id)}
+                    className="inline-flex items-center gap-1 text-error hover:text-error/80 text-label-md font-medium transition-colors"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
                 </div>
                 <p className="text-body-md mt-1">{i.findings || '—'}</p>
                 {i.notes && <p className="text-body-sm text-on-surface-variant mt-1">{i.notes}</p>}
@@ -161,10 +188,19 @@ export default function ClaimInvestigation({ claimId }) {
           <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
             {contacts.map((c) => (
               <div key={c.id} className="p-3 bg-surface-container-low rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Users size={14} className="text-primary" />
-                  <p className="text-body-md font-semibold">{c.name}</p>
-                  {c.role && <span className="text-label-md text-on-surface-variant">· {c.role}</span>}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-primary" />
+                    <p className="text-body-md font-semibold">{c.name}</p>
+                    {c.role && <span className="text-label-md text-on-surface-variant">· {c.role}</span>}
+                  </div>
+                  <button
+                    onClick={() => removeContact(c.id)}
+                    className="inline-flex items-center gap-1 text-error hover:text-error/80 text-label-md font-medium transition-colors"
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
                 </div>
                 <p className="text-body-sm text-on-surface-variant mt-1">
                   {c.phone && <span>{c.phone}</span>}
@@ -249,6 +285,13 @@ export default function ClaimInvestigation({ claimId }) {
                       {isCompleted && <CheckCircle size={12} />}
                       {isCompleted ? 'Completed' : 'Scheduled'}
                     </span>
+                    <button
+                      onClick={() => removeInspection(i.id)}
+                      className="inline-flex items-center gap-1 text-error hover:text-error/80 text-label-md font-medium transition-colors ml-2 shrink-0"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
                   </div>
 
                   {!isCompleted && (
