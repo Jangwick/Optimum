@@ -55,34 +55,34 @@
 ## Phase 7 — Assessment
 
 - [x] 7.1 Loss assessment header + line items with auto-calculated totals.
-- [~] 7.2 Loss estimate / reserve.
-- [ ] 7.3 Assessment summary in claim detail.
+- [x] 7.2 Loss estimate / reserve.
+- [~] 7.3 Assessment summary in claim detail.
 
 **Checkpoint 7**: Assessment totals calculate correctly; reserve visible on claim detail.
 
 ## Phase 8 — Reports & Templates
 
-- [ ] 8.1 Report template model and admin template upload (DOCX).
-- [ ] 8.2 Collect client templates / build generic placeholder templates.
-- [ ] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
-- [ ] 8.4 PDF generation with `puppeteer` from HTML template.
-- [ ] 8.5 Client review / clarification workflow.
+- [~] 8.1 Report template model and admin template upload (DOCX).
+- [x] 8.2 Collect client templates / build generic placeholder templates.
+- [~] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
+- [x] 8.4 PDF generation with `puppeteer` from HTML template.
+- [x] 8.5 Client review / clarification workflow.
 
 **Checkpoint 8**: A report can be generated as DOCX and PDF, submitted, and clarified.
 
 ## Phase 9 — Settlement & Fees
 
 - [x] 9.1 Settlement and offer record CRUD.
-- [~] 9.2 Fee entry (linked to user).
-- [ ] 9.3 Invoice generation from fees, payment recording.
+- [x] 9.2 Fee entry (linked to user).
+- [x] 9.3 Invoice generation from fees, payment recording.
 
 **Checkpoint 9**: A claim can be settled, an offer recorded, fees invoiced, and payment recorded.
 
 ## Phase 10 — Dashboard, Tasks, Notifications, Audit
 
-- [ ] 10.1 Role dashboards with KPIs and charts.
-- [ ] 10.2 Task creation/assignment and notification generation.
-- [ ] 10.3 Audit log viewer for Admin.
+- [x] 10.1 Role dashboards with KPIs and charts.
+- [x] 10.2 Task creation/assignment and notification generation.
+- [x] 10.3 Audit log viewer for Admin.
 
 **Checkpoint 10**: Dashboards render real data; tasks and notifications work; admin can view audit logs.
 
