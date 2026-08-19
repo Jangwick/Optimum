@@ -1,0 +1,100 @@
+# Implementation Todo — Claims Solutions
+
+## Phase 1 — Foundation
+
+- [ ] 1.1 Initialize monorepo, root package, ESLint/Prettier, `.gitignore`, README.
+- [ ] 1.2 Set up MySQL 8 with `docker-compose.yml`, Prisma init, schema base, first migration.
+- [ ] 1.3 Express bootstrap with env config, pino, helmet, CORS, rate limit, error handler, health endpoint.
+- [ ] 1.4 React Vite client with Tailwind v4, design tokens from `design.md`, Hanken Grotesk + JetBrains Mono fonts, `lucide-react` 20px icons, `logo.png` in sidebar/login, and dev proxy.
+
+**Checkpoint 1**: `npm run lint`, `npm run build`, `npm run dev` succeed; `/api/health` and login page load.
+
+## Phase 2 — Authentication & RBAC
+
+- [ ] 2.1 `Role` and `User` Prisma models, seed roles + initial admin, bcrypt.
+- [ ] 2.2 Login/logout/me endpoints with JWT in HTTP-only cookie, auth and RBAC middleware.
+- [ ] 2.3 Login page, `AuthContext`, role-based redirect, protected routes, role layouts.
+- [ ] 2.4 Users CRUD (admin) + profile + tests.
+
+**Checkpoint 2**: Login works for all three roles; RBAC blocks cross-role API calls.
+
+## Phase 3 — Master Data
+
+- [ ] 3.1 Insurance companies, clients, policies CRUD + UI.
+- [ ] 3.2 Claim types and document categories CRUD + seed.
+- [ ] 3.3 18 claim statuses seed data and lookup endpoint.
+
+**Checkpoint 3**: Master data forms submit and persist; status dropdown has 18 values.
+
+## Phase 4 — Claim Management
+
+- [ ] 4.1 Claim creation with auto-generated claim/assignment numbers; assignment.
+- [ ] 4.2 Claim list with filters, pagination, search, role scoping.
+- [ ] 4.3 Claim detail page with summary, status actions, assignment, timeline.
+- [ ] 4.4 Excel export of claim register.
+
+**Checkpoint 4**: A claim can be created, assigned, and status changed; register is searchable and exportable.
+
+## Phase 5 — Investigation & Inspection
+
+- [ ] 5.1 Investigation record and contact records under claim.
+- [ ] 5.2 Inspection scheduling, completion, findings.
+- [ ] 5.3 Photo upload, grid preview, caption, delete.
+
+**Checkpoint 5**: Engineer can investigate, schedule inspection, upload photos, and view them.
+
+## Phase 6 — Document Management
+
+- [ ] 6.1 Document category requirements per claim type; document checklist.
+- [ ] 6.2 Document upload, download, preview, delete.
+- [ ] 6.3 Document history and audit for uploads/deletes.
+
+**Checkpoint 6**: Document checklist auto-generates; required docs can be uploaded, marked received, and downloaded.
+
+## Phase 7 — Assessment
+
+- [ ] 7.1 Loss assessment header + line items with auto-calculated totals.
+- [ ] 7.2 Loss estimate / reserve.
+- [ ] 7.3 Assessment summary in claim detail.
+
+**Checkpoint 7**: Assessment totals calculate correctly; reserve visible on claim detail.
+
+## Phase 8 — Reports & Templates
+
+- [ ] 8.1 Report template model and admin template upload (DOCX).
+- [ ] 8.2 Collect client templates / build generic placeholder templates.
+- [ ] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
+- [ ] 8.4 PDF generation with `puppeteer` from HTML template.
+- [ ] 8.5 Client review / clarification workflow.
+
+**Checkpoint 8**: A report can be generated as DOCX and PDF, submitted, and clarified.
+
+## Phase 9 — Settlement & Fees
+
+- [ ] 9.1 Settlement and offer record CRUD.
+- [ ] 9.2 Fee entry (linked to user).
+- [ ] 9.3 Invoice generation from fees, payment recording.
+
+**Checkpoint 9**: A claim can be settled, an offer recorded, fees invoiced, and payment recorded.
+
+## Phase 10 — Dashboard, Tasks, Notifications, Audit
+
+- [ ] 10.1 Role dashboards with KPIs and charts.
+- [ ] 10.2 Task creation/assignment and notification generation.
+- [ ] 10.3 Audit log viewer for Admin.
+
+**Checkpoint 10**: Dashboards render real data; tasks and notifications work; admin can view audit logs.
+
+## Phase 11 — Testing & Quality
+
+- [ ] 11.1 Backend integration tests for auth, claims, documents, reports, settlements.
+- [ ] 11.2 Frontend component and hook tests with Vitest + MSW.
+- [ ] 11.3 End-to-end manual QA checklist; fix critical bugs.
+
+## Phase 12 — Deployment
+
+- [ ] 12.1 Build scripts, environment validation, production `build` + `start`.
+- [ ] 12.2 Nginx reverse proxy, SSL, PM2 process config, MySQL backup script.
+- [ ] 12.3 Runbook and README updates.
+
+**Final Checkpoint**: Full MVP works in staging; all tests pass; deployment runbook is complete.

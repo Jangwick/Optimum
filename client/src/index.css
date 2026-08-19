@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand colors from design.md */
+  --color-primary: #102175;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #2b3a8c;
+  --color-on-primary-container: #9ba9ff;
+  --color-inverse-primary: #bac3ff;
+
+  --color-secondary: #bc0100;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e1291a;
+  --color-on-secondary-container: #fffbff;
+
+  --color-tertiary: #5a0f00;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #811b00;
+  --color-on-tertiary-container: #ff9075;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-primary-fixed: #dee0ff;
+  --color-primary-fixed-dim: #bac3ff;
+  --color-on-primary-fixed: #00105c;
+  --color-on-primary-fixed-variant: #303f91;
+
+  --color-secondary-fixed: #ffdad4;
+  --color-secondary-fixed-dim: #ffb4a8;
+  --color-on-secondary-fixed: #410000;
+  --color-on-secondary-fixed-variant: #930100;
+
+  --color-tertiary-fixed: #ffdad2;
+  --color-tertiary-fixed-dim: #ffb4a2;
+  --color-on-tertiary-fixed: #3c0700;
+  --color-on-tertiary-fixed-variant: #8a1d00;
+
+  --color-surface: #f9f9fc;
+  --color-on-surface: #1a1c1e;
+  --color-surface-variant: #e2e2e5;
+  --color-on-surface-variant: #454651;
+  --color-surface-dim: #d9dadd;
+  --color-surface-bright: #f9f9fc;
+
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f3f3f6;
+  --color-surface-container: #edeef1;
+  --color-surface-container-high: #e8e8eb;
+  --color-surface-container-highest: #e2e2e5;
+
+  --color-background: #f9f9fc;
+  --color-on-background: #1a1c1e;
+
+  --color-inverse-surface: #2f3133;
+  --color-inverse-on-surface: #f0f0f3;
+
+  --color-outline: #767683;
+  --color-outline-variant: #c6c5d3;
+  --color-surface-tint: #4958ab;
+  --color-surface-border: #e2e2e5;
+
+  --color-sidebar-bg: #1a2456;
+  --color-accent-orange: #f26522;
+  --color-success-green: #28a745;
+
+  /* Typography */
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Custom font size tokens matching design.md */
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.01em;
+  --text-headline-lg--font-weight: 600;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 24px;
+  --text-headline-sm--font-weight: 600;
+
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-body-sm--font-weight: 400;
+
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--letter-spacing: 0.05em;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--letter-spacing: 0.05em;
+  --text-label-sm--font-weight: 500;
+
+  /* Spacing */
+  --spacing-sidebar-width: 260px;
+  --spacing-sidebar-collapsed: 72px;
+  --spacing-gutter: 24px;
+  --spacing-margin-desktop: 32px;
+  --spacing-row-height-dense: 40px;
+  --spacing-row-height-standard: 56px;
+  --spacing-container-gap: 24px;
+
+  /* Border radius */
+  --radius-sm: 0.125rem;
+  --radius-DEFAULT: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}

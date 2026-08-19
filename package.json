@@ -1,0 +1,20 @@
+{
+  "name": "claims-solutions-adjustment",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Claims Solutions Insurance Adjustment Management System",
+  "scripts": {
+    "dev": "concurrently -k -n 'SERVER,CLIENT' -c 'cyan,magenta' \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "build": "cd client && npm run build",
+    "test": "cd server && npm test && cd ../client && npm test",
+    "lint": "cd server && npm run lint && cd ../client && npm run lint",
+    "format": "cd server && npm run format && cd ../client && npm run format"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.4"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

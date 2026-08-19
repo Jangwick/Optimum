@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Optimum Claims Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#ff9075",
+                        "secondary-fixed-dim": "#ffb4a8",
+                        "on-primary-fixed-variant": "#303f91",
+                        "accent-orange": "#f26522",
+                        "surface-border": "#e2e2e5",
+                        "on-secondary-container": "#fffbff",
+                        "tertiary-fixed-dim": "#ffb4a2",
+                        "error": "#ba1a1a",
+                        "primary-container": "#2b3a8c",
+                        "secondary-container": "#e1291a",
+                        "background": "#f9f9fc",
+                        "on-secondary-fixed-variant": "#930100",
+                        "on-background": "#1a1c1e",
+                        "surface-container": "#edeef1",
+                        "inverse-surface": "#2f3133",
+                        "on-primary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "surface-tint": "#4958ab",
+                        "on-tertiary-fixed": "#3c0700",
+                        "tertiary-container": "#811b00",
+                        "on-secondary-fixed": "#410000",
+                        "success-green": "#28a745",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f9f9fc",
+                        "on-primary-container": "#9ba9ff",
+                        "outline": "#767683",
+                        "sidebar-bg": "#1a2456",
+                        "primary-fixed-dim": "#bac3ff",
+                        "surface-dim": "#d9dadd",
+                        "secondary": "#bc0100",
+                        "outline-variant": "#c6c5d3",
+                        "error-container": "#ffdad6",
+                        "inverse-primary": "#bac3ff",
+                        "surface-container-low": "#f3f3f6",
+                        "on-tertiary-fixed-variant": "#8a1d00",
+                        "on-surface-variant": "#454651",
+                        "secondary-fixed": "#ffdad4",
+                        "tertiary-fixed": "#ffdad2",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-high": "#e8e8eb",
+                        "on-surface": "#1a1c1e",
+                        "primary": "#102175",
+                        "surface-container-highest": "#e2e2e5",
+                        "inverse-on-surface": "#f0f0f3",
+                        "surface-bright": "#f9f9fc",
+                        "on-secondary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed": "#00105c",
+                        "tertiary": "#5a0f00",
+                        "surface-variant": "#e2e2e5",
+                        "primary-fixed": "#dee0ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-desktop": "32px",
+                        "sidebar-collapsed": "72px",
+                        "sidebar-width": "260px",
+                        "row-height-dense": "40px",
+                        "row-height-standard": "56px",
+                        "container-gap": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col bg-sidebar-bg dark:bg-sidebar-bg fixed left-0 top-0 h-full w-sidebar-width py-4 shadow-md z-20">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<img alt="Optimum Logo" class="w-8 h-8 rounded-DEFAULT bg-surface/10 object-cover" data-alt="A minimalist vector logo of a shield with a checkmark, rendered in bright white against a dark background, representing an insurance company. Clean, sharp lines, professional and authoritative aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCx1zh-adgt_fWHyJybWSts4XWLLESorlsZ8_KKaAcoGgiPgmYkwjMePu9svc-KOtukDjsMBrjR8DPwYEpDkAx65jQTF_5P7suqhd6T9AZzGS1lnr66cLvT9bwIzW1QJLQlUKEzumR63jIoMg4MTEjyfZDO5pN8NTa9C_Rs3y_m_NzqmHUjgMY9DKMP0owf78DTzFPecIyZ-IGz4jM7DgSNUnkqu0wqUvNmlDjXSpFc8Qqn8PXHtg8"/>
+<h1 class="text-headline-sm font-headline-sm font-black text-white">Optimum Claims</h1>
+</div>
+<p class="text-label-md font-label-md text-on-primary/70">Adjustment System</p>
+</div>
+<div class="flex-1 flex flex-col gap-2 px-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT bg-primary-container text-on-primary-container border-l-4 border-accent-orange font-bold text-label-md font-label-md scale-[0.98]" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="assignment">assignment</span>
+                Claims
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="group">group</span>
+                Employees
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="business">business</span>
+                Clients
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="description">description</span>
+                Templates
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="assessment">assessment</span>
+                Reports
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+                Audit Logs
+            </a>
+</div>
+<div class="px-4 mt-auto flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="contact_support">contact_support</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-all duration-150 text-label-md font-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-sidebar-width w-full">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 z-10">
+<div class="flex justify-between items-center w-full px-gutter h-row-height-standard border-b border-surface-border dark:border-outline-variant">
+<div class="flex-1 flex items-center">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-DEFAULT text-body-sm font-body-sm focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-colors" placeholder="Search claims, clients..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-primary dark:text-primary-fixed hover:bg-surface-container-low transition-colors duration-200 rounded-full flex items-center justify-center relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-orange rounded-full"></span>
+</button>
+<button class="p-2 text-primary dark:text-primary-fixed hover:bg-surface-container-low transition-colors duration-200 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<button class="p-2 text-primary dark:text-primary-fixed hover:bg-surface-container-low transition-colors duration-200 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-px bg-surface-border mx-2"></div>
+<img alt="Insurance Adjuster Profile" class="w-8 h-8 rounded-full object-cover border border-surface-border cursor-pointer hover:opacity-80 transition-opacity" data-alt="A professional headshot of a female insurance adjuster in her late 30s, wearing a dark navy blazer over a light blue blouse. She has a confident, approachable expression, set against a neutral gray studio background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFZdu06vN-BxHHj3OlFKQUyVE-3-gaKRj9IHw6MaBWGVd8-5qx5PbFbMZ5hfeClN28WlnQe2wMi3XVlADS9zESgUl_Cumf8ihA8eEJSVpZYGOyt45ffBbEoi7EQ1eCuvxcSoHG4Q9LvBYNJNt22bM4dZrVXDO5kEeaQ9MTAJel1sd3DHkCSrmWRmKz-HLGX8rEzFGNofYBfzq5vQKvNgJA3E9Jqg6gwX6DDNOTVyLVcbVo-fjP7cQ"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<main class="flex-1 overflow-y-auto p-gutter md:p-margin-desktop bg-background">
+<div class="mb-8 flex justify-between items-end">
+<div>
+<h2 class="text-headline-lg font-headline-lg text-primary">Overview</h2>
+<p class="text-body-md font-body-md text-on-surface-variant mt-1">Real-time metrics for current adjustment cycle.</p>
+</div>
+<button class="bg-primary text-white px-4 py-2 rounded-DEFAULT text-label-md font-label-md uppercase hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    New Claim
+                </button>
+</div>
+<!-- Metric Cards (Bento Style Layout) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-container-gap mb-8">
+<!-- Total Active Claims -->
+<div class="bg-surface border-t-4 border-t-primary border-x border-b border-surface-border rounded-b-DEFAULT p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-md font-label-md uppercase text-outline">Total Active Claims</span>
+<div class="p-2 bg-primary/10 text-primary rounded-DEFAULT flex items-center justify-center">
+<span class="material-symbols-outlined">assignment</span>
+</div>
+</div>
+<div class="flex items-end gap-4">
+<h3 class="text-display-lg font-display-lg text-on-surface">1,248</h3>
+<div class="flex items-center text-success-green text-body-sm font-body-sm mb-2">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span class="ml-1">+5.2%</span>
+</div>
+</div>
+</div>
+<!-- Pending Inspections -->
+<div class="bg-surface border-t-4 border-t-accent-orange border-x border-b border-surface-border rounded-b-DEFAULT p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-md font-label-md uppercase text-outline">Pending Inspections</span>
+<div class="p-2 bg-accent-orange/10 text-accent-orange rounded-DEFAULT flex items-center justify-center">
+<span class="material-symbols-outlined">home_repair_service</span>
+</div>
+</div>
+<div class="flex items-end gap-4">
+<h3 class="text-display-lg font-display-lg text-on-surface">342</h3>
+<div class="flex items-center text-error text-body-sm font-body-sm mb-2">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span class="ml-1">+12.4%</span>
+</div>
+</div>
+</div>
+<!-- Settled MTD -->
+<div class="bg-surface border-t-4 border-t-success-green border-x border-b border-surface-border rounded-b-DEFAULT p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-label-md font-label-md uppercase text-outline">Settled MTD</span>
+<div class="p-2 bg-success-green/10 text-success-green rounded-DEFAULT flex items-center justify-center">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+</div>
+<div class="flex items-end gap-4">
+<h3 class="text-display-lg font-display-lg text-on-surface">$4.2M</h3>
+<div class="flex items-center text-success-green text-body-sm font-body-sm mb-2">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span class="ml-1">+2.1%</span>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-container-gap">
+<!-- Claim Volume Chart Area (Spans 2 columns) -->
+<div class="lg:col-span-2 bg-surface border border-surface-border rounded-DEFAULT shadow-sm flex flex-col h-[400px]">
+<div class="p-6 border-b border-surface-border flex justify-between items-center bg-surface-container-lowest">
+<h3 class="text-headline-sm font-headline-sm text-primary">Claim Volume Over Time</h3>
+<div class="flex gap-2">
+<button class="px-3 py-1 rounded text-label-sm font-label-sm border border-surface-border bg-surface hover:bg-surface-container-low text-on-surface-variant">Weekly</button>
+<button class="px-3 py-1 rounded text-label-sm font-label-sm bg-primary/10 text-primary border border-primary/20">Monthly</button>
+</div>
+</div>
+<div class="flex-1 p-6 flex items-center justify-center relative overflow-hidden bg-surface-container-lowest">
+<!-- Abstract representation of a chart -->
+<div class="absolute inset-x-6 bottom-6 top-6 border-l border-b border-surface-border"></div>
+<!-- Simulated Chart Bars -->
+<div class="w-full h-full flex items-end justify-around px-8 pb-8 pt-4 gap-2 z-10">
+<div class="w-full bg-primary/20 rounded-t-sm h-[40%] hover:bg-primary/40 transition-colors"></div>
+<div class="w-full bg-primary/20 rounded-t-sm h-[60%] hover:bg-primary/40 transition-colors"></div>
+<div class="w-full bg-primary/20 rounded-t-sm h-[35%] hover:bg-primary/40 transition-colors"></div>
+<div class="w-full bg-primary/40 rounded-t-sm h-[80%] hover:bg-primary/60 transition-colors"></div>
+<div class="w-full bg-primary/20 rounded-t-sm h-[50%] hover:bg-primary/40 transition-colors"></div>
+<div class="w-full bg-accent-orange/40 rounded-t-sm h-[90%] hover:bg-accent-orange/60 transition-colors"></div>
+<div class="w-full bg-primary/80 rounded-t-sm h-[75%] shadow-[0_0_10px_rgba(43,58,140,0.2)]"></div>
+</div>
+</div>
+</div>
+<!-- Recent Activity Feed -->
+<div class="bg-surface border border-surface-border rounded-DEFAULT shadow-sm flex flex-col h-[400px]">
+<div class="p-6 border-b border-surface-border bg-surface-container-lowest">
+<h3 class="text-headline-sm font-headline-sm text-primary">Recent Activity</h3>
+</div>
+<div class="flex-1 overflow-y-auto p-2">
+<div class="flex flex-col">
+<!-- Activity Item -->
+<div class="p-4 hover:bg-surface-container-low transition-colors rounded border-b border-surface-border/50 last:border-0 flex gap-4">
+<div class="mt-1">
+<div class="w-8 h-8 rounded-full bg-error/10 text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+</div>
+</div>
+<div>
+<p class="text-body-sm font-body-sm text-on-surface"><span class="font-bold">Claim #AC-992</span> marked as critical status.</p>
+<p class="text-label-sm font-label-sm text-outline mt-1">10 mins ago • System Auto-Flag</p>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-4 hover:bg-surface-container-low transition-colors rounded border-b border-surface-border/50 last:border-0 flex gap-4">
+<div class="mt-1">
+<img alt="Inspector Avatar" class="w-8 h-8 rounded-full object-cover" data-alt="A small circular avatar showing a young male field inspector in his 20s, wearing a high-visibility yellow vest and a white hard hat. He is outdoors in bright daylight, smiling slightly. Clean, professional photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCD99OmJ_4PIqoTM8qwfe815fDqFva8HfPrTJEaWcZAPrducqmfPXBOjy-T39F3LrQKcr5_YYor3mB8VcfQ8LGu79St4GXkcHnq6-AaDl_6XPeObjslXa9_FvWhUWv8o2kI6B5-pc6n4DcQ4E9cywgWHBAMrsqHtuBEe5hXJjj6bjCfwOvhqvF0ByH5KaJ8RgZObBRYfcsB9ysy_StxJBtMI6TBKvLbZpalshak7uS67WtGAlz43S0"/>
+</div>
+<div>
+<p class="text-body-sm font-body-sm text-on-surface"><span class="font-bold">M. Chen</span> uploaded 12 inspection photos for <span class="text-primary hover:underline cursor-pointer">#PR-441</span>.</p>
+<p class="text-label-sm font-label-sm text-outline mt-1">45 mins ago • Field App</p>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-4 hover:bg-surface-container-low transition-colors rounded border-b border-surface-border/50 last:border-0 flex gap-4">
+<div class="mt-1">
+<div class="w-8 h-8 rounded-full bg-success-green/10 text-success-green flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">task_alt</span>
+</div>
+</div>
+<div>
+<p class="text-body-sm font-body-sm text-on-surface"><span class="font-bold">Claim #LI-802</span> settlement approved by supervisor.</p>
+<p class="text-label-sm font-label-sm text-outline mt-1">2 hours ago • Desktop Client</p>
+</div>
+</div>
+<!-- Activity Item -->
+<div class="p-4 hover:bg-surface-container-low transition-colors rounded border-b border-surface-border/50 last:border-0 flex gap-4">
+<div class="mt-1">
+<div class="w-8 h-8 rounded-full bg-surface-tint/10 text-surface-tint flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">mail</span>
+</div>
+</div>
+<div>
+<p class="text-body-sm font-body-sm text-on-surface">Client communication logged for <span class="text-primary hover:underline cursor-pointer">#AC-229</span>.</p>
+<p class="text-label-sm font-label-sm text-outline mt-1">3 hours ago • Portal</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-3 border-t border-surface-border text-center bg-surface-container-lowest">
+<button class="text-label-md font-label-md text-primary hover:text-primary-container uppercase transition-colors">View All Activity</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+*/node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment
+.env
+.env.local
+.env.*.local
+*/.env
+*/.env.local
+
+# Build / dist
+client/dist/
+server/dist/
+*.log
+
+# Uploads and generated files
+server/uploads/
+server/reports/
+server/templates/*.tmp
+server/generated/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Test coverage
+coverage/

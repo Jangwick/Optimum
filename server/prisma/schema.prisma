@@ -1,0 +1,586 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("roles")
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String   @db.VarChar(255)
+  firstName      String   @db.VarChar(100)
+  lastName       String   @db.VarChar(100)
+  phone          String?  @db.VarChar(50)
+  employeeNumber String?  @unique @db.VarChar(50)
+  department     String?  @db.VarChar(100)
+  designation    String?  @db.VarChar(100)
+  roleId         Int
+  role           Role     @relation(fields: [roleId], references: [id])
+  isActive       Boolean  @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdClaims           Claim[]              @relation("ClaimCreatedBy")
+  engineerClaims          Claim[]              @relation("ClaimEngineer")
+  accountantClaims        Claim[]              @relation("ClaimAccountant")
+  closedClaims            Claim[]              @relation("ClaimClosedBy")
+  assignments             ClaimAssignment[]    @relation("ClaimAssignmentUser")
+  assignmentsCreated      ClaimAssignment[]    @relation("AssignmentAssignedBy")
+  statusHistory           ClaimStatusHistory[]
+  investigationsCompleted Investigation[]
+  inspectionsAsInspector  Inspection[]         @relation("InspectionInspector")
+  photosUploaded          InspectionPhoto[]
+  documentsUploaded       Document[]
+  lossAssessmentsPrepared LossAssessment[]     @relation("LossAssessmentPreparedBy")
+  lossEstimatesPrepared   LossEstimate[]       @relation("LossEstimatePreparedBy")
+  reportsGenerated        Report[]             @relation("ReportGeneratedBy")
+  reportVersionsGenerated ReportVersion[]      @relation("ReportVersionGeneratedBy")
+  clarificationsAsked     Clarification[]      @relation("ClarificationAskedBy")
+  clarificationsAnswered  Clarification[]      @relation("ClarificationAnsweredBy")
+  settlementsCreated      Settlement[]
+  offersCreated           Offer[]              @relation("OfferCreatedBy")
+  offersResponded         Offer[]              @relation("OfferResponseBy")
+  fees                    Fee[]
+  invoicesCreated         Invoice[]
+  tasksAssigned           Task[]               @relation("TaskAssignedTo")
+  tasksCreated            Task[]               @relation("TaskCreatedBy")
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+
+  @@map("users")
+}
+
+model InsuranceCompany {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  contactPerson String?  @db.VarChar(100)
+  email         String?  @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  address       String?  @db.Text
+  policies      Policy[]
+  claims        Claim[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("insurance_companies")
+}
+
+model Client {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  contactPerson String?  @db.VarChar(100)
+  email         String?  @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  address       String?  @db.Text
+  policies      Policy[]
+  claims        Claim[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("clients")
+}
+
+model Policy {
+  id                 Int              @id @default(autoincrement())
+  policyNumber       String           @unique @db.VarChar(100)
+  insuranceCompanyId Int
+  insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
+  clientId           Int
+  client             Client           @relation(fields: [clientId], references: [id])
+  coverageDetails    String?          @db.Text
+  startDate          DateTime
+  endDate            DateTime?
+  premium            Decimal?         @db.Decimal(15,2)
+  claims             Claim[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  @@map("policies")
+}
+
+model ClaimType {
+  id          Int                   @id @default(autoincrement())
+  name        String                @db.VarChar(100)
+  code        String                @unique @db.VarChar(50)
+  description String?               @db.Text
+  claims      Claim[]
+  requirements DocumentRequirement[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  @@map("claim_types")
+}
+
+model ClaimStatus {
+  id         Int                    @id @default(autoincrement())
+  name       String                 @unique @db.VarChar(50)
+  code       String                 @unique @db.VarChar(50)
+  color      String?                @db.VarChar(20)
+  isTerminal Boolean                @default(false)
+  sortOrder  Int                    @default(0)
+  claims     Claim[]
+  history    ClaimStatusHistory[]
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  @@map("claim_statuses")
+}
+
+model Claim {
+  id                 Int              @id @default(autoincrement())
+  claimNumber        String           @unique @db.VarChar(100)
+  assignmentNumber   String?          @unique @db.VarChar(100)
+  claimTypeId        Int
+  claimType          ClaimType        @relation(fields: [claimTypeId], references: [id])
+  policyId           Int?
+  policy             Policy?          @relation(fields: [policyId], references: [id])
+  clientId           Int
+  client             Client           @relation(fields: [clientId], references: [id])
+  insuranceCompanyId Int
+  insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
+  engineerId         Int?
+  engineer           User?            @relation("ClaimEngineer", fields: [engineerId], references: [id])
+  accountantId       Int?
+  accountant         User?            @relation("ClaimAccountant", fields: [accountantId], references: [id])
+  statusId           Int
+  status             ClaimStatus      @relation(fields: [statusId], references: [id])
+  createdById        Int
+  createdBy          User             @relation("ClaimCreatedBy", fields: [createdById], references: [id])
+  closedById         Int?
+  closedBy           User?            @relation("ClaimClosedBy", fields: [closedById], references: [id])
+
+  dateOfLoss     DateTime?
+  dateReceived   DateTime  @default(now())
+  description    String?   @db.Text
+  reserve        Decimal?  @db.Decimal(15,2)
+  estimatedLoss  Decimal?  @db.Decimal(15,2)
+  actualLoss     Decimal?  @db.Decimal(15,2)
+  deductible     Decimal?  @db.Decimal(15,2)
+  depreciation   Decimal?  @db.Decimal(15,2)
+  adjustedLoss   Decimal?  @db.Decimal(15,2)
+  classification String?   @db.VarChar(50)
+  isClosed       Boolean   @default(false)
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignments     ClaimAssignment[]
+  statusHistory   ClaimStatusHistory[]
+  investigations  Investigation[]
+  contacts        Contact[]
+  inspections     Inspection[]
+  documents       Document[]
+  lossAssessments LossAssessment[]
+  lossEstimates   LossEstimate[]
+  reports         Report[]
+  settlements     Settlement[]
+  offers          Offer[]
+  fees            Fee[]
+  invoices        Invoice[]
+  tasks           Task[]
+  notifications   Notification[]
+
+  @@index([statusId])
+  @@index([engineerId])
+  @@index([accountantId])
+  @@index([clientId])
+  @@index([insuranceCompanyId])
+  @@index([claimNumber])
+  @@index([dateReceived])
+  @@map("claims")
+}
+
+model ClaimAssignment {
+  id           Int       @id @default(autoincrement())
+  claimId      Int
+  claim        Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation("ClaimAssignmentUser", fields: [userId], references: [id])
+  role         String    @db.VarChar(50)
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  assignedById Int
+  assignedBy   User      @relation("AssignmentAssignedBy", fields: [assignedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@map("claim_assignments")
+}
+
+model ClaimStatusHistory {
+  id          Int         @id @default(autoincrement())
+  claimId     Int
+  claim       Claim       @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  statusId    Int
+  status      ClaimStatus @relation(fields: [statusId], references: [id])
+  changedById Int
+  changedBy   User        @relation(fields: [changedById], references: [id])
+  notes       String?     @db.Text
+  createdAt   DateTime    @default(now())
+  @@map("claim_status_history")
+}
+
+model Investigation {
+  id            Int      @id @default(autoincrement())
+  claimId       Int
+  claim         Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  summary       String?  @db.Text
+  findings      String?  @db.Text
+  startedAt     DateTime?
+  completedAt   DateTime?
+  completedById Int?
+  completedBy   User?    @relation(fields: [completedById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("investigations")
+}
+
+model Contact {
+  id        Int      @id @default(autoincrement())
+  claimId   Int
+  claim     Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  name      String   @db.VarChar(150)
+  role      String?  @db.VarChar(100)
+  phone     String?  @db.VarChar(50)
+  email     String?  @db.VarChar(255)
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("contacts")
+}
+
+model Inspection {
+  id          Int               @id @default(autoincrement())
+  claimId     Int
+  claim       Claim             @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime?
+  conductedAt DateTime?
+  location    String?           @db.VarChar(255)
+  findings    String?           @db.Text
+  notes       String?           @db.Text
+  inspectorId Int?
+  inspector   User?             @relation("InspectionInspector", fields: [inspectorId], references: [id])
+  photos      InspectionPhoto[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  @@map("inspections")
+}
+
+model InspectionPhoto {
+  id           Int        @id @default(autoincrement())
+  inspectionId Int
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  fileName     String     @db.VarChar(255)
+  originalName String     @db.VarChar(255)
+  mimeType     String     @db.VarChar(100)
+  path         String     @db.VarChar(500)
+  size         Int
+  caption      String?    @db.VarChar(255)
+  uploadedById Int
+  uploadedBy   User       @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  @@map("inspection_photos")
+}
+
+model DocumentCategory {
+  id           Int              @id @default(autoincrement())
+  name         String           @unique @db.VarChar(100)
+  code         String           @unique @db.VarChar(50)
+  description  String?          @db.Text
+  documents    Document[]
+  requirements DocumentRequirement[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  @@map("document_categories")
+}
+
+model DocumentRequirement {
+  id                 Int              @id @default(autoincrement())
+  claimTypeId        Int
+  claimType          ClaimType        @relation(fields: [claimTypeId], references: [id], onDelete: Cascade)
+  documentCategoryId Int
+  documentCategory   DocumentCategory @relation(fields: [documentCategoryId], references: [id], onDelete: Cascade)
+  isRequired         Boolean          @default(true)
+  sortOrder          Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  @@unique([claimTypeId, documentCategoryId])
+  @@map("document_requirements")
+}
+
+model Document {
+  id                 Int               @id @default(autoincrement())
+  claimId            Int
+  claim              Claim             @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  documentCategoryId Int?
+  documentCategory   DocumentCategory? @relation(fields: [documentCategoryId], references: [id])
+  fileName           String            @db.VarChar(255)
+  originalName       String            @db.VarChar(255)
+  mimeType           String            @db.VarChar(100)
+  path               String            @db.VarChar(500)
+  size               Int
+  description        String?           @db.Text
+  uploadedById       Int
+  uploadedBy         User              @relation(fields: [uploadedById], references: [id])
+  isRequired         Boolean           @default(false)
+  isReceived         Boolean           @default(false)
+  receivedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  @@map("documents")
+}
+
+model LossAssessment {
+  id             Int                  @id @default(autoincrement())
+  claimId        Int
+  claim          Claim                @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  preparedById   Int
+  preparedBy     User                 @relation("LossAssessmentPreparedBy", fields: [preparedById], references: [id])
+  assessmentDate DateTime             @default(now())
+  totalAmount    Decimal?             @db.Decimal(15,2)
+  depreciation   Decimal?             @db.Decimal(15,2)
+  deductible     Decimal?             @db.Decimal(15,2)
+  adjustedAmount Decimal?             @db.Decimal(15,2)
+  notes          String?              @db.Text
+  items          LossAssessmentItem[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  @@map("loss_assessments")
+}
+
+model LossAssessmentItem {
+  id              Int            @id @default(autoincrement())
+  lossAssessmentId Int
+  lossAssessment  LossAssessment @relation(fields: [lossAssessmentId], references: [id], onDelete: Cascade)
+  description     String         @db.VarChar(255)
+  quantity        Int            @default(1)
+  unitCost        Decimal?       @db.Decimal(15,2)
+  amount          Decimal?       @db.Decimal(15,2)
+  depreciation    Decimal?       @db.Decimal(15,2)
+  deductible      Decimal?       @db.Decimal(15,2)
+  adjustedAmount  Decimal?       @db.Decimal(15,2)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  @@map("loss_assessment_items")
+}
+
+model LossEstimate {
+  id           Int       @id @default(autoincrement())
+  claimId      Int
+  claim        Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  preparedById Int
+  preparedBy   User      @relation("LossEstimatePreparedBy", fields: [preparedById], references: [id])
+  estimateDate DateTime  @default(now())
+  totalAmount  Decimal?  @db.Decimal(15,2)
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@map("loss_estimates")
+}
+
+model ReportTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(150)
+  type        String   @db.VarChar(50)
+  fileName    String?  @db.VarChar(255)
+  path        String?  @db.VarChar(500)
+  description String?  @db.Text
+  isDefault   Boolean  @default(false)
+  reports     Report[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("report_templates")
+}
+
+model Report {
+  id               Int            @id @default(autoincrement())
+  claimId          Int
+  claim            Claim          @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  reportTemplateId Int
+  reportTemplate   ReportTemplate @relation(fields: [reportTemplateId], references: [id])
+  title            String         @db.VarChar(255)
+  status           String         @db.VarChar(50)
+  generatedAt      DateTime?
+  generatedById    Int?
+  generatedBy      User?          @relation("ReportGeneratedBy", fields: [generatedById], references: [id])
+  docxPath         String?        @db.VarChar(500)
+  pdfPath          String?        @db.VarChar(500)
+  notes            String?        @db.Text
+  versions         ReportVersion[]
+  clarifications   Clarification[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  @@map("reports")
+}
+
+model ReportVersion {
+  id            Int      @id @default(autoincrement())
+  reportId      Int
+  report        Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  docxPath      String?  @db.VarChar(500)
+  pdfPath       String?  @db.VarChar(500)
+  generatedAt   DateTime @default(now())
+  generatedById Int
+  generatedBy   User     @relation("ReportVersionGeneratedBy", fields: [generatedById], references: [id])
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  @@map("report_versions")
+}
+
+model Clarification {
+  id           Int       @id @default(autoincrement())
+  reportId     Int
+  report       Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  question     String    @db.Text
+  answer       String?   @db.Text
+  askedById    Int
+  askedBy      User      @relation("ClarificationAskedBy", fields: [askedById], references: [id])
+  answeredById Int?
+  answeredBy   User?     @relation("ClarificationAnsweredBy", fields: [answeredById], references: [id])
+  askedAt      DateTime  @default(now())
+  answeredAt   DateTime?
+  status       String    @db.VarChar(50)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  @@map("clarifications")
+}
+
+model Settlement {
+  id             Int       @id @default(autoincrement())
+  claimId        Int
+  claim          Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  settlementDate DateTime?
+  settledAmount  Decimal?  @db.Decimal(15,2)
+  status         String    @db.VarChar(50)
+  notes          String?   @db.Text
+  createdById    Int
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@map("settlements")
+}
+
+model Offer {
+  id            Int       @id @default(autoincrement())
+  claimId       Int
+  claim         Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  offerDate     DateTime  @default(now())
+  offeredAmount Decimal?  @db.Decimal(15,2)
+  status        String    @db.VarChar(50)
+  responseDate  DateTime?
+  responseById  Int?
+  responseBy    User?     @relation("OfferResponseBy", fields: [responseById], references: [id])
+  notes         String?   @db.Text
+  createdById   Int
+  createdBy     User      @relation("OfferCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("offers")
+}
+
+model Fee {
+  id          Int       @id @default(autoincrement())
+  claimId     Int
+  claim       Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  userId      Int?
+  user        User?     @relation(fields: [userId], references: [id])
+  feeType     String    @db.VarChar(50)
+  amount      Decimal   @db.Decimal(15,2)
+  description String?   @db.Text
+  isInvoiced  Boolean   @default(false)
+  invoiceId   Int?
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("fees")
+}
+
+model Invoice {
+  id            Int       @id @default(autoincrement())
+  claimId       Int
+  claim         Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  invoiceNumber String    @unique @db.VarChar(100)
+  issueDate     DateTime  @default(now())
+  dueDate       DateTime?
+  totalAmount   Decimal   @db.Decimal(15,2)
+  status        String    @db.VarChar(50)
+  notes         String?   @db.Text
+  createdById   Int
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  fees          Fee[]
+  payments      Payment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("invoices")
+}
+
+model Payment {
+  id          Int       @id @default(autoincrement())
+  invoiceId   Int
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentDate DateTime  @default(now())
+  amount      Decimal   @db.Decimal(15,2)
+  method      String?   @db.VarChar(50)
+  reference   String?   @db.VarChar(100)
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("payments")
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  claimId     Int?
+  claim       Claim?    @relation(fields: [claimId], references: [id], onDelete: SetNull)
+  assignedToId Int
+  assignedTo  User      @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  title       String    @db.VarChar(255)
+  description String?   @db.Text
+  dueDate     DateTime?
+  status      String    @db.VarChar(50)
+  priority    String    @db.VarChar(20)
+  completedAt DateTime?
+  createdById Int
+  createdBy   User      @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("tasks")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  claimId   Int?
+  claim     Claim?   @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  title     String   @db.VarChar(255)
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  tableName String   @db.VarChar(100)
+  recordId  String   @db.VarChar(50)
+  action    String   @db.VarChar(50)
+  oldValues Json?
+  newValues Json?
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  ipAddress String?  @db.VarChar(45)
+  createdAt DateTime @default(now())
+  @@map("audit_logs")
+}
