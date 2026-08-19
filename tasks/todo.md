@@ -32,30 +32,30 @@
 - [x] 4.1 Claim creation with auto-generated claim/assignment numbers; assignment.
 - [x] 4.2 Claim list with filters, pagination, search, role scoping.
 - [x] 4.3 Claim detail page with summary, status actions, assignment, timeline.
-- [~] 4.4 Excel export of claim register.
+- [x] 4.4 Excel export of claim register.
 
 **Checkpoint 4**: A claim can be created, assigned, and status changed; register is searchable and exportable.
 
 ## Phase 5 — Investigation & Inspection
 
-- [ ] 5.1 Investigation record and contact records under claim.
-- [ ] 5.2 Inspection scheduling, completion, findings.
+- [x] 5.1 Investigation record and contact records under claim.
+- [x] 5.2 Inspection scheduling, completion, findings.
 - [ ] 5.3 Photo upload, grid preview, caption, delete.
 
 **Checkpoint 5**: Engineer can investigate, schedule inspection, upload photos, and view them.
 
 ## Phase 6 — Document Management
 
-- [ ] 6.1 Document category requirements per claim type; document checklist.
-- [ ] 6.2 Document upload, download, preview, delete.
+- [x] 6.1 Document category requirements per claim type; document checklist.
+- [x] 6.2 Document upload, download, preview, delete.
 - [ ] 6.3 Document history and audit for uploads/deletes.
 
 **Checkpoint 6**: Document checklist auto-generates; required docs can be uploaded, marked received, and downloaded.
 
 ## Phase 7 — Assessment
 
-- [ ] 7.1 Loss assessment header + line items with auto-calculated totals.
-- [ ] 7.2 Loss estimate / reserve.
+- [x] 7.1 Loss assessment header + line items with auto-calculated totals.
+- [~] 7.2 Loss estimate / reserve.
 - [ ] 7.3 Assessment summary in claim detail.
 
 **Checkpoint 7**: Assessment totals calculate correctly; reserve visible on claim detail.
@@ -72,8 +72,8 @@
 
 ## Phase 9 — Settlement & Fees
 
-- [ ] 9.1 Settlement and offer record CRUD.
-- [ ] 9.2 Fee entry (linked to user).
+- [x] 9.1 Settlement and offer record CRUD.
+- [~] 9.2 Fee entry (linked to user).
 - [ ] 9.3 Invoice generation from fees, payment recording.
 
 **Checkpoint 9**: A claim can be settled, an offer recorded, fees invoiced, and payment recorded.
