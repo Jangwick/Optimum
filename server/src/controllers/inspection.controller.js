@@ -42,3 +42,18 @@ export async function deleteInspection(req, res, next) {
     next(err);
   }
 }
+
+export async function uploadInspectionPhoto(req, res, next) {
+  try {
+    if (!req.file) throw new AppError('No file uploaded', 400);
+    const photo = await inspectionService.uploadPhoto(
+      idParam(req),
+      req.file,
+      req.body.caption,
+      req.user.id
+    );
+    res.status(201).json({ success: true, item: photo });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -1,10 +1,13 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
+import path from 'path';
 
 export async function listInspections(claimId) {
   return prisma.inspection.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { scheduledAt: 'desc' },
+    include: { photos: true, inspector: { select: { id: true, firstName: true, lastName: true } } },
   });
 }
 
@@ -20,7 +23,9 @@ export async function createInspection(claimId, data) {
       location: data.location,
       findings: data.findings,
       notes: data.notes,
+      inspectorId: data.inspectorId ? Number(data.inspectorId) : null,
     },
+    include: { photos: true },
   });
 }
 
@@ -28,13 +33,38 @@ export async function updateInspection(id, data) {
   const inspection = await prisma.inspection.findUnique({ where: { id } });
   if (!inspection) throw new AppError('Inspection not found', 404);
 
-  const update = { ...data };
-  if (data.scheduledAt) update.scheduledAt = new Date(data.scheduledAt);
-  if (data.conductedAt) update.conductedAt = new Date(data.conductedAt);
+  const update = {};
+  if (data.scheduledAt !== undefined) update.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
+  if (data.conductedAt !== undefined) update.conductedAt = data.conductedAt ? new Date(data.conductedAt) : null;
+  if (data.location !== undefined) update.location = data.location;
+  if (data.findings !== undefined) update.findings = data.findings;
+  if (data.notes !== undefined) update.notes = data.notes;
+  if (data.inspectorId !== undefined) update.inspectorId = data.inspectorId ? Number(data.inspectorId) : null;
 
-  return prisma.inspection.update({ where: { id }, data: update });
+  return prisma.inspection.update({ where: { id }, data: update, include: { photos: true } });
 }
 
 export async function deleteInspection(id) {
   await prisma.inspection.delete({ where: { id } });
+}
+
+export async function uploadPhoto(inspectionId, file, caption, userId) {
+  const inspection = await prisma.inspection.findUnique({ where: { id: inspectionId } });
+  if (!inspection) throw new AppError('Inspection not found', 404);
+
+  const photo = await prisma.inspectionPhoto.create({
+    data: {
+      inspectionId,
+      fileName: path.basename(file.filename),
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      path: file.path,
+      size: file.size,
+      caption: caption || null,
+      uploadedById: userId,
+    },
+  });
+
+  await logAction('INSPECTION_PHOTO_UPLOADED', 'InspectionPhoto', photo.id, userId, { inspectionId });
+  return photo;
 }

@@ -1,44 +1,52 @@
-feat: complete ClaimDetail feature audit and fix all gaps
+fix: repair ClaimInvestigation inspections and photo upload
 
-Audit findings and fixes across all 11 tabs:
+The Investigation tab's Inspections sub-tab had multiple bugs:
 
-1. Insurer Panel tab — was read-only display only, no CRUD UI
-   - Added "Add Insurer" button with full form (insurance company,
-     participation %, insurer claim #, lead checkbox, notes)
-   - Added toggle lead insurer button (click Yes/No to toggle)
-   - Added remove insurer button with confirmation
-   - Added insurer panel CRUD service functions to claim.service.js
-   - Panel reloads after add/remove/toggle via getClaim()
+1. "Invalid Date" — frontend used `i.scheduledDate` but the schema field
+   is `scheduledAt`. Fixed all field references to match the Prisma schema.
 
-2. Tasks and Finance tabs — getUsers() calls GET /users which requires
-   ADMIN role, would 403 for Engineer/Accountant users
-   - Wrapped getUsers() in .catch() to gracefully degrade to empty array
-   - Disabled user dropdowns with "No users available" when empty
-   - Applied to both TasksTab and ClaimFinance
+2. Empty status span — the Inspection model has no `status` field. The
+   frontend tried to render `i.status` which was always undefined. Now
+   uses `conductedAt` as the completion indicator: if `conductedAt` is
+   set, the inspection is "Completed"; otherwise "Scheduled".
 
-3. Process Status tab — inconsistent styling with rest of claim detail
-   - Replaced old amber-50/amber-300 alert with design-system tokens
-     (accent-orange/5, accent-orange/30) and Lock icon
-   - Added labeled form fields (New Status, Notes) with focus rings
-   - Updated current status display to use pill with dot indicator
-   - Updated Process History to use timeline style (dots + connecting
-     lines) matching Status History
-   - Added GitBranch icon to Update Process Status button
+3. "Complete" button not working — `completeInspection` sent
+   `{ status: 'COMPLETED', completedAt: new Date() }` but the backend
+   passed these directly to Prisma, which rejected the unknown fields.
+   Now sends `{ findings, conductedAt }` which are valid schema fields.
+   Also fixed `updateInspection` to only send known fields instead of
+   spreading all data blindly.
 
-4. Timeline tab — old border-l-2 style
-   - Updated to use consistent timeline style with dots and connecting
-     lines matching Status History and Process History
+4. Photo upload not working — used raw `fetch()` without auth headers and
+   posted to the documents endpoint instead of an inspection-specific
+   endpoint. Added:
+   - Backend: `POST /api/claims/:claimId/inspections/:id/photos` route
+     with Multer upload, `uploadInspectionPhoto` controller, and
+     `uploadPhoto` service that creates `InspectionPhoto` records
+   - Frontend: `uploadInspectionPhoto` service function using the api
+     client with proper auth
+   - Upload button is now disabled until a file is selected
+   - File input accepts images only (`accept="image/*"`)
+   - File input resets after upload
 
-5. Visual consistency — all section containers
-   - Replaced remaining "rounded shadow-sm" with "rounded-lg shadow-sm"
-     across ClaimDetail, ClaimInvestigation, and ClaimFinance
+5. Visual improvements:
+   - Sub-tabs now have icons (Search, Users, Calendar)
+   - All forms have labeled fields with focus rings
+   - Inspection cards show location with MapPin icon
+   - Status pills use design-system colors (success/accent-orange)
+   - Completed inspections show findings section with timestamp
+   - Photos display in a responsive grid with Camera icon
+   - All containers use rounded-lg consistently
+
+Backend `listInspections` now includes photos and inspector relation.
+`createInspection` and `updateInspection` also return photos.
 
 Verification:
 - Client lint: 0 errors
 - Client build: success
 - Server lint: 0 errors
-- Server tests: 47 passed, 5 suites
-- Browser: all 11 tabs verified via Chrome DevTools
+- Server tests: 47 passed (5 suites)
+- Browser: inspection created, completed, and displayed correctly
 - No JS console errors
 
 Generated with [Devin](https://devin.ai)

@@ -34,3 +34,13 @@ export async function updateInspection(claimId, id, payload) {
   const { data } = await api.put(`/claims/${claimId}/inspections/${id}`, payload);
   return data;
 }
+
+export async function uploadInspectionPhoto(claimId, inspectionId, file, caption) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (caption) formData.append('caption', caption);
+  const { data } = await api.post(`/claims/${claimId}/inspections/${inspectionId}/photos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
