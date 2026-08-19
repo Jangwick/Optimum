@@ -197,6 +197,15 @@ export async function getClaim(id, user) {
       accountant: { select: { id: true, firstName: true, lastName: true } },
       assignments: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
       insurerPanel: { include: { insuranceCompany: { select: { id: true, name: true, code: true } } } },
+      activities: {
+        orderBy: { occurredAt: 'desc' },
+        take: 20,
+        include: { actor: { select: { id: true, firstName: true, lastName: true } } },
+      },
+      correspondence: {
+        orderBy: { sentAt: 'desc' },
+        take: 20,
+      },
       statusHistory: {
         include: { changedBy: { select: { id: true, firstName: true, lastName: true } } },
         orderBy: { createdAt: 'desc' },
@@ -249,7 +258,27 @@ export async function getClaim(id, user) {
     insurerClaimNumber: ci.insurerClaimNumber,
   }));
 
-  return { ...formatClaim(claim), history, processHistory, insurerPanel };
+  const activities = (claim.activities || []).map((a) => ({
+    id: a.id,
+    activityType: a.activityType,
+    occurredAt: a.occurredAt?.toISOString(),
+    description: a.description,
+    source: a.source,
+    actor: a.actor ? `${a.actor.firstName} ${a.actor.lastName}` : null,
+  }));
+
+  const correspondence = (claim.correspondence || []).map((c) => ({
+    id: c.id,
+    type: c.type,
+    sentAt: c.sentAt?.toISOString(),
+    receivedAt: c.receivedAt?.toISOString(),
+    followUpDate: c.followUpDate?.toISOString(),
+    recipient: c.recipient,
+    notes: c.notes,
+    isHistorical: c.isHistorical,
+  }));
+
+  return { ...formatClaim(claim), history, processHistory, insurerPanel, activities, correspondence };
 }
 
 export async function createClaim(data, createdBy) {
