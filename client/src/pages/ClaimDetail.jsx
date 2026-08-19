@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
 import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../services/import.service.js';
@@ -18,7 +18,7 @@ import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -37,6 +37,7 @@ export default function ClaimDetail() {
 
 export function ClaimDetailContent({ claimId }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [claim, setClaim] = useState(null);
   const [statuses, setStatuses] = useState([]);
   const [processStatuses, setProcessStatuses] = useState([]);
@@ -114,17 +115,17 @@ export function ClaimDetailContent({ claimId }) {
   };
 
   const tabs = [
-    { key: 'summary', label: 'Summary' },
-    { key: 'process', label: 'Process Status' },
-    { key: 'investigation', label: 'Investigation' },
-    { key: 'documents', label: 'Documents' },
-    { key: 'assessment', label: 'Assessment' },
-    { key: 'settlement', label: 'Settlement' },
-    { key: 'finance', label: 'Finance' },
-    { key: 'reports', label: 'Reports' },
-    { key: 'insurers', label: 'Insurer Panel' },
-    { key: 'timeline', label: 'Timeline' },
-    { key: 'tasks', label: 'Tasks' },
+    { key: 'summary', label: 'Summary', icon: FileText },
+    { key: 'process', label: 'Process Status', icon: GitBranch },
+    { key: 'investigation', label: 'Investigation', icon: Search },
+    { key: 'documents', label: 'Documents', icon: FolderOpen },
+    { key: 'assessment', label: 'Assessment', icon: ClipboardCheck },
+    { key: 'settlement', label: 'Settlement', icon: Handshake },
+    { key: 'finance', label: 'Finance', icon: Wallet },
+    { key: 'reports', label: 'Reports', icon: FileBarChart },
+    { key: 'insurers', label: 'Insurer Panel', icon: Building2 },
+    { key: 'timeline', label: 'Timeline', icon: Clock },
+    { key: 'tasks', label: 'Tasks', icon: ListTodo },
   ];
 
   if (loading || !claim) {
@@ -137,89 +138,109 @@ export function ClaimDetailContent({ claimId }) {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-headline-lg font-semibold text-primary">{claim.claimNumber}</h2>
-              <p className="text-body-md text-on-surface-variant mt-1">
-                {claim.claimType?.name} · {claim.client?.name}
-              </p>
+      {/* Back button */}
+      <button
+        onClick={() => navigate('/claims')}
+        className="inline-flex items-center gap-1.5 text-body-sm text-on-surface-variant hover:text-primary transition-colors mb-4"
+      >
+        <ArrowLeft size={16} />
+        Back to Claims
+      </button>
+
+      {/* Header card */}
+      <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText size={20} className="text-primary shrink-0" />
+              <h2 className="text-headline-lg font-semibold text-primary font-mono">{claim.claimNumber}</h2>
             </div>
-            <div className="flex flex-col items-end gap-1">
-              {claim.processStatus && (
-                <div
-                  className="px-4 py-1.5 rounded-full text-label-md font-medium"
-                  style={{ backgroundColor: `${claim.processStatus.color}20`, color: claim.processStatus.color }}
-                >
-                  {claim.processStatus.name}
-                </div>
-              )}
-              {claim.importStatus && (
-                <div
-                  className="px-3 py-0.5 rounded-full text-label-sm font-medium opacity-70"
-                  title="Historical OCS import status"
-                >
-                  OCS: {claim.importStatus.name}
-                </div>
-              )}
-              {claim.status && (
-                <div
-                  className="px-3 py-0.5 rounded-full text-label-sm font-medium opacity-50"
-                  style={{ backgroundColor: `${claim.status.color}20`, color: claim.status.color }}
-                  title="Secondary internal status (read-only / action-driven)"
-                >
-                  Internal: {claim.status.code}
-                </div>
-              )}
-            </div>
+            <p className="text-body-md text-on-surface-variant">
+              {claim.claimType?.name || '—'} · {claim.client?.name || '—'}
+            </p>
           </div>
+          <div className="flex flex-col items-end gap-1.5">
+            {claim.processStatus && (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-md font-medium"
+                style={{ backgroundColor: `${claim.processStatus.color}1a`, color: claim.processStatus.color }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: claim.processStatus.color }} />
+                {claim.processStatus.name}
+              </span>
+            )}
+            {claim.importStatus && (
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-medium bg-surface-container-high text-on-surface-variant"
+                title="Historical OCS import status"
+              >
+                OCS: {claim.importStatus.name}
+              </span>
+            )}
+            {claim.status && (
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-label-sm font-medium opacity-60"
+                style={{ backgroundColor: `${claim.status.color}1a`, color: claim.status.color }}
+                title="Secondary internal status (read-only / action-driven)"
+              >
+                Internal: {claim.status.code}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
 
-          {claim.isReadOnly && (
-            <div
-              className={`mb-6 rounded border p-4 flex items-start gap-3 ${
-                claim.isCancelled
-                  ? 'bg-red-50 border-red-300 text-red-800'
-                  : 'bg-amber-50 border-amber-300 text-amber-800'
-              }`}
-            >
-              {claim.isCancelled ? <Ban size={20} className="mt-0.5 flex-shrink-0" /> : <Lock size={20} className="mt-0.5 flex-shrink-0" />}
-              <div>
-                <p className="font-semibold text-body-md">
-                  {claim.isCancelled ? 'Cancelled Historical Record' : 'Closed Historical Record'}
-                </p>
-                <p className="text-body-sm mt-0.5">
-                  {claim.isCancelled
-                    ? `This claim was cancelled during migration and is read-only. Reason: ${claim.cancellationReason || 'Not specified'}`
-                    : 'This claim was imported from a closed workbook sheet and is read-only. Use Admin override with a reason to make changes.'}
-                </p>
-              </div>
-            </div>
-          )}
+      {/* Read-only alert */}
+      {claim.isReadOnly && (
+        <div
+          className={`mb-6 rounded-lg border p-4 flex items-start gap-3 ${
+            claim.isCancelled
+              ? 'bg-error/5 border-error/30 text-error'
+              : 'bg-accent-orange/5 border-accent-orange/30 text-accent-orange'
+          }`}
+        >
+          {claim.isCancelled ? <Ban size={20} className="mt-0.5 shrink-0" /> : <Lock size={20} className="mt-0.5 shrink-0" />}
+          <div>
+            <p className="font-semibold text-body-md">
+              {claim.isCancelled ? 'Cancelled Historical Record' : 'Closed Historical Record'}
+            </p>
+            <p className="text-body-sm mt-0.5 text-on-surface-variant">
+              {claim.isCancelled
+                ? `This claim was cancelled during migration and is read-only. Reason: ${claim.cancellationReason || 'Not specified'}`
+                : 'This claim was imported from a closed workbook sheet and is read-only. Use Admin override with a reason to make changes.'}
+            </p>
+          </div>
+        </div>
+      )}
 
-          {claim.isIncomplete && !claim.isReadOnly && (
-            <div className="mb-6 bg-amber-50 border border-amber-300 rounded p-4 flex items-start gap-3 text-amber-800">
-              <AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-semibold text-body-md">Incomplete Record</p>
-                {claim.incompleteReasons?.length > 0 && (
-                  <ul className="text-body-sm list-disc list-inside mt-1">
-                    {claim.incompleteReasons.map((r, i) => <li key={i}>{r}</li>)}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
+      {/* Incomplete record alert */}
+      {claim.isIncomplete && !claim.isReadOnly && (
+        <div className="mb-6 bg-accent-orange/5 border border-accent-orange/30 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle size={20} className="mt-0.5 shrink-0 text-accent-orange" />
+          <div>
+            <p className="font-semibold text-body-md text-accent-orange">Incomplete Record</p>
+            {claim.incompleteReasons?.length > 0 && (
+              <ul className="text-body-sm list-disc list-inside mt-1 text-on-surface-variant">
+                {claim.incompleteReasons.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
-          <div className="flex gap-2 border-b border-surface-border mb-6">
+      {/* Tabs with icons */}
+      <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-body-md font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === t.key
                     ? 'border-primary text-primary'
                     : 'border-transparent text-on-surface-variant hover:text-primary'
                 }`}
               >
+                <t.icon size={16} className={activeTab === t.key ? 'text-primary' : 'text-outline'} />
                 {t.label}
               </button>
             ))}
@@ -244,18 +265,21 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Claim Summary</h3>
-          <div className="grid grid-cols-2 gap-4 text-body-md">
-            <Info label="OCS Ref #" value={claim.claimNumber} />
-            <Info label="Assignment #" value={claim.assignmentNumber} />
-            <Info label="Insurer Claim #" value={claim.insurerClaimNumber} />
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Claim Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+            <Info label="OCS Ref #" value={claim.claimNumber} mono />
+            <Info label="Assignment #" value={claim.assignmentNumber} mono />
+            <Info label="Insurer Claim #" value={claim.insurerClaimNumber} mono />
             <Info label="Handling Adjuster" value={claim.handlingAdjuster || claim.engineer?.fullName} />
             <Info label="Insured" value={claim.client?.name} />
             <Info label="Insurer" value={claim.insuranceCompany?.name} />
             <Info label="Broker" value={claim.broker?.name} />
-            <Info label="Broker Ref" value={claim.brokerReference} />
-            <Info label="Policy No." value={claim.policy?.policyNumber || claim.policyNumber} />
+            <Info label="Broker Ref" value={claim.brokerReference} mono />
+            <Info label="Policy No." value={claim.policy?.policyNumber || claim.policyNumber} mono />
             <Info label="Policy Type" value={claim.policyType} />
             <Info label="Policy Period" value={claim.policyPeriodText} />
             <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
@@ -267,20 +291,23 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : '—'} />
           </div>
           {claim.policyCoverageText && (
-            <div className="mt-4">
+            <div className="mt-4 pt-4 border-t border-surface-border">
               <span className="text-label-md text-outline uppercase">Policy Coverage / Sum Insured</span>
               <p className="text-body-md mt-1">{claim.policyCoverageText}</p>
             </div>
           )}
-          <div className="mt-4">
+          <div className="mt-4 pt-4 border-t border-surface-border">
             <span className="text-label-md text-outline uppercase">Description</span>
             <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
         </section>
 
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Financial Summary</h3>
-          <div className="grid grid-cols-2 gap-4 text-body-md">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Financial Summary</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
             <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
             <Info label="Claimed Amount" value={claim.claimedAmountRaw || formatCurrency(claim.claimedAmount)} money />
@@ -289,9 +316,12 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           </div>
         </section>
 
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Assignment</h3>
-          <div className="grid grid-cols-2 gap-4 text-body-md">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <ListTodo size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Assignment</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="Engineer" value={claim.engineer?.fullName} />
             <Info label="Accountant" value={claim.accountant?.fullName} />
             <Info label="Assigned By" value={claim.assignedByName} />
@@ -300,23 +330,26 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         </section>
 
         {claim.importStatus && (
-          <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-            <h3 className="text-headline-sm font-semibold text-primary mb-4">Historical Import Metadata</h3>
-            <div className="grid grid-cols-2 gap-4 text-body-md">
+          <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Historical Import Metadata</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
               <Info label="OCS Import Status" value={claim.importStatus.name} />
-              <Info label="Import Batch" value={claim.importBatchId} />
+              <Info label="Import Batch" value={claim.importBatchId} mono />
               <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : '—'} />
               <Info label="Cancelled" value={claim.isCancelled ? 'Yes' : 'No'} />
               {claim.isCancelled && <Info label="Cancellation Reason" value={claim.cancellationReason} />}
             </div>
             {claim.remarksRaw && (
-              <div className="mt-4">
+              <div className="mt-4 pt-4 border-t border-surface-border">
                 <span className="text-label-md text-outline uppercase">Original Remarks</span>
                 <p className="text-body-md mt-1 whitespace-pre-wrap">{claim.remarksRaw}</p>
               </div>
             )}
             {claim.latestStatusRaw && (
-              <div className="mt-4">
+              <div className="mt-4 pt-4 border-t border-surface-border">
                 <span className="text-label-md text-outline uppercase">Original Latest Status</span>
                 <p className="text-body-md mt-1 whitespace-pre-wrap">{claim.latestStatusRaw}</p>
               </div>
@@ -326,61 +359,76 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
       </div>
 
       <div className="space-y-6">
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Update Status</h3>
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <GitBranch size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Update Status</h3>
+          </div>
           <form onSubmit={onTransition} className="space-y-4">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-            >
-              {statuses.map((s) => (
-                <option key={s.id} value={s.code}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={statusNote}
-              onChange={(e) => setStatusNote(e.target.value)}
-              rows={3}
-              placeholder="Notes"
-              className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-            />
-            <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Status</label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              >
+                {statuses.map((s) => (
+                  <option key={s.id} value={s.code}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+              <textarea
+                value={statusNote}
+                onChange={(e) => setStatusNote(e.target.value)}
+                rows={3}
+                placeholder="Add transition notes..."
+                className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+              />
+            </div>
+            <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors inline-flex items-center justify-center gap-2">
+              <GitBranch size={16} />
               Update Status
             </button>
           </form>
         </section>
 
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Status History</h3>
-          <ul className="space-y-3 text-body-sm">
-            {claim.history?.length ? (
-              claim.history.map((h) => (
-                <li key={h.id} className="border-l-2 border-primary pl-3">
-                  <p className="font-medium">{h.status?.code}</p>
-                  <p className="text-on-surface-variant">{h.notes || 'No notes'}</p>
-                  <p className="text-label-sm text-outline mt-1">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Status History</h3>
+          </div>
+          {claim.history?.length ? (
+            <ul className="space-y-4 text-body-sm">
+              {claim.history.map((h) => (
+                <li key={h.id} className="relative pl-6 pb-4 last:pb-0">
+                  <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
+                  <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
+                  <p className="font-medium text-on-surface">{h.status?.code || '—'}</p>
+                  <p className="text-on-surface-variant mt-0.5">{h.notes || 'No notes'}</p>
+                  <p className="text-label-sm text-outline mt-1 font-mono">
                     {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
                   </p>
                 </li>
-              ))
-            ) : (
-              <p className="text-on-surface-variant">No history yet.</p>
-            )}
-          </ul>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-on-surface-variant text-body-sm">No history yet.</p>
+          )}
         </section>
       </div>
     </div>
   );
 }
 
-function Info({ label, value, money }) {
+function Info({ label, value, money, mono }) {
   return (
-    <div>
-      <span className="text-label-md text-outline uppercase">{label}</span>
-      <p className={`mt-1 ${money ? 'font-mono' : ''}`}>{value || '—'}</p>
+    <div className="min-w-0">
+      <span className="text-label-md text-outline uppercase tracking-wide">{label}</span>
+      <p className={`mt-1 text-on-surface break-words ${money || mono ? 'font-mono' : ''}`}>{value || '—'}</p>
     </div>
   );
 }
@@ -433,14 +481,14 @@ function DocumentsTab({ claimId }) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleUpload} className="bg-surface border border-surface-border rounded shadow-sm p-4 flex gap-4 items-end">
-        <div className="flex-1">
-          <label className="block text-body-sm font-semibold mb-1.5">File</label>
+      <form onSubmit={handleUpload} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 flex gap-4 items-end flex-wrap">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-label-md text-outline uppercase mb-1.5">File</label>
           <input type="file" onChange={(e) => setFile(e.target.files[0])} className="w-full text-body-md" />
         </div>
         <div>
-          <label className="block text-body-sm font-semibold mb-1.5">Category</label>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="h-10 px-3 rounded border border-outline bg-surface text-body-md">
+          <label className="block text-label-md text-outline uppercase mb-1.5">Category</label>
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30">
             <option value="">Select</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -449,21 +497,28 @@ function DocumentsTab({ claimId }) {
             ))}
           </select>
         </div>
-        <input
-          type="text"
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-          placeholder="Description"
-          className="h-10 px-3 rounded border border-outline bg-surface text-body-md"
-        />
-        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors">
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
+          <input
+            type="text"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="Description"
+            className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2">
+          <FolderOpen size={16} />
           Upload
         </button>
       </form>
 
       {checklist.map((group) => (
-        <div key={group.category?.id || 'unknown'} className="bg-surface border border-surface-border rounded shadow-sm p-4">
-          <h4 className="text-body-lg font-semibold text-primary mb-3">{group.category?.name || 'Uncategorized'}</h4>
+        <div key={group.category?.id || 'unknown'} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FolderOpen size={16} className="text-primary" />
+            <h4 className="text-body-lg font-semibold text-primary">{group.category?.name || 'Uncategorized'}</h4>
+          </div>
           <ul className="space-y-2">
             {group.uploaded?.length ? (
               group.uploaded.map((doc) => (
@@ -533,8 +588,11 @@ function AssessmentTab({ claimId }) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-4">
-        <h3 className="text-headline-sm font-semibold text-primary">New Assessment</h3>
+      <form onSubmit={handleSubmit} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <ClipboardCheck size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">New Assessment</h3>
+        </div>
         {items.map((it, idx) => (
           <div key={idx} className="grid grid-cols-3 gap-3">
             <input
@@ -640,8 +698,11 @@ function SettlementTab({ claimId }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Settlement</h3>
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Handshake size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Settlement</h3>
+          </div>
           <form onSubmit={handleSave} className="space-y-4">
             <input type="date" value={form.settlementDate} onChange={(e) => setForm({ ...form, settlementDate: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
             <input type="number" step="0.01" value={form.settledAmount} onChange={(e) => setForm({ ...form, settledAmount: e.target.value })} placeholder="Settled amount" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
@@ -655,8 +716,11 @@ function SettlementTab({ claimId }) {
           </form>
         </section>
 
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">New Offer</h3>
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Handshake size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">New Offer</h3>
+          </div>
           <form onSubmit={handleOffer} className="space-y-4">
             <input type="number" step="0.01" value={offerForm.offeredAmount} onChange={(e) => setOfferForm({ ...offerForm, offeredAmount: e.target.value })} placeholder="Offered amount" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
             <textarea value={offerForm.notes} onChange={(e) => setOfferForm({ ...offerForm, notes: e.target.value })} placeholder="Notes" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
@@ -665,8 +729,11 @@ function SettlementTab({ claimId }) {
         </section>
       </div>
 
-      <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-        <h3 className="text-headline-sm font-semibold text-primary mb-4">Offers</h3>
+      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Handshake size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">Offers</h3>
+        </div>
         <div className="space-y-4">
           {offers.map((o) => (
             <div key={o.id} className="p-3 bg-surface-container-low rounded">
@@ -750,7 +817,10 @@ function ReportsTab({ claimId }) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
-        <h3 className="text-headline-sm font-semibold text-primary">New Report Draft</h3>
+        <div className="flex items-center gap-2 mb-2">
+          <FileBarChart size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">New Report Draft</h3>
+        </div>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Report title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" />
         <select value={reportTemplateId} onChange={(e) => setReportTemplateId(e.target.value)} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md">
           <option value="">Default HTML template</option>
@@ -838,7 +908,10 @@ function TasksTab({ claimId }) {
   return (
     <div className="space-y-6">
       <form onSubmit={handleCreate} className="bg-surface border border-surface-border rounded shadow-sm p-4 space-y-3">
-        <h3 className="text-headline-sm font-semibold text-primary">New Task</h3>
+        <div className="flex items-center gap-2 mb-2">
+          <ListTodo size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">New Task</h3>
+        </div>
         <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required />
         <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md" />
         <select value={form.assignedToId} onChange={(e) => setForm({ ...form, assignedToId: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md" required>
@@ -886,8 +959,11 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">18-Stage Workflow Status</h3>
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <GitBranch size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">18-Stage Workflow Status</h3>
+          </div>
           <div className="mb-4">
             <p className="text-label-md text-outline uppercase">Current Process Status</p>
             {claim.processStatus && (
@@ -960,8 +1036,11 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
       </div>
 
       <div className="space-y-6">
-        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">Process History</h3>
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Process History</h3>
+          </div>
           <ul className="space-y-3 text-body-sm">
             {claim.processHistory?.length ? (
               claim.processHistory.map((h) => (
@@ -981,8 +1060,11 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
         </section>
 
         {closingGuards && (
-          <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-            <h3 className="text-headline-sm font-semibold text-primary mb-4">Closing Guards</h3>
+          <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Closing Guards</h3>
+            </div>
             <p className={`text-body-md font-medium ${closingGuards.canClose ? 'text-success' : 'text-error'}`}>
               {closingGuards.canClose ? 'Ready to close' : 'Not ready to close'}
             </p>
@@ -1002,8 +1084,11 @@ function InsurerPanelTab({ claim, claimId: _claimId, isAdmin }) {
   const panel = claim.insurerPanel || [];
   return (
     <div className="space-y-6">
-      <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-        <h3 className="text-headline-sm font-semibold text-primary mb-4">Insurer Panel</h3>
+      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Building2 size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">Insurer Panel</h3>
+        </div>
         {panel.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">No insurers on the panel. Use the API to add panel members.</p>
         ) : (
@@ -1046,8 +1131,11 @@ function TimelineTab({ claim }) {
 
   return (
     <div className="space-y-6">
-      <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-        <h3 className="text-headline-sm font-semibold text-primary mb-4">Activity Timeline</h3>
+      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-4">
+        <Clock size={18} className="text-primary" />
+        <h3 className="text-headline-sm font-semibold text-primary">Activity Timeline</h3>
+      </div>
         {allEvents.length === 0 ? (
           <p className="text-body-md text-on-surface-variant">No activities or correspondence recorded.</p>
         ) : (

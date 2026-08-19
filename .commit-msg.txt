@@ -1,15 +1,22 @@
-feat: add breadcrumbs navigation across the system
+feat: improve ClaimDetail UX/UI with icons, header card, and polished sections
 
-- Create Breadcrumbs component that parses the current URL and renders
-  a breadcrumb trail (e.g. Dashboard > Claims > CS-2026-0003)
-- Integrate breadcrumbs into the TopBar, replacing the non-functional search
-- Parent crumbs are clickable links; the current page is a static label
-- Dynamic label support: ClaimDetail sets the breadcrumb to the actual
-  claim number via a custom event, instead of a generic "Claim Details"
-- Breadcrumbs hidden on the Dashboard root (no parent to show)
-- Home icon on the first crumb, ChevronRight separators between crumbs
-- All pages verified: Claims, Claim Detail, New Claim, Employees, Master Data,
-  Templates, Audit Logs, Import Wizard
+- Add back button ("Back to Claims") at the top of claim detail pages
+- Wrap claim header in a card with FileText icon and monospace claim number
+- Status pills now show colored dots and use design-system token colors
+- Tabs now have Lucide icons (FileText, GitBranch, Search, FolderOpen,
+  ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo)
+- Tabs are horizontally scrollable with whitespace-nowrap to prevent wrapping
+- All section headers now have contextual Lucide icons
+- Sections use rounded-lg instead of rounded for consistency
+- Alert banners use design-system tokens (error, accent-orange) instead of
+  hardcoded Tailwind colors (red-50, amber-50)
+- Info component supports mono prop for monospace fields (claim IDs, policy
+  numbers, batch IDs)
+- Form fields in Update Status section now have proper labels
+- Status History redesigned as a vertical timeline with dots and connecting lines
+- Documents tab: improved upload form with labeled fields, flex-wrap, and
+  category group headers with FolderOpen icons
+- Update Status button includes GitBranch icon
 
 Generated with [Devin](https://devin.ai)
 
