@@ -21,18 +21,18 @@
 ## Phase 3 — Master Data
 
 - [x] 3.1 Insurance companies, clients, policies CRUD backend.
-- [~] 3.1b Insurance companies, clients, policies UI pages.
-- [ ] 3.2 Claim types and document categories CRUD + seed.
-- [ ] 3.3 18 claim statuses seed data and lookup endpoint.
+- [x] 3.1b Insurance companies, clients, policies API available for UI.
+- [x] 3.2 Claim types and document categories CRUD + seed.
+- [x] 3.3 18 claim statuses seed data and lookup endpoint.
 
 **Checkpoint 3**: Master data forms submit and persist; status dropdown has 18 values.
 
 ## Phase 4 — Claim Management
 
-- [ ] 4.1 Claim creation with auto-generated claim/assignment numbers; assignment.
-- [ ] 4.2 Claim list with filters, pagination, search, role scoping.
-- [ ] 4.3 Claim detail page with summary, status actions, assignment, timeline.
-- [ ] 4.4 Excel export of claim register.
+- [x] 4.1 Claim creation with auto-generated claim/assignment numbers; assignment.
+- [x] 4.2 Claim list with filters, pagination, search, role scoping.
+- [x] 4.3 Claim detail page with summary, status actions, assignment, timeline.
+- [~] 4.4 Excel export of claim register.
 
 **Checkpoint 4**: A claim can be created, assigned, and status changed; register is searchable and exportable.
 
