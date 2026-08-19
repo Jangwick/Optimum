@@ -1077,8 +1077,8 @@ function SettlementTab({ claimId }) {
     try {
       await saveSettlement(claimId, form);
       await load();
-    } catch {
-      setError('Failed to save settlement');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save settlement');
     } finally {
       setSaving(false);
     }
@@ -1087,14 +1087,23 @@ function SettlementTab({ claimId }) {
   const handleOffer = async (e) => {
     e.preventDefault();
     if (!offerForm.offeredAmount) return;
+    const amount = Number(offerForm.offeredAmount);
+    if (isNaN(amount) || amount < 0) {
+      setError('Offered amount must be a valid non-negative number.');
+      return;
+    }
+    if (amount > 9999999999999.99) {
+      setError('Offered amount is too large (max ₱9,999,999,999,999.99).');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await createOffer(claimId, offerForm);
       setOfferForm({ offeredAmount: '', notes: '' });
       await load();
-    } catch {
-      setError('Failed to create offer');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to create offer');
     } finally {
       setSaving(false);
     }
@@ -1270,6 +1279,7 @@ function SettlementTab({ claimId }) {
                   type="number"
                   step="0.01"
                   min="0"
+                  max="9999999999999.99"
                   value={offerForm.offeredAmount}
                   onChange={(e) => setOfferForm({ ...offerForm, offeredAmount: e.target.value })}
                   placeholder="0.00"

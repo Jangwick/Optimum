@@ -1,27 +1,37 @@
-fix: remove required attr from hidden file input that blocked upload
+fix: settlement offer creation fails on oversized amounts
 
-The hidden file input in DocumentsTab had a `required` attribute.
-When a file input is hidden, some browsers silently fail form
-validation because they cannot display the validation message for
-a hidden element. This caused the Upload button to appear to do
-nothing when clicked, even when a file was selected.
+Root cause: The Offer.offeredAmount column is Decimal(15,2), which
+allows max 13 integer digits (max value ₱9,999,999,999,999.99). When
+a user entered a value with more digits (e.g. 22222222222222), Prisma
+threw a P2000 error ("value too long for column") that was not surfaced
+to the user — the catch block just showed a generic "Failed to create
+offer" message.
 
-The `required` attribute was redundant because:
-1. The Upload button is already disabled when no file is selected
-   (`disabled={uploading || !file || !categoryId}`)
-2. The handleUpload function already checks `if (!file || !categoryId)
-   return;`
+Frontend fixes (ClaimDetail.jsx SettlementTab):
+- Added max="9999999999999.99" attribute to the offered amount input
+  so the browser's native validation prevents submission of oversized
+  values with a clear message
+- Added explicit validation in handleOffer for NaN, negative, and
+  too-large amounts before calling the API
+- Improved error handling to surface the actual backend error message
+  (err.response?.data?.error) instead of a generic string
+- Applied the same improved error handling to handleSave (settlement
+  save)
 
-Removed the `required` attribute from the hidden file input.
+Backend fix (error.js):
+- Added Prisma P2000 error detection (by duck-typing err.code to avoid
+  importing @prisma/client which breaks tests) that returns a 400 with
+  a clear message: "A value provided is too large for the database
+  column (e.g. amount exceeds allowed precision)."
 
-Verified end-to-end upload in browser:
-1. Selected file via dropzone → file card shown with name and size
-2. Selected category "Policy" → Upload button enabled
-3. Clicked Upload → document persisted to backend
-4. Total Documents increased from 1 to 2
-5. New document "test-upload.txt" appears in Policy category
-6. Form reset to empty state after upload
-7. No JS errors
+Verified in browser:
+1. Entered 22222222222222 in offered amount → browser shows native
+   validation alert: "Value must be less than or equal to
+   9999999999999.99" — form not submitted, no API error
+2. Entered 7500 with notes "Second test offer" → offer created
+   successfully, offers count went from 2 to 3, new offer shows as
+   ₱7,500.00 PENDING
+3. No JS errors
 
 Generated with [Devin](https://devin.ai)
 
