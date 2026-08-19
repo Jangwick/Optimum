@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
 import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../services/import.service.js';
-import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument } from '../services/document.service.js';
+import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument } from '../services/document.service.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification } from '../services/report.service.js';
@@ -18,7 +18,7 @@ import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -437,16 +437,25 @@ function DocumentsTab({ claimId }) {
   const [checklist, setChecklist] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
   const [file, setFile] = useState(null);
   const [categoryId, setCategoryId] = useState('');
   const [desc, setDesc] = useState('');
+  const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [docData, catData] = await Promise.all([getDocuments(claimId), getDocumentCategories()]);
-    setChecklist(docData.items || []);
-    setCategories(catData.items || []);
-    setLoading(false);
+    setError(null);
+    try {
+      const [docData, catData] = await Promise.all([getDocuments(claimId), getDocumentCategories()]);
+      setChecklist(docData.items || []);
+      setCategories(catData.items || []);
+    } catch {
+      setError('Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
@@ -456,95 +465,276 @@ function DocumentsTab({ claimId }) {
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file || !categoryId) return;
-    const form = new FormData();
-    form.append('file', file);
-    form.append('documentCategoryId', categoryId);
-    form.append('description', desc);
-    await uploadDocument(claimId, form);
-    setFile(null);
-    setCategoryId('');
-    setDesc('');
-    await load();
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentCategoryId', categoryId);
+      formData.append('description', desc);
+      await uploadDocument(claimId, formData);
+      setFile(null);
+      setCategoryId('');
+      setDesc('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await load();
+    } catch {
+      setError('Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleMark = (cat, docId) => async () => {
-    await markDocumentReceived(claimId, docId);
-    await load();
+  const handleMark = (docId) => async () => {
+    try {
+      await markDocumentReceived(claimId, docId);
+      await load();
+    } catch {
+      setError('Failed to mark document as received');
+    }
   };
 
   const handleDelete = (docId) => async () => {
-    await deleteDocument(claimId, docId);
-    await load();
+    if (!confirm('Delete this document? The file will be permanently removed.')) return;
+    try {
+      await deleteDocument(claimId, docId);
+      await load();
+    } catch {
+      setError('Failed to delete document');
+    }
   };
 
-  if (loading) return <p>Loading...</p>;
+  const handleDownload = async (docId, filename) => {
+    try {
+      const response = await downloadDocument(claimId, docId);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Failed to download document');
+    }
+  };
+
+  const totalDocs = checklist.reduce((sum, g) => sum + (g.uploaded?.length || 0), 0);
+  const receivedDocs = checklist.reduce(
+    (sum, g) => sum + (g.uploaded?.filter((d) => d.isReceived).length || 0),
+    0
+  );
+
+  function formatFileSize(bytes) {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function fileIcon(mimeType) {
+    if (mimeType?.startsWith('image/')) return <File size={16} className="text-primary" />;
+    if (mimeType?.includes('pdf')) return <FileText size={16} className="text-error" />;
+    return <FileText size={16} className="text-on-surface-variant" />;
+  }
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleUpload} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 flex gap-4 items-end flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-label-md text-outline uppercase mb-1.5">File</label>
-          <input type="file" onChange={(e) => setFile(e.target.files[0])} className="w-full text-body-md" />
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+          <button onClick={() => setError(null)} className="ml-auto text-error hover:opacity-70">
+            <AlertTriangle size={14} />
+          </button>
         </div>
-        <div>
-          <label className="block text-label-md text-outline uppercase mb-1.5">Category</label>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30">
-            <option value="">Select</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <FolderOpen size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Total Documents</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{totalDocs}</p>
+          </div>
         </div>
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
-          <input
-            type="text"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="Description"
-            className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-          />
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <FileCheck size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Received</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{receivedDocs}</p>
+          </div>
         </div>
-        <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
+            <Clock size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Pending</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{totalDocs - receivedDocs}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload form */}
+      <form onSubmit={handleUpload} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-2">
+          <FolderOpen size={18} className="text-primary" />
+          <h3 className="text-headline-sm font-semibold text-primary">Upload Document</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">File</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="w-full text-body-md file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-white file:font-medium file:cursor-pointer hover:file:bg-primary-container transition-colors"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Category</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              required
+            >
+              <option value="">Select category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
+            <input
+              type="text"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Document description..."
+              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={uploading || !file || !categoryId}
+          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <FolderOpen size={16} />
-          Upload
+          {uploading ? 'Uploading...' : 'Upload'}
         </button>
       </form>
 
-      {checklist.map((group) => (
-        <div key={group.category?.id || 'unknown'} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FolderOpen size={16} className="text-primary" />
-            <h4 className="text-body-lg font-semibold text-primary">{group.category?.name || 'Uncategorized'}</h4>
-          </div>
-          <ul className="space-y-2">
-            {group.uploaded?.length ? (
-              group.uploaded.map((doc) => (
-                <li key={doc.id} className="flex justify-between items-center p-2 bg-surface-container-low rounded text-body-md">
-                  <div>
-                    <p className="font-medium">{doc.originalName}</p>
-                    <p className="text-label-sm text-outline">{doc.description || 'No description'} · {new Date(doc.createdAt).toLocaleString()}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {!doc.isReceived && (
-                      <button onClick={handleMark(group, doc.id)} className="px-3 py-1 bg-success text-white text-label-md rounded hover:opacity-90">
-                        Mark Received
-                      </button>
-                    )}
-                    <button onClick={handleDelete(doc.id)} className="px-3 py-1 bg-red-600 text-white text-label-md rounded hover:opacity-90">
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))
-            ) : (
-              <p className="text-body-md text-on-surface-variant">No documents uploaded yet.</p>
-            )}
-          </ul>
+      {/* Document checklist */}
+      {loading ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <p className="text-body-md text-on-surface-variant">Loading documents...</p>
         </div>
-      ))}
+      ) : checklist.length === 0 ? (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
+          <FolderOpen size={32} className="text-outline mx-auto mb-2" />
+          <p className="text-body-md text-on-surface-variant">No document categories configured for this claim type.</p>
+        </div>
+      ) : (
+        checklist.map((group) => {
+          const docs = group.uploaded || [];
+          const receivedCount = docs.filter((d) => d.isReceived).length;
+          return (
+            <div key={group.category?.id || 'unknown'} className="bg-surface border border-surface-border rounded-lg shadow-sm overflow-hidden">
+              {/* Category header */}
+              <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderOpen size={16} className="text-primary shrink-0" />
+                  <h4 className="text-body-md font-semibold text-primary truncate">{group.category?.name || 'Uncategorized'}</h4>
+                  {group.isRequired && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium bg-error/10 text-error">
+                      Required
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-label-sm text-on-surface-variant font-mono">
+                    {docs.length} file{docs.length !== 1 ? 's' : ''}
+                    {docs.length > 0 && ` · ${receivedCount} received`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Documents list */}
+              <div className="p-3">
+                {docs.length === 0 ? (
+                  <p className="text-body-sm text-on-surface-variant py-2">No documents uploaded yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {docs.map((doc) => (
+                      <li key={doc.id} className="flex items-center justify-between p-3 bg-surface-container-low rounded-lg border border-surface-border">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0">
+                            {fileIcon(doc.mimeType)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-body-sm font-medium text-on-surface truncate">{doc.originalName}</p>
+                              {doc.isReceived && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-label-sm font-medium bg-success/10 text-success shrink-0">
+                                  <CheckCircle size={10} />
+                                  Received
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-label-sm text-outline mt-0.5">
+                              {doc.description || 'No description'}
+                              {' · '}
+                              <span className="font-mono">{formatFileSize(doc.size)}</span>
+                              {' · '}
+                              {new Date(doc.createdAt).toLocaleDateString()}
+                              {doc.uploadedBy && ` · ${doc.uploadedBy}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleDownload(doc.id, doc.originalName)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                            title="Download"
+                          >
+                            <Download size={16} />
+                          </button>
+                          {!doc.isReceived && (
+                            <button
+                              onClick={handleMark(doc.id)}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded text-success hover:bg-success/10 transition-colors"
+                              title="Mark received"
+                            >
+                              <FileCheck size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={handleDelete(doc.id)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

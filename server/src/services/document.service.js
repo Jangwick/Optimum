@@ -19,21 +19,64 @@ export async function getDocumentChecklist(claimId) {
 
   const requirements = claim.claimType?.requirements || [];
 
-  return requirements.map((req) => ({
-    category: req.documentCategory,
-    isRequired: req.isRequired,
-    uploaded: documents.filter((d) => d.documentCategoryId === req.documentCategoryId).map((d) => ({
-      id: d.id,
-      originalName: d.originalName,
-      mimeType: d.mimeType,
-      size: d.size,
-      description: d.description,
-      isReceived: d.isReceived,
-      receivedAt: d.receivedAt?.toISOString(),
-      uploadedBy: d.uploadedBy ? `${d.uploadedBy.firstName} ${d.uploadedBy.lastName}` : null,
-      createdAt: d.createdAt.toISOString(),
-    })),
+  // Build a map of all categories: required ones + any with uploaded docs
+  const categoryMap = new Map();
+  for (const req of requirements) {
+    categoryMap.set(req.documentCategoryId, {
+      category: req.documentCategory,
+      isRequired: req.isRequired,
+      uploaded: [],
+    });
+  }
+  // Add categories from uploaded documents that aren't in requirements
+  for (const doc of documents) {
+    if (doc.documentCategoryId && !categoryMap.has(doc.documentCategoryId)) {
+      categoryMap.set(doc.documentCategoryId, {
+        category: doc.documentCategory,
+        isRequired: false,
+        uploaded: [],
+      });
+    }
+  }
+  // Add documents with no category to an "Uncategorized" group
+  const uncategorizedDocs = documents.filter((d) => !d.documentCategoryId);
+
+  const result = Array.from(categoryMap.values()).map((group) => ({
+    ...group,
+    uploaded: documents
+      .filter((d) => d.documentCategoryId && categoryMap.has(d.documentCategoryId) && categoryMap.get(d.documentCategoryId) === group)
+      .map((d) => ({
+        id: d.id,
+        originalName: d.originalName,
+        mimeType: d.mimeType,
+        size: d.size,
+        description: d.description,
+        isReceived: d.isReceived,
+        receivedAt: d.receivedAt?.toISOString(),
+        uploadedBy: d.uploadedBy ? `${d.uploadedBy.firstName} ${d.uploadedBy.lastName}` : null,
+        createdAt: d.createdAt.toISOString(),
+      })),
   }));
+
+  if (uncategorizedDocs.length > 0) {
+    result.push({
+      category: null,
+      isRequired: false,
+      uploaded: uncategorizedDocs.map((d) => ({
+        id: d.id,
+        originalName: d.originalName,
+        mimeType: d.mimeType,
+        size: d.size,
+        description: d.description,
+        isReceived: d.isReceived,
+        receivedAt: d.receivedAt?.toISOString(),
+        uploadedBy: d.uploadedBy ? `${d.uploadedBy.firstName} ${d.uploadedBy.lastName}` : null,
+        createdAt: d.createdAt.toISOString(),
+      })),
+    });
+  }
+
+  return result;
 }
 
 export async function uploadDocument(claimId, file, data, userId) {
