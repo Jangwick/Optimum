@@ -20,12 +20,87 @@ export async function getClients() {
   return data;
 }
 
+export async function createClient(payload) {
+  const { data } = await api.post('/master-data/clients', payload);
+  return data;
+}
+
+export async function updateClient(id, payload) {
+  const { data } = await api.put(`/master-data/clients/${id}`, payload);
+  return data;
+}
+
+export async function deleteClient(id) {
+  const { data } = await api.delete(`/master-data/clients/${id}`);
+  return data;
+}
+
 export async function getInsuranceCompanies() {
   const { data } = await api.get('/master-data/insurance-companies');
   return data;
 }
 
+export async function createInsuranceCompany(payload) {
+  const { data } = await api.post('/master-data/insurance-companies', payload);
+  return data;
+}
+
+export async function updateInsuranceCompany(id, payload) {
+  const { data } = await api.put(`/master-data/insurance-companies/${id}`, payload);
+  return data;
+}
+
+export async function deleteInsuranceCompany(id) {
+  const { data } = await api.delete(`/master-data/insurance-companies/${id}`);
+  return data;
+}
+
 export async function getPolicies() {
   const { data } = await api.get('/master-data/policies');
+  return data;
+}
+
+export async function createPolicy(payload) {
+  const { data } = await api.post('/master-data/policies', payload);
+  return data;
+}
+
+export async function updatePolicy(id, payload) {
+  const { data } = await api.put(`/master-data/policies/${id}`, payload);
+  return data;
+}
+
+export async function deletePolicy(id) {
+  const { data } = await api.delete(`/master-data/policies/${id}`);
+  return data;
+}
+
+export async function createClaimType(payload) {
+  const { data } = await api.post('/master-data/claim-types', payload);
+  return data;
+}
+
+export async function updateClaimType(id, payload) {
+  const { data } = await api.put(`/master-data/claim-types/${id}`, payload);
+  return data;
+}
+
+export async function deleteClaimType(id) {
+  const { data } = await api.delete(`/master-data/claim-types/${id}`);
+  return data;
+}
+
+export async function createDocumentCategory(payload) {
+  const { data } = await api.post('/master-data/document-categories', payload);
+  return data;
+}
+
+export async function updateDocumentCategory(id, payload) {
+  const { data } = await api.put(`/master-data/document-categories/${id}`, payload);
+  return data;
+}
+
+export async function deleteDocumentCategory(id) {
+  const { data } = await api.delete(`/master-data/document-categories/${id}`);
   return data;
 }

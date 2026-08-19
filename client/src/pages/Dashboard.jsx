@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
 import { formatCurrency } from '../utils/currency.js';
 
-const MetricCard = ({ title, value, color }) => (
-  <div className="bg-surface border border-surface-border rounded shadow-sm p-6">
+const MetricCard = ({ title, value, color, cap }) => (
+  <div className={`bg-surface border border-surface-border rounded shadow-sm p-6 border-t-4 ${cap}`}>
     <p className="text-label-md text-outline uppercase mb-1">{title}</p>
     <p className={`text-headline-lg font-semibold ${color || 'text-primary'}`}>{value}</p>
   </div>
@@ -23,6 +23,12 @@ export default function Dashboard() {
       .then((res) => setData(res.data))
       .finally(() => setLoading(false));
   }, []);
+
+  const capClass = (title) => {
+    if (title === 'Open Tasks') return 'border-t-accent-orange';
+    if (title === 'Reserve') return 'border-t-primary';
+    return 'border-t-primary';
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -42,13 +48,13 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard title="Total Claims" value={data.counts?.total} color="text-primary" />
-                <MetricCard title="Estimated Loss" value={formatCurrency(data.counts?.estimated)} color="text-primary" />
-                <MetricCard title="Reserve" value={formatCurrency(data.counts?.reserve)} color="text-primary" />
-                <MetricCard title="Open Tasks" value={data.counts?.openTasks} color="text-accent" />
+                <MetricCard title="Total Claims" value={data.counts?.total} color="text-primary" cap="border-t-primary" />
+                <MetricCard title="Estimated Loss" value={formatCurrency(data.counts?.estimated)} color="text-primary" cap={capClass('Estimated Loss')} />
+                <MetricCard title="Reserve" value={formatCurrency(data.counts?.reserve)} color="text-primary" cap={capClass('Reserve')} />
+                <MetricCard title="Open Tasks" value={data.counts?.openTasks} color="text-accent" cap={capClass('Open Tasks')} />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
                   <h3 className="text-headline-sm font-semibold text-primary mb-4">Recent Claims</h3>
                   <div className="space-y-3">
@@ -93,7 +99,53 @@ export default function Dashboard() {
                     )}
                   </div>
                 </section>
+
+                <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+                  <h3 className="text-headline-sm font-semibold text-primary mb-4">My Open Tasks</h3>
+                  <div className="space-y-3">
+                    {data.openTasksList?.length ? (
+                      data.openTasksList.map((t) => (
+                        <div key={t.id} className="p-3 bg-surface-container-low rounded">
+                          <div className="flex justify-between items-start">
+                            <p className="text-body-md font-medium text-primary">{t.title}</p>
+                            <span
+                              className={`text-label-md px-2 py-0.5 rounded ${
+                                t.dueDate && new Date(t.dueDate) < new Date() ? 'bg-error text-white' : 'bg-surface-container-high text-on-surface-variant'
+                              }`}
+                            >
+                              {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'No due date'}
+                            </span>
+                          </div>
+                          <p className="text-body-sm text-on-surface-variant">{t.claim?.claimNumber || 'General'}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-body-md text-on-surface-variant">No open tasks.</p>
+                    )}
+                  </div>
+                </section>
               </div>
+
+              <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+                <h3 className="text-headline-sm font-semibold text-primary mb-4">Recent Activity</h3>
+                <div className="space-y-3">
+                  {data.recentActivity?.length ? (
+                    data.recentActivity.map((a) => (
+                      <div key={a.id} className="flex justify-between items-center p-3 bg-surface-container-low rounded">
+                        <div>
+                          <p className="text-body-md font-medium text-primary">{a.action}</p>
+                          <p className="text-body-sm text-on-surface-variant">
+                            {a.user ? `${a.user.firstName} ${a.user.lastName}` : 'System'} on {a.tableName}
+                          </p>
+                        </div>
+                        <span className="text-body-sm text-outline">{new Date(a.createdAt).toLocaleString()}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-body-md text-on-surface-variant">No recent activity.</p>
+                  )}
+                </div>
+              </section>
             </div>
           )}
         </main>

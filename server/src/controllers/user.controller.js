@@ -72,6 +72,34 @@ export async function deactivateUser(req, res, next) {
   }
 }
 
+export async function activateUser(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      throw new AppError('Invalid user id', 400);
+    }
+
+    const user = await userService.activateUser(id);
+    res.json({ success: true, user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) {
+      throw new AppError('Invalid user id', 400);
+    }
+
+    const result = await userService.resetPassword(id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function listEngineers(req, res, next) {
   try {
     const users = await userService.getUsers({ role: 'ENGINEER' });

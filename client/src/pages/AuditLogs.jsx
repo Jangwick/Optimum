@@ -1,18 +1,50 @@
 import { useEffect, useState } from 'react';
-import { api } from '../services/api.js';
+import { getAuditLogs } from '../services/audit.service.js';
+import { getUsers } from '../services/user.service.js';
+import { DataTable } from '../components/DataTable.jsx';
+import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { useList } from '../hooks/useList.js';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function AuditLogs() {
-  const [logs, setLogs] = useState([]);
+  const { page, setPage, limit, setLimit, search, applySearch, filters, applyFilters } = useList();
+  const [data, setData] = useState({ items: [], count: 0 });
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
-    api
-      .get('/audit-logs')
-      .then((res) => setLogs(res.data.items || []))
-      .finally(() => setLoading(false));
+    getUsers({ limit: 1000 }).then((res) => setUsers(res.users || []));
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    getAuditLogs({
+      page,
+      limit,
+      action: search,
+      tableName: filters.tableName || '',
+      userId: filters.userId || '',
+      from: filters.from || '',
+      to: filters.to || '',
+    })
+      .then((res) => setData(res))
+      .finally(() => setLoading(false));
+  }, [page, limit, search, filters, filters.userId, filters.tableName, filters.from, filters.to]);
+
+  const columns = [
+    { key: 'createdAt', title: 'Time', render: (row) => new Date(row.createdAt).toLocaleString() },
+    { key: 'action', title: 'Action' },
+    { key: 'tableName', title: 'Table' },
+    {
+      key: 'user',
+      title: 'User',
+      render: (row) => (row.user ? `${row.user.firstName} ${row.user.lastName}` : 'System'),
+    },
+    { key: 'recordId', title: 'Record' },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -25,42 +57,72 @@ export default function AuditLogs() {
             <p className="text-body-md text-on-surface-variant mt-1">Recent system activity.</p>
           </div>
 
-          {loading ? (
-            <p className="text-body-md text-on-surface-variant">Loading...</p>
-          ) : (
-            <div className="bg-surface border border-surface-border rounded shadow-sm p-4">
-              <table className="w-full text-left">
-                <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase">
-                  <tr>
-                    <th className="px-4 py-2">Time</th>
-                    <th className="px-4 py-2">Action</th>
-                    <th className="px-4 py-2">Table</th>
-                    <th className="px-4 py-2">User</th>
-                    <th className="px-4 py-2">Record</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border text-body-md">
-                  {logs.length ? (
-                    logs.map((l) => (
-                      <tr key={l.id}>
-                        <td className="px-4 py-2">{new Date(l.createdAt).toLocaleString()}</td>
-                        <td className="px-4 py-2 font-medium">{l.action}</td>
-                        <td className="px-4 py-2">{l.tableName} #{l.recordId}</td>
-                        <td className="px-4 py-2">{l.user?.firstName} {l.user?.lastName}</td>
-                        <td className="px-4 py-2">{l.newValues ? JSON.stringify(l.newValues).slice(0, 80) : '—'}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-4 text-center text-on-surface-variant">
-                        No audit logs found. Audit logging is not yet wired into every action.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => applySearch(e.target.value)}
+              placeholder="Search action"
+              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+            />
+            <input
+              type="text"
+              value={filters.tableName || ''}
+              onChange={(e) => applyFilters({ ...filters, tableName: e.target.value })}
+              placeholder="Table"
+              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+            />
+            <select
+              value={filters.userId || ''}
+              onChange={(e) => applyFilters({ ...filters, userId: e.target.value })}
+              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+            >
+              <option value="">All users</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={filters.from || ''}
+              onChange={(e) => applyFilters({ ...filters, from: e.target.value })}
+              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+            />
+            <input
+              type="date"
+              value={filters.to || ''}
+              onChange={(e) => applyFilters({ ...filters, to: e.target.value })}
+              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+            />
+          </div>
+
+          <DataTable
+            columns={columns}
+            rows={data.items}
+            loading={loading}
+            keyExtractor={(row) => row.id}
+            rowActions={(row) => (
+              <button
+                onClick={() => setExpanded(expanded === row.id ? null : row.id)}
+                className="p-1.5 text-outline hover:text-primary hover:bg-surface-container-low rounded"
+              >
+                {expanded === row.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
+          />
+
+          {expanded && (
+            <div className="mt-4 bg-surface border border-surface-border rounded shadow-sm p-4">
+              <h4 className="text-body-md font-semibold text-primary mb-2">Details</h4>
+              <pre className="text-body-sm text-on-surface-variant font-mono whitespace-pre-wrap">
+                {JSON.stringify(data.items.find((i) => i.id === expanded)?.newValues, null, 2) || '—'}
+              </pre>
             </div>
           )}
+
+          <Pagination page={page} limit={limit} total={data.count} onPageChange={setPage} onLimitChange={setLimit} />
         </main>
       </div>
     </div>

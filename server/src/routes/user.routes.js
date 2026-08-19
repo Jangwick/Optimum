@@ -7,6 +7,8 @@ import {
   createUser,
   updateUser,
   deactivateUser,
+  activateUser,
+  resetPassword,
   listEngineers,
   listAccountants,
 } from '../controllers/user.controller.js';
@@ -22,5 +24,7 @@ router.get('/:id', getUser);
 router.post('/', requireRole('ADMIN'), createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', requireRole('ADMIN'), deactivateUser);
+router.patch('/:id/activate', requireRole('ADMIN'), activateUser);
+router.post('/:id/reset-password', requireRole('ADMIN'), resetPassword);
 
 export default router;

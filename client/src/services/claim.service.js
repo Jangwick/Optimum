@@ -19,3 +19,8 @@ export async function updateClaimStatus(id, payload) {
   const { data } = await api.patch(`/claims/${id}/status`, payload);
   return data;
 }
+
+export async function exportClaims(params = {}) {
+  const { data } = await api.get('/export/claims', { params, responseType: 'blob' });
+  return data;
+}

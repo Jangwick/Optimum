@@ -1,8 +1,15 @@
 import { prisma } from '../db/client.js';
 
-export async function listAuditLogs({ action, page = 1, limit = 50 }) {
+export async function listAuditLogs({ action, tableName, userId, from, to, page = 1, limit = 50 }) {
   const where = {};
   if (action) where.action = { contains: action };
+  if (tableName) where.tableName = { contains: tableName };
+  if (userId) where.userId = Number(userId);
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
+  }
 
   const [items, count] = await Promise.all([
     prisma.auditLog.findMany({

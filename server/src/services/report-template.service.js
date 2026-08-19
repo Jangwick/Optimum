@@ -21,6 +21,30 @@ export async function getTemplate(id) {
   return item;
 }
 
+export async function deleteTemplate(id) {
+  const item = await prisma.reportTemplate.findUnique({ where: { id } });
+  if (!item) throw new AppError('Template not found', 404);
+  if (item.path && fs.existsSync(item.path)) {
+    fs.unlinkSync(item.path);
+  }
+  await prisma.reportTemplate.delete({ where: { id } });
+}
+
+export async function setDefaultTemplate(id) {
+  await prisma.$transaction(async (tx) => {
+    await tx.reportTemplate.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
+    await tx.reportTemplate.update({ where: { id }, data: { isDefault: true } });
+  });
+  return prisma.reportTemplate.findUnique({ where: { id } });
+}
+
+export async function getTemplatePath(id) {
+  const item = await prisma.reportTemplate.findUnique({ where: { id } });
+  if (!item) throw new AppError('Template not found', 404);
+  if (!item.path || !fs.existsSync(item.path)) throw new AppError('Template file not found', 404);
+  return item.path;
+}
+
 export async function createTemplate(data, file, _userId) {
   ensureDir(templateDir);
 

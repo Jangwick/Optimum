@@ -138,6 +138,26 @@ export async function deactivateUser(id) {
   return updateUser(id, { isActive: false });
 }
 
+export async function activateUser(id) {
+  return updateUser(id, { isActive: true });
+}
+
+export async function resetPassword(id) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const password = generatePassword();
+  const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash },
+  });
+
+  return { user: formatUser(user), plainPassword: password };
+}
+
 function formatUser(user) {
   return {
     id: user.id,

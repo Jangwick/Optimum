@@ -90,7 +90,18 @@ async function generateClaimNumber() {
 }
 
 export async function getClaims(filters, user) {
-  const { search, status, claimType, clientId, engineerId, accountantId, page = 1, limit = 25 } = filters;
+  const {
+    search,
+    status,
+    claimType,
+    clientId,
+    engineerId,
+    accountantId,
+    page = 1,
+    limit = 25,
+    sortField = 'createdAt',
+    sortOrder = 'desc',
+  } = filters;
   const where = {};
 
   if (search) {
@@ -98,6 +109,7 @@ export async function getClaims(filters, user) {
       { claimNumber: { contains: search } },
       { description: { contains: search } },
       { classification: { contains: search } },
+      { client: { name: { contains: search } } },
     ];
   }
 
@@ -110,12 +122,20 @@ export async function getClaims(filters, user) {
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
 
+  const orderBy = {};
+  const allowedSort = ['claimNumber', 'dateReceived', 'estimatedLoss', 'reserve', 'createdAt'];
+  if (allowedSort.includes(sortField)) {
+    orderBy[sortField] = sortOrder === 'asc' ? 'asc' : 'desc';
+  } else {
+    orderBy.createdAt = 'desc';
+  }
+
   const [items, count] = await Promise.all([
     prisma.claim.findMany({
       where,
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       include: {
         policy: { include: { client: true, insuranceCompany: true } },
         client: true,

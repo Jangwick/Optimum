@@ -1,41 +1,206 @@
-import { useEffect, useState } from 'react';
-import { formatCurrency } from '../utils/currency.js';
+import { useState } from 'react';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
-import { getInsuranceCompanies, getClients, getPolicies } from '../services/master-data.service.js';
+import { MasterDataCrud } from '../components/MasterDataCrud.jsx';
+import {
+  getInsuranceCompanies,
+  createInsuranceCompany,
+  updateInsuranceCompany,
+  deleteInsuranceCompany,
+  getClients,
+  createClient,
+  updateClient,
+  deleteClient,
+  getPolicies,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+  getClaimTypes,
+  createClaimType,
+  updateClaimType,
+  deleteClaimType,
+  getDocumentCategories,
+  createDocumentCategory,
+  updateDocumentCategory,
+  deleteDocumentCategory,
+} from '../services/master-data.service.js';
+import { formatCurrency } from '../utils/currency.js';
 
-function Section({ title, children }) {
-  return (
-    <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-      <h3 className="text-headline-sm font-semibold text-primary mb-4">{title}</h3>
-      {children}
-    </section>
-  );
-}
+const baseFields = {
+  insurance: [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'code', label: 'Code', required: true },
+    { key: 'contactPerson', label: 'Contact Person' },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'address', label: 'Address' },
+  ],
+  client: [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'code', label: 'Code', required: true },
+    { key: 'contactPerson', label: 'Contact Person' },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'address', label: 'Address' },
+  ],
+  policy: [
+    { key: 'policyNumber', label: 'Policy #', required: true },
+    { key: 'insuranceCompanyId', label: 'Insurer ID', type: 'number', required: true },
+    { key: 'clientId', label: 'Client ID', type: 'number', required: true },
+    { key: 'claimTypeId', label: 'Claim Type ID', type: 'number', required: true },
+    { key: 'policyType', label: 'Policy Type' },
+    { key: 'coverageDetails', label: 'Coverage Details' },
+    { key: 'startDate', label: 'Start Date', type: 'date', required: true },
+    { key: 'endDate', label: 'End Date', type: 'date' },
+    { key: 'sumInsured', label: 'Sum Insured', type: 'number' },
+    { key: 'premium', label: 'Premium', type: 'number' },
+    { key: 'excess', label: 'Excess', type: 'number' },
+    { key: 'notes', label: 'Notes' },
+  ],
+  claimType: [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'code', label: 'Code', required: true },
+    { key: 'description', label: 'Description' },
+  ],
+  documentCategory: [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'code', label: 'Code', required: true },
+    { key: 'description', label: 'Description' },
+  ],
+};
 
 export default function MasterData() {
   const [tab, setTab] = useState('companies');
-  const [companies, setCompanies] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [policies, setPolicies] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([getInsuranceCompanies(), getClients(), getPolicies()])
-      .then(([c, cl, p]) => {
-        setCompanies(c.items || []);
-        setClients(cl.items || []);
-        setPolicies(p.items || []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const tabs = [
     { key: 'companies', label: 'Insurance Companies' },
     { key: 'clients', label: 'Clients' },
     { key: 'policies', label: 'Policies' },
+    { key: 'claimTypes', label: 'Claim Types' },
+    { key: 'documentCategories', label: 'Document Categories' },
   ];
+
+  const renderSection = () => {
+    switch (tab) {
+      case 'companies':
+        return (
+          <MasterDataCrud
+            title="Insurance Companies"
+            list={getInsuranceCompanies}
+            create={createInsuranceCompany}
+            update={updateInsuranceCompany}
+            remove={deleteInsuranceCompany}
+            fields={baseFields.insurance}
+            defaultValues={{ name: '', code: '', contactPerson: '', email: '', phone: '', address: '' }}
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'code', title: 'Code', className: 'font-mono' },
+              { key: 'contactPerson', title: 'Contact' },
+              { key: 'email', title: 'Email' },
+              { key: 'phone', title: 'Phone' },
+            ]}
+          />
+        );
+      case 'clients':
+        return (
+          <MasterDataCrud
+            title="Clients"
+            list={getClients}
+            create={createClient}
+            update={updateClient}
+            remove={deleteClient}
+            fields={baseFields.client}
+            defaultValues={{ name: '', code: '', contactPerson: '', email: '', phone: '', address: '' }}
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'code', title: 'Code', className: 'font-mono' },
+              { key: 'contactPerson', title: 'Contact' },
+              { key: 'email', title: 'Email' },
+              { key: 'phone', title: 'Phone' },
+            ]}
+          />
+        );
+      case 'policies':
+        return (
+          <MasterDataCrud
+            title="Policies"
+            list={getPolicies}
+            create={createPolicy}
+            update={updatePolicy}
+            remove={deletePolicy}
+            fields={baseFields.policy}
+            defaultValues={{
+              policyNumber: '',
+              insuranceCompanyId: '',
+              clientId: '',
+              claimTypeId: '',
+              policyType: '',
+              coverageDetails: '',
+              startDate: '',
+              endDate: '',
+              sumInsured: '',
+              premium: '',
+              excess: '',
+              notes: '',
+            }}
+            columns={[
+              { key: 'policyNumber', title: 'Policy #', className: 'font-mono' },
+              { key: 'client', title: 'Client', render: (row) => row.client?.name },
+              { key: 'insuranceCompany', title: 'Insurer', render: (row) => row.insuranceCompany?.name },
+              { key: 'claimType', title: 'Type', render: (row) => row.claimType?.name },
+              { key: 'sumInsured', title: 'Sum Insured', align: 'right', render: (row) => formatCurrency(row.sumInsured) },
+              { key: 'premium', title: 'Premium', align: 'right', render: (row) => formatCurrency(row.premium) },
+              {
+                key: 'startDate',
+                title: 'Period',
+                render: (row) =>
+                  row.startDate
+                    ? `${new Date(row.startDate).toLocaleDateString()} — ${
+                        row.endDate ? new Date(row.endDate).toLocaleDateString() : 'Open'
+                      }`
+                    : '—',
+              },
+            ]}
+          />
+        );
+      case 'claimTypes':
+        return (
+          <MasterDataCrud
+            title="Claim Types"
+            list={getClaimTypes}
+            create={createClaimType}
+            update={updateClaimType}
+            remove={deleteClaimType}
+            fields={baseFields.claimType}
+            defaultValues={{ name: '', code: '', description: '' }}
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'code', title: 'Code', className: 'font-mono' },
+              { key: 'description', title: 'Description' },
+            ]}
+          />
+        );
+      case 'documentCategories':
+        return (
+          <MasterDataCrud
+            title="Document Categories"
+            list={getDocumentCategories}
+            create={createDocumentCategory}
+            update={updateDocumentCategory}
+            remove={deleteDocumentCategory}
+            fields={baseFields.documentCategory}
+            defaultValues={{ name: '', code: '', description: '' }}
+            columns={[
+              { key: 'name', title: 'Name' },
+              { key: 'code', title: 'Code', className: 'font-mono' },
+              { key: 'description', title: 'Description' },
+            ]}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -45,7 +210,7 @@ export default function MasterData() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-6">
             <h2 className="text-headline-lg font-semibold text-primary">Master Data</h2>
-            <p className="text-body-md text-on-surface-variant mt-1">Insurance companies, clients, and policies.</p>
+            <p className="text-body-md text-on-surface-variant mt-1">Insurance companies, clients, policies, and lookups.</p>
           </div>
 
           <div className="flex gap-2 border-b border-surface-border mb-6">
@@ -54,9 +219,7 @@ export default function MasterData() {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${
-                  tab === t.key
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-on-surface-variant hover:text-primary'
+                  tab === t.key ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-primary'
                 }`}
               >
                 {t.label}
@@ -64,84 +227,7 @@ export default function MasterData() {
             ))}
           </div>
 
-          {loading ? (
-            <p className="text-body-md text-on-surface-variant">Loading...</p>
-          ) : tab === 'companies' ? (
-            <Section title="Insurance Companies">
-              <table className="w-full text-left">
-                <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase">
-                  <tr>
-                    <th className="px-4 py-2">Name</th>
-                    <th className="px-4 py-2">Code</th>
-                    <th className="px-4 py-2">Email</th>
-                    <th className="px-4 py-2">Phone</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border text-body-md">
-                  {companies.map((c) => (
-                    <tr key={c.id}>
-                      <td className="px-4 py-2">{c.name}</td>
-                      <td className="px-4 py-2 font-mono">{c.code}</td>
-                      <td className="px-4 py-2">{c.email}</td>
-                      <td className="px-4 py-2">{c.phone}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
-          ) : tab === 'clients' ? (
-            <Section title="Clients">
-              <table className="w-full text-left">
-                <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase">
-                  <tr>
-                    <th className="px-4 py-2">Name</th>
-                    <th className="px-4 py-2">Code</th>
-                    <th className="px-4 py-2">Contact</th>
-                    <th className="px-4 py-2">Email</th>
-                    <th className="px-4 py-2">Phone</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border text-body-md">
-                  {clients.map((c) => (
-                    <tr key={c.id}>
-                      <td className="px-4 py-2">{c.name}</td>
-                      <td className="px-4 py-2 font-mono">{c.code}</td>
-                      <td className="px-4 py-2">{c.contactPerson}</td>
-                      <td className="px-4 py-2">{c.email}</td>
-                      <td className="px-4 py-2">{c.phone}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
-          ) : (
-            <Section title="Policies">
-              <table className="w-full text-left">
-                <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase">
-                  <tr>
-                    <th className="px-4 py-2">Policy #</th>
-                    <th className="px-4 py-2">Client</th>
-                    <th className="px-4 py-2">Insurer</th>
-                    <th className="px-4 py-2">Type</th>
-                    <th className="px-4 py-2">Sum Insured</th>
-                    <th className="px-4 py-2">Premium</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface-border text-body-md">
-                  {policies.map((p) => (
-                    <tr key={p.id}>
-                      <td className="px-4 py-2 font-mono">{p.policyNumber}</td>
-                      <td className="px-4 py-2">{p.client?.name}</td>
-                      <td className="px-4 py-2">{p.insuranceCompany?.name}</td>
-                      <td className="px-4 py-2">{p.claimType?.name}</td>
-                      <td className="px-4 py-2 font-mono">{formatCurrency(p.sumInsured)}</td>
-                      <td className="px-4 py-2 font-mono">{formatCurrency(p.premium)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Section>
-          )}
+          {renderSection()}
         </main>
       </div>
     </div>

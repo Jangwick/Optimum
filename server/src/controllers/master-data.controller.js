@@ -123,10 +123,52 @@ export async function listClaimTypes(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function createClaimType(req, res, next) {
+  try {
+    const item = await masterDataService.createClaimType(req.body);
+    res.status(201).json({ success: true, item });
+  } catch (err) { next(err); }
+}
+
+export async function updateClaimType(req, res, next) {
+  try {
+    const item = await masterDataService.updateClaimType(idParam(req), req.body);
+    res.json({ success: true, item });
+  } catch (err) { next(err); }
+}
+
+export async function deleteClaimType(req, res, next) {
+  try {
+    await masterDataService.deleteClaimType(idParam(req));
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
 export async function listDocumentCategories(req, res, next) {
   try {
     const items = await masterDataService.listDocumentCategories();
     res.json({ success: true, items });
+  } catch (err) { next(err); }
+}
+
+export async function createDocumentCategory(req, res, next) {
+  try {
+    const item = await masterDataService.createDocumentCategory(req.body);
+    res.status(201).json({ success: true, item });
+  } catch (err) { next(err); }
+}
+
+export async function updateDocumentCategory(req, res, next) {
+  try {
+    const item = await masterDataService.updateDocumentCategory(idParam(req), req.body);
+    res.json({ success: true, item });
+  } catch (err) { next(err); }
+}
+
+export async function deleteDocumentCategory(req, res, next) {
+  try {
+    await masterDataService.deleteDocumentCategory(idParam(req));
+    res.json({ success: true });
   } catch (err) { next(err); }
 }
 

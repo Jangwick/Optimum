@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getClaims } from '../services/claim.service.js';
+import { getClaims, exportClaims } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
+import { useList } from '../hooks/useList.js';
+import { DataTable } from '../components/DataTable.jsx';
+import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { Download } from 'lucide-react';
 
 function StatusPill({ code, color }) {
   return (
@@ -18,31 +22,84 @@ function StatusPill({ code, color }) {
 }
 
 export default function Claims() {
-  const [claims, setClaims] = useState([]);
+  const {
+    page,
+    setPage,
+    limit,
+    setLimit,
+    search,
+    applySearch,
+    filters,
+    applyFilters,
+    sortField,
+    sortOrder,
+    onSort,
+    refresh,
+  } = useList();
+
+  const [data, setData] = useState({ items: [], count: 0 });
   const [statuses, setStatuses] = useState([]);
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([getClaims(), getClaimStatuses()])
-      .then(([claimsData, statusesData]) => {
-        setClaims(claimsData.items || []);
-        setStatuses(statusesData.items || []);
-      })
-      .finally(() => setLoading(false));
+    getClaimStatuses().then((res) => setStatuses(res.items || []));
   }, []);
 
-  const filtered = claims.filter((c) => {
-    const matchesSearch =
-      !search ||
-      c.claimNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      c.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      c.description?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !status || c.status?.code === status;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    setLoading(true);
+    const params = {
+      page,
+      limit,
+      search,
+      status: filters.status || '',
+      sortField,
+      sortOrder,
+    };
+    getClaims(params)
+      .then((res) => setData(res))
+      .finally(() => setLoading(false));
+  }, [page, limit, search, filters, sortField, sortOrder, refresh]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await exportClaims({ search, status: filters.status });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `claims-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const columns = [
+    { key: 'claimNumber', title: 'Claim #', sortable: true, className: 'font-mono text-body-md font-medium text-primary' },
+    { key: 'client', title: 'Client', render: (row) => row.client?.name },
+    { key: 'claimType', title: 'Type', render: (row) => row.claimType?.name },
+    { key: 'status', title: 'Status', render: (row) => <StatusPill code={row.status?.code} color={row.status?.color} /> },
+    { key: 'engineer', title: 'Engineer', render: (row) => row.engineer?.fullName || '—' },
+    {
+      key: 'reserve',
+      title: 'Reserve',
+      sortable: true,
+      align: 'right',
+      className: 'font-mono',
+      render: (row) => formatCurrency(row.reserve),
+    },
+    {
+      key: 'dateReceived',
+      title: 'Received',
+      sortable: true,
+      render: (row) => (row.dateReceived ? new Date(row.dateReceived).toLocaleDateString() : '—'),
+    },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -55,25 +112,35 @@ export default function Claims() {
               <h2 className="text-headline-lg font-semibold text-primary">Claims</h2>
               <p className="text-body-md text-on-surface-variant mt-1">Manage and track all claims.</p>
             </div>
-            <button
-              onClick={() => navigate('/claims/new')}
-              className="bg-primary text-white px-4 py-2 rounded text-label-md uppercase hover:bg-primary-container transition-colors"
-            >
-              + New Claim
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded border border-outline text-body-md hover:bg-surface-container-low disabled:opacity-50"
+              >
+                <Download size={16} />
+                {exporting ? 'Exporting...' : 'Export Excel'}
+              </button>
+              <button
+                onClick={() => navigate('/claims/new')}
+                className="bg-primary text-white px-4 py-2 rounded text-label-md uppercase hover:bg-primary-container transition-colors"
+              >
+                + New Claim
+              </button>
+            </div>
           </div>
 
           <div className="bg-surface border border-surface-border rounded shadow-sm p-4 mb-6 flex gap-4">
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => applySearch(e.target.value)}
               placeholder="Search claim number, client, or description"
               className="flex-1 h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             />
             <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              value={filters.status || ''}
+              onChange={(e) => applyFilters({ ...filters, status: e.target.value })}
               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             >
               <option value="">All statuses</option>
@@ -85,56 +152,23 @@ export default function Claims() {
             </select>
           </div>
 
-          <div className="bg-surface border border-surface-border rounded shadow-sm overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-surface-container-high text-on-surface-variant text-label-md uppercase sticky top-0">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Claim #</th>
-                  <th className="px-6 py-3 font-medium">Client</th>
-                  <th className="px-6 py-3 font-medium">Type</th>
-                  <th className="px-6 py-3 font-medium">Status</th>
-                  <th className="px-6 py-3 font-medium">Engineer</th>
-                  <th className="px-6 py-3 font-medium">Reserve</th>
-                  <th className="px-6 py-3 font-medium">Received</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 text-body-md text-on-surface-variant">
-                      Loading...
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 text-body-md text-on-surface-variant">
-                      No claims found.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((claim) => (
-                    <tr
-                      key={claim.id}
-                      onClick={() => navigate(`/claims/${claim.id}`)}
-                      className="hover:bg-surface-container-low cursor-pointer"
-                    >
-                      <td className="px-6 py-3 font-mono text-body-md font-medium text-primary">{claim.claimNumber}</td>
-                      <td className="px-6 py-3 text-body-md">{claim.client?.name}</td>
-                      <td className="px-6 py-3 text-body-md">{claim.claimType?.name}</td>
-                      <td className="px-6 py-3">
-                        <StatusPill code={claim.status?.code} color={claim.status?.color} />
-                      </td>
-                      <td className="px-6 py-3 text-body-md">{claim.engineer?.fullName || '—'}</td>
-                      <td className="px-6 py-3 font-mono text-body-md">{formatCurrency(claim.reserve)}</td>
-                      <td className="px-6 py-3 text-body-sm text-on-surface-variant">
-                        {new Date(claim.dateReceived).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            rows={data.items}
+            loading={loading}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSort={onSort}
+            keyExtractor={(row) => row.id}
+          />
+
+          <Pagination
+            page={page}
+            limit={limit}
+            total={data.count}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+          />
         </main>
       </div>
     </div>

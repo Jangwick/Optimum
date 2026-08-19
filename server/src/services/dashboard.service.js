@@ -5,7 +5,9 @@ export async function getDashboard(user) {
   if (user.role === 'ENGINEER') baseWhere.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') baseWhere.accountantId = user.id;
 
-  const [claims, statusCounts, openTasks, recentActivity] = await Promise.all([
+  const now = new Date();
+
+  const [claims, statusCounts, openTasksCount, openTasksList, recentActivity] = await Promise.all([
     prisma.claim.findMany({
       where: baseWhere,
       orderBy: { createdAt: 'desc' },
@@ -21,6 +23,18 @@ export async function getDashboard(user) {
       where: {
         assignedToId: user.id,
         status: { not: 'COMPLETED' },
+      },
+    }),
+    prisma.task.findMany({
+      where: {
+        assignedToId: user.id,
+        status: { not: 'COMPLETED' },
+      },
+      take: 5,
+      orderBy: { dueDate: 'asc' },
+      include: {
+        claim: { select: { id: true, claimNumber: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
       },
     }),
     prisma.auditLog.findMany({
@@ -44,12 +58,15 @@ export async function getDashboard(user) {
     _count: { id: true },
   });
 
+  const overdueCount = openTasksList.filter((t) => t.dueDate && new Date(t.dueDate) < now).length;
+
   return {
     counts: {
       total: totals._count.id,
       estimated: Number(totals._sum.estimatedLoss || 0),
       reserve: Number(totals._sum.reserve || 0),
-      openTasks,
+      openTasks: openTasksCount,
+      overdueTasks: overdueCount,
     },
     recentClaims: claims.map((c) => ({
       id: c.id,
@@ -57,6 +74,11 @@ export async function getDashboard(user) {
       client: c.client?.name,
       status: c.status,
       createdAt: c.createdAt.toISOString(),
+    })),
+    openTasksList: openTasksList.map((t) => ({
+      ...t,
+      dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+      createdAt: t.createdAt.toISOString(),
     })),
     statusBreakdown,
     recentActivity,

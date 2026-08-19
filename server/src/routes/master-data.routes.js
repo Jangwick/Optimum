@@ -18,7 +18,13 @@ import {
   updatePolicy,
   deletePolicy,
   listClaimTypes,
+  createClaimType,
+  updateClaimType,
+  deleteClaimType,
   listDocumentCategories,
+  createDocumentCategory,
+  updateDocumentCategory,
+  deleteDocumentCategory,
   listClaimStatuses,
 } from '../controllers/master-data.controller.js';
 
@@ -49,7 +55,15 @@ router.delete('/policies/:id', requireRole('ADMIN'), deletePolicy);
 
 // Lookups
 router.get('/claim-types', listClaimTypes);
+router.post('/claim-types', requireRole('ADMIN'), createClaimType);
+router.put('/claim-types/:id', requireRole('ADMIN'), updateClaimType);
+router.delete('/claim-types/:id', requireRole('ADMIN'), deleteClaimType);
+
 router.get('/document-categories', listDocumentCategories);
+router.post('/document-categories', requireRole('ADMIN'), createDocumentCategory);
+router.put('/document-categories/:id', requireRole('ADMIN'), updateDocumentCategory);
+router.delete('/document-categories/:id', requireRole('ADMIN'), deleteDocumentCategory);
+
 router.get('/claim-statuses', listClaimStatuses);
 
 export default router;

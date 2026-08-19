@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
@@ -22,7 +22,6 @@ const navItems = [
 export function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
@@ -45,18 +44,26 @@ export function Sidebar() {
 
       <div className="flex-1 flex flex-col gap-1 px-4">
         {navItems.map((item) => (
-          <button
+          <NavLink
             key={item.label}
-            onClick={() => navigate(item.href)}
-            className={`flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors ${
-              location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href))
-                ? 'bg-primary-container/30 text-white'
-                : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
-            }`}
+            to={item.href}
+            end={item.href === '/'}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors relative ${
+                isActive
+                  ? 'bg-primary-container/30 text-white'
+                  : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
+              }`
+            }
           >
-            <item.icon size={20} strokeWidth={1.5} />
-            {item.label}
-          </button>
+            {({ isActive }) => (
+              <>
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r" aria-hidden="true" />}
+                <item.icon size={20} strokeWidth={1.5} />
+                {item.label}
+              </>
+            )}
+          </NavLink>
         ))}
       </div>
 

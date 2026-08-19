@@ -177,8 +177,32 @@ export async function listClaimTypes() {
   return prisma.claimType.findMany({ orderBy: { name: 'asc' } });
 }
 
+export async function createClaimType(data) {
+  return prisma.claimType.create({ data });
+}
+
+export async function updateClaimType(id, data) {
+  return prisma.claimType.update({ where: { id }, data });
+}
+
+export async function deleteClaimType(id) {
+  return prisma.claimType.delete({ where: { id } });
+}
+
 export async function listDocumentCategories() {
   return prisma.documentCategory.findMany({ orderBy: { name: 'asc' } });
+}
+
+export async function createDocumentCategory(data) {
+  return prisma.documentCategory.create({ data });
+}
+
+export async function updateDocumentCategory(id, data) {
+  return prisma.documentCategory.update({ where: { id }, data });
+}
+
+export async function deleteDocumentCategory(id) {
+  return prisma.documentCategory.delete({ where: { id } });
 }
 
 export async function listClaimStatuses() {
