@@ -19,6 +19,8 @@ import {
   rollbackBatch,
   getImportBatches,
 } from '../services/import.service.js';
+import { Sidebar } from '../components/Sidebar.jsx';
+import { TopBar } from '../components/TopBar.jsx';
 
 const STEPS = [
   { key: 'upload', label: 'Upload', icon: Upload },
@@ -144,21 +146,25 @@ export default function ImportWizard() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-headline-md font-semibold text-on-surface">Import Wizard</h1>
-          <p className="text-body-md text-on-surface-variant mt-1">
-            Upload and import legacy claim workbooks
-          </p>
-        </div>
-        <button
-          onClick={loadHistory}
-          className="px-4 py-2 rounded text-label-md bg-surface-variant/20 text-on-surface hover:bg-surface-variant/30 transition-colors"
-        >
-          Import History
-        </button>
-      </div>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar />
+      <div className="flex-1 flex flex-col ml-[260px]">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-headline-md font-semibold text-on-surface">Import Wizard</h1>
+              <p className="text-body-md text-on-surface-variant mt-1">
+                Upload and import legacy claim workbooks
+              </p>
+            </div>
+            <button
+              onClick={loadHistory}
+              className="px-4 py-2 rounded text-label-md bg-surface-variant/20 text-on-surface hover:bg-surface-variant/30 transition-colors"
+            >
+              Import History
+            </button>
+          </div>
 
       {/* Stepper */}
       <div className="flex items-center gap-2 mb-8">
@@ -423,6 +429,8 @@ export default function ImportWizard() {
           )}
         </div>
       )}
+        </main>
+      </div>
     </div>
   );
 }
