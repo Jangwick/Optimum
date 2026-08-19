@@ -278,6 +278,12 @@ export async function getClaim(id, user) {
     isLead: ci.isLead,
     participationPercent: ci.participationPercent ? Number(ci.participationPercent) : null,
     insurerClaimNumber: ci.insurerClaimNumber,
+    proposedSettlement: ci.proposedSettlement ? Number(ci.proposedSettlement) : null,
+    agreedSettlement: ci.agreedSettlement ? Number(ci.agreedSettlement) : null,
+    paidAmount: ci.paidAmount ? Number(ci.paidAmount) : null,
+    offerStatus: ci.offerStatus,
+    paymentStatus: ci.paymentStatus,
+    notes: ci.notes,
   }));
 
   const activities = (claim.activities || []).map((a) => ({

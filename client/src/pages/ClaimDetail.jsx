@@ -1939,75 +1939,237 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
 
 function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
   const [insurers, setInsurers] = useState([]);
+  const [panel, setPanel] = useState(initialClaim?.insurerPanel || []);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ insuranceCompanyId: '', isLead: false, participationPercent: '', insurerClaimNumber: '', notes: '' });
-  const [refresh, setRefresh] = useState(0);
-  const [claim, setClaim] = useState(initialClaim);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({
+    insuranceCompanyId: '',
+    isLead: false,
+    participationPercent: '',
+    insurerClaimNumber: '',
+    proposedSettlement: '',
+    agreedSettlement: '',
+    paidAmount: '',
+    offerStatus: '',
+    paymentStatus: '',
+    notes: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (isAdmin) {
-      getInsuranceCompanies().then((res) => setInsurers(res.items || []));
+  const loadInsurers = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const res = await getInsuranceCompanies();
+      setInsurers(res.items || []);
+    } catch {
+      setError('Failed to load insurance companies');
     }
   }, [isAdmin]);
 
-  // Reload claim data when refresh changes
-  useEffect(() => {
-    if (refresh > 0) {
-      getClaim(claimId).then((res) => setClaim(res.item));
+  const loadPanel = useCallback(async () => {
+    try {
+      const res = await getClaim(claimId);
+      setPanel(res.item?.insurerPanel || []);
+    } catch {
+      setError('Failed to load insurer panel');
     }
-  }, [refresh, claimId]);
+  }, [claimId]);
+
+  useEffect(() => {
+    loadInsurers();
+  }, [loadInsurers]);
+
+  const resetForm = () => {
+    setForm({
+      insuranceCompanyId: '',
+      isLead: false,
+      participationPercent: '',
+      insurerClaimNumber: '',
+      proposedSettlement: '',
+      agreedSettlement: '',
+      paidAmount: '',
+      offerStatus: '',
+      paymentStatus: '',
+      notes: '',
+    });
+    setEditingId(null);
+    setShowForm(false);
+  };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!form.insuranceCompanyId) return;
-    await addClaimInsurer(claimId, form);
-    setForm({ insuranceCompanyId: '', isLead: false, participationPercent: '', insurerClaimNumber: '', notes: '' });
-    setShowForm(false);
-    setRefresh((r) => r + 1);
+    setSaving(true);
+    setError(null);
+    try {
+      if (editingId) {
+        await updateClaimInsurer(claimId, editingId, form);
+      } else {
+        await addClaimInsurer(claimId, form);
+      }
+      resetForm();
+      await loadPanel();
+    } catch {
+      setError(editingId ? 'Failed to update insurer' : 'Failed to add insurer');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (ci) => {
+    setEditingId(ci.id);
+    setShowForm(true);
+    setForm({
+      insuranceCompanyId: ci.insuranceCompany?.id?.toString() || '',
+      isLead: ci.isLead || false,
+      participationPercent: ci.participationPercent?.toString() || '',
+      insurerClaimNumber: ci.insurerClaimNumber || '',
+      proposedSettlement: ci.proposedSettlement?.toString() || '',
+      agreedSettlement: ci.agreedSettlement?.toString() || '',
+      paidAmount: ci.paidAmount?.toString() || '',
+      offerStatus: ci.offerStatus || '',
+      paymentStatus: ci.paymentStatus || '',
+      notes: ci.notes || '',
+    });
   };
 
   const handleToggleLead = async (ci) => {
-    await updateClaimInsurer(claimId, ci.id, { isLead: !ci.isLead });
-    setRefresh((r) => r + 1);
+    setSaving(true);
+    setError(null);
+    try {
+      await updateClaimInsurer(claimId, ci.id, { isLead: !ci.isLead });
+      await loadPanel();
+    } catch {
+      setError('Failed to toggle lead status');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRemove = async (ci) => {
     if (!confirm(`Remove ${ci.insuranceCompany?.name} from the panel?`)) return;
-    await removeClaimInsurer(claimId, ci.id);
-    setRefresh((r) => r + 1);
+    setSaving(true);
+    setError(null);
+    try {
+      await removeClaimInsurer(claimId, ci.id);
+      await loadPanel();
+    } catch {
+      setError('Failed to remove insurer');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const currentPanel = claim.insurerPanel || [];
+  const leadInsurer = panel.find((ci) => ci.isLead);
+  const totalParticipation = panel.reduce((sum, ci) => sum + (Number(ci.participationPercent) || 0), 0);
+
+  const OFFER_STATUS_COLORS = {
+    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange' },
+    ACCEPTED: { bg: 'bg-success/10', text: 'text-success' },
+    REJECTED: { bg: 'bg-error/10', text: 'text-error' },
+    COUNTERED: { bg: 'bg-primary/10', text: 'text-primary' },
+  };
+
+  const PAYMENT_STATUS_COLORS = {
+    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange' },
+    PARTIAL: { bg: 'bg-primary/10', text: 'text-primary' },
+    PAID: { bg: 'bg-success/10', text: 'text-success' },
+    NONE: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' },
+  };
+
+  function StatusBadge({ status, colors }) {
+    if (!status) return <span className="text-on-surface-variant">—</span>;
+    const c = colors[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium ${c.bg} ${c.text}`}>
+        {status}
+      </span>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
+      {error && (
+        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          {error}
+          <button onClick={() => setError(null)} className="ml-auto text-error hover:opacity-70 shrink-0">
+            <AlertTriangle size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Building2 size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Insurers</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{panel.length}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
+            <CheckCircle size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Lead Insurer</p>
+            <p className="text-body-sm font-semibold text-on-surface truncate">{leadInsurer?.insuranceCompany?.name || 'None'}</p>
+          </div>
+        </div>
+        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
+            <FileText size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md text-outline uppercase truncate">Total Participation</p>
+            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{totalParticipation}%</p>
+          </div>
+        </div>
+      </div>
+
+      <section className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
           <div className="flex items-center gap-2">
             <Building2 size={18} className="text-primary" />
             <h3 className="text-headline-sm font-semibold text-primary">Insurer Panel</h3>
           </div>
           {isAdmin && (
             <button
-              onClick={() => setShowForm(!showForm)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded text-body-sm font-semibold hover:bg-primary-container transition-colors"
+              onClick={() => {
+                if (showForm) {
+                  resetForm();
+                } else {
+                  setShowForm(true);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-body-sm font-semibold hover:bg-primary-container transition-colors"
             >
               <Plus size={16} />
-              Add Insurer
+              {showForm ? 'Cancel' : 'Add Insurer'}
             </button>
           )}
         </div>
 
+        {/* Add/Edit form */}
         {showForm && isAdmin && (
-          <form onSubmit={handleAdd} className="mb-6 p-4 bg-surface-container-low rounded-lg space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleAdd} className="p-4 bg-surface-container-low border-b border-surface-border space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 size={16} className="text-primary" />
+              <h4 className="text-body-md font-semibold text-primary">{editingId ? 'Edit Insurer' : 'Add Insurer to Panel'}</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Insurance Company</label>
                 <select
                   value={form.insuranceCompanyId}
                   onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   required
+                  disabled={!!editingId}
                 >
                   <option value="">Select insurer</option>
                   {insurers.map((ic) => (
@@ -2020,10 +2182,12 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
+                  max="100"
                   value={form.participationPercent}
                   onChange={(e) => setForm({ ...form, participationPercent: e.target.value })}
                   placeholder="e.g. 50"
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
               </div>
               <div>
@@ -2033,8 +2197,71 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
                   value={form.insurerClaimNumber}
                   onChange={(e) => setForm({ ...form, insurerClaimNumber: e.target.value })}
                   placeholder="Claim reference"
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Proposed Settlement</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.proposedSettlement}
+                  onChange={(e) => setForm({ ...form, proposedSettlement: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Agreed Settlement</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.agreedSettlement}
+                  onChange={(e) => setForm({ ...form, agreedSettlement: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Paid Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.paidAmount}
+                  onChange={(e) => setForm({ ...form, paidAmount: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Offer Status</label>
+                <select
+                  value={form.offerStatus}
+                  onChange={(e) => setForm({ ...form, offerStatus: e.target.value })}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                >
+                  <option value="">None</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="ACCEPTED">Accepted</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="COUNTERED">Countered</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Payment Status</label>
+                <select
+                  value={form.paymentStatus}
+                  onChange={(e) => setForm({ ...form, paymentStatus: e.target.value })}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                >
+                  <option value="">None</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="PARTIAL">Partial</option>
+                  <option value="PAID">Paid</option>
+                </select>
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Lead Insurer</label>
@@ -2056,75 +2283,145 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="Optional notes"
-                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               />
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors">
-                Add to Panel
+              <button
+                type="submit"
+                disabled={saving || !form.insuranceCompanyId}
+                className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircle size={16} />
+                {saving ? 'Saving...' : editingId ? 'Update Insurer' : 'Add to Panel'}
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="h-10 px-4 border border-outline text-on-surface-variant rounded font-semibold hover:bg-surface-container-low transition-colors">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="h-10 px-4 border border-outline text-on-surface-variant rounded-lg font-semibold hover:bg-surface-container-high transition-colors"
+              >
                 Cancel
               </button>
             </div>
           </form>
         )}
 
-        {currentPanel.length === 0 ? (
-          <p className="text-body-md text-on-surface-variant">No insurers on the panel.</p>
-        ) : (
-          <table className="w-full text-body-sm">
-            <thead>
-              <tr className="text-left text-on-surface-variant border-b border-surface-border">
-                <th className="py-2 pr-4">Insurer</th>
-                <th className="py-2 pr-4">Lead</th>
-                <th className="py-2 pr-4">Participation</th>
-                <th className="py-2 pr-4">Insurer Claim #</th>
-                {isAdmin && <th className="py-2 pr-4 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {currentPanel.map((ci) => (
-                <tr key={ci.id} className="border-b border-surface-border/50">
-                  <td className="py-2 pr-4 text-on-surface font-medium">{ci.insuranceCompany?.name}</td>
-                  <td className="py-2 pr-4">
-                    {isAdmin ? (
-                      <button
-                        onClick={() => handleToggleLead(ci)}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-md font-medium transition-colors ${
-                          ci.isLead ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant hover:text-primary'
-                        }`}
-                      >
-                        {ci.isLead && <CheckCircle size={12} />}
-                        {ci.isLead ? 'Yes' : 'No'}
-                      </button>
-                    ) : ci.isLead ? (
-                      <span className="text-primary font-medium">Yes</span>
-                    ) : (
-                      '—'
+        {/* Panel list */}
+        <div className="p-4">
+          {panel.length === 0 ? (
+            <div className="text-center py-8">
+              <Building2 size={32} className="text-outline mx-auto mb-2" />
+              <p className="text-body-md text-on-surface-variant">No insurers on the panel.</p>
+              {isAdmin ? (
+                <p className="text-body-sm text-outline mt-1">Click &quot;Add Insurer&quot; to add one.</p>
+              ) : (
+                <p className="text-body-sm text-outline mt-1">Contact an Admin to add insurers.</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {panel.map((ci) => (
+                <div key={ci.id} className="bg-surface-container-low border border-surface-border rounded-lg overflow-hidden">
+                  {/* Header row */}
+                  <div className="flex items-center justify-between p-3 border-b border-surface-border">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        ci.isLead ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'
+                      }`}>
+                        <Building2 size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-body-md font-semibold text-on-surface truncate">{ci.insuranceCompany?.name}</p>
+                          {ci.isLead && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium bg-primary/10 text-primary shrink-0">
+                              <CheckCircle size={10} />
+                              Lead
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-label-sm text-outline font-mono mt-0.5">
+                          {ci.insuranceCompany?.code && `Code: ${ci.insuranceCompany.code}`}
+                          {ci.insurerClaimNumber && ` \u00b7 Claim #: ${ci.insurerClaimNumber}`}
+                          {ci.participationPercent && ` \u00b7 ${ci.participationPercent}%`}
+                        </p>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleEdit(ci)}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                          title="Edit"
+                        >
+                          <FileText size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleToggleLead(ci)}
+                          disabled={saving}
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded transition-colors disabled:opacity-50 ${
+                            ci.isLead ? 'text-primary hover:bg-primary/10' : 'text-on-surface-variant hover:bg-surface-container-high'
+                          }`}
+                          title={ci.isLead ? 'Remove lead' : 'Set as lead'}
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleRemove(ci)}
+                          disabled={saving}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors disabled:opacity-50"
+                          title="Remove"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     )}
-                  </td>
-                  <td className="py-2 pr-4 text-on-surface-variant font-mono">{ci.participationPercent ? `${ci.participationPercent}%` : '—'}</td>
-                  <td className="py-2 pr-4 text-on-surface-variant font-mono">{ci.insurerClaimNumber || '—'}</td>
-                  {isAdmin && (
-                    <td className="py-2 pr-4 text-right">
-                      <button
-                        onClick={() => handleRemove(ci)}
-                        className="inline-flex items-center gap-1 text-error hover:text-error/80 text-label-md font-medium transition-colors"
-                      >
-                        <Trash2 size={14} />
-                        Remove
-                      </button>
-                    </td>
-                  )}
-                </tr>
+                  </div>
+
+                  {/* Financial details */}
+                  <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-body-sm">
+                    <div>
+                      <p className="text-label-md text-outline uppercase">Proposed</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.proposedSettlement ? formatCurrency(ci.proposedSettlement) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-label-md text-outline uppercase">Agreed</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.agreedSettlement ? formatCurrency(ci.agreedSettlement) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-label-md text-outline uppercase">Paid</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.paidAmount ? formatCurrency(ci.paidAmount) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-label-md text-outline uppercase">Balance</p>
+                      <p className="font-mono text-on-surface mt-0.5">
+                        {ci.agreedSettlement && ci.paidAmount ? formatCurrency(Number(ci.agreedSettlement) - Number(ci.paidAmount)) : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status badges */}
+                  <div className="px-3 pb-3 flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-label-md text-outline uppercase">Offer:</span>
+                      <StatusBadge status={ci.offerStatus} colors={OFFER_STATUS_COLORS} />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-label-md text-outline uppercase">Payment:</span>
+                      <StatusBadge status={ci.paymentStatus} colors={PAYMENT_STATUS_COLORS} />
+                    </div>
+                    {ci.notes && (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-label-md text-outline uppercase shrink-0">Notes:</span>
+                        <span className="text-body-sm text-on-surface-variant truncate">{ci.notes}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-        {!isAdmin && currentPanel.length === 0 && (
-          <p className="text-label-sm text-on-surface-variant mt-2">Contact an Admin to add insurers to this panel.</p>
-        )}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );
