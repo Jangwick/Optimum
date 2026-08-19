@@ -10,7 +10,7 @@ export default [
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
-      globals: { ...globals.node },
+      globals: { ...globals.node, ...globals.jest },
     },
     rules: {
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
@@ -18,7 +18,7 @@ export default [
     },
   },
   {
-    files: ['prisma/seed.js'],
+    files: ['prisma/seed.js', 'scripts/*.js'],
     rules: {
       'no-console': 'off',
     },
