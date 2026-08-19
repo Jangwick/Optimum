@@ -1,21 +1,42 @@
-feat: add delete buttons to investigations, contacts, and inspections
+feat: redesign ClaimInvestigation cards with better UX/UI
 
-Added delete functionality to all three sub-tabs in ClaimInvestigation:
+Redesigned all three sub-tabs in ClaimInvestigation with a consistent
+card-based layout:
 
-- Investigations: delete button with Trash2 icon on each investigation card
-- Contacts: delete button with Trash2 icon on each contact card
-- Inspections: delete button with Trash2 icon on each inspection card
-  (confirms deletion of inspection and all its photos)
+Inspection cards:
+- Colored left border (orange=scheduled, green=completed) for instant
+  visual status identification
+- Card header with colored icon badge (Calendar/CheckCircle), date,
+  and inspection # in monospace
+- Status pill and icon-only delete button in header right
+- Metadata grid (Location with MapPin, Scope with Search) in card body
+- Notes section with FileText icon
+- Completed findings shown in a highlighted success-tinted box
+- Photos displayed in a responsive grid with Camera icons
+- Action section (Complete + Upload Photo) separated by border-top
+- File input styled with file: pseudo-element styling
+- Empty state: centered icon + message + hint
 
-Added frontend service functions:
-- deleteInvestigation(claimId, id)
-- deleteContact(claimId, id)
-- deleteInspection(claimId, id)
+Investigation cards:
+- Primary-colored left border
+- Header with icon badge, title, and icon-only delete button
+- Findings and Notes shown as labeled sections
+- Timestamp in monospace with border-top separator
+- Empty state: centered Search icon + message
 
-All delete buttons use confirm() dialog before deletion and refresh
-the list after successful deletion.
+Contact cards:
+- Primary-colored left border
+- Header with icon badge, name, and role
+- Phone and Email shown in a 2-column grid with labels
+- Phone shown in monospace
+- Icon-only delete button with tooltip
+- Empty state: centered Users icon + message
 
-Verified in browser: deleted a stale inspection record successfully.
+All cards now use:
+- overflow-hidden + rounded-lg for clean borders
+- bg-surface-container-low header sections
+- Consistent spacing and typography
+- Icon-only delete buttons with hover states and tooltips
 
 Generated with [Devin](https://devin.ai)
 
