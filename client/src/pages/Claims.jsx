@@ -23,6 +23,7 @@ import {
   X,
   ChevronDown,
   AlertTriangle,
+  Eye,
 } from 'lucide-react';
 
 // Semantic color mapping for process statuses.
@@ -470,7 +471,19 @@ export default function Claims() {
               sortOrder={sortOrder}
               onSort={onSort}
               keyExtractor={(row) => row.id}
-              onRowClick={(row) => navigate(`/claims/${row.id}`)}
+              rowActions={(row) => (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/claims/${row.id}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline bg-surface text-body-sm font-medium text-on-surface hover:bg-primary hover:text-white hover:border-primary transition-colors"
+                  title="View claim details"
+                >
+                  <Eye size={14} />
+                  View
+                </button>
+              )}
               bare
               emptyState={
                 <div className="p-12 text-center">

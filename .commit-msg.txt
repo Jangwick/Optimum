@@ -1,15 +1,16 @@
-fix: add missing --color-success token so success-colored elements render
+feat: replace row-click navigation with View action button in Claims
 
-The CSS only defined --color-success-green but components used
-bg-success, text-success, border-success, and border-l-success.
-These classes resolved to nothing, making elements invisible
-(notably the "Complete Inspection" button had no background).
+Removed the clickable-row behavior from the Claims registry table.
+Added a formal "View" action button in a new Actions column at the
+right of each row.
 
-Added --color-success: #28a745 as an alias alongside the existing
---color-success-green token.
-
-Affected files: ClaimInvestigation, ClaimDetail, Claims, Templates,
-Employees, Dashboard.
+- Removed onRowClick from DataTable usage (rows no longer have
+  cursor-pointer or click handlers)
+- Added rowActions prop with a "View" button (Eye icon) that
+  navigates to the claim detail page
+- Button has hover state (fills with primary color) and tooltip
+- Uses stopPropagation to avoid any parent click handlers
+- DataTable already supported rowActions — just needed to use it
 
 Generated with [Devin](https://devin.ai)
 
