@@ -18,10 +18,16 @@ export async function listAuditLogs({ action, page = 1, limit = 50 }) {
   return { items, count, page: Number(page), limit: Number(limit) };
 }
 
-export async function logAction(action, entityType, entityId, userId, details = null) {
+export async function logAction(action, tableName, recordId, userId, newValues = null) {
   try {
     await prisma.auditLog.create({
-      data: { action, entityType, entityId: String(entityId), userId, details },
+      data: {
+        action,
+        tableName,
+        recordId: String(recordId),
+        userId,
+        newValues,
+      },
     });
   } catch {
     // Audit logging should not break business logic

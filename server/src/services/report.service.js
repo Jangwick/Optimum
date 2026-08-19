@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
@@ -113,6 +114,7 @@ export async function generateReport(id, userId) {
     });
   });
 
+  await logAction('REPORT_GENERATED', 'Report', id, userId, { claimId: updated.claimId, pdfPath: filePath });
   return updated;
 }
 
@@ -120,7 +122,7 @@ export async function createClarification(reportId, data, userId) {
   const report = await prisma.report.findUnique({ where: { id: Number(reportId) } });
   if (!report) throw new AppError('Report not found', 404);
 
-  return prisma.clarification.create({
+  const cl = await prisma.clarification.create({
     data: {
       reportId: Number(reportId),
       question: data.question,
@@ -129,13 +131,15 @@ export async function createClarification(reportId, data, userId) {
     },
     include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
   });
+  await logAction('CLARIFICATION_CREATED', 'Clarification', cl.id, userId, { reportId });
+  return cl;
 }
 
 export async function answerClarification(id, data, userId) {
   const clarification = await prisma.clarification.findUnique({ where: { id } });
   if (!clarification) throw new AppError('Clarification not found', 404);
 
-  return prisma.clarification.update({
+  const cl = await prisma.clarification.update({
     where: { id },
     data: {
       answer: data.answer,
@@ -145,4 +149,6 @@ export async function answerClarification(id, data, userId) {
     },
     include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
   });
+  await logAction('CLARIFICATION_ANSWERED', 'Clarification', id, userId, { reportId: cl.reportId });
+  return cl;
 }

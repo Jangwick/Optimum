@@ -36,7 +36,7 @@ export async function updateInvestigation(req, res, next) {
 
 export async function deleteInvestigation(req, res, next) {
   try {
-    await investigationService.deleteInvestigation(idParam(req));
+    await investigationService.deleteInvestigation(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

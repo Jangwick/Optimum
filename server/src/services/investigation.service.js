@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 
 export async function listInvestigations(claimId) {
   return prisma.investigation.findMany({
@@ -13,7 +14,7 @@ export async function createInvestigation(claimId, data, userId) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
 
-  return prisma.investigation.create({
+  const inv = await prisma.investigation.create({
     data: {
       claimId: Number(claimId),
       summary: data.summary,
@@ -24,6 +25,8 @@ export async function createInvestigation(claimId, data, userId) {
     },
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
+  await logAction('INVESTIGATION_CREATED', 'Investigation', inv.id, userId, { claimId });
+  return inv;
 }
 
 export async function updateInvestigation(id, data, userId) {
@@ -37,13 +40,18 @@ export async function updateInvestigation(id, data, userId) {
     update.completedById = userId;
   }
 
-  return prisma.investigation.update({
+  const updated = await prisma.investigation.update({
     where: { id },
     data: update,
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
+  await logAction('INVESTIGATION_UPDATED', 'Investigation', id, userId, { claimId: updated.claimId });
+  return updated;
 }
 
-export async function deleteInvestigation(id) {
+export async function deleteInvestigation(id, userId) {
+  const inv = await prisma.investigation.findUnique({ where: { id } });
+  if (!inv) throw new AppError('Investigation not found', 404);
+  await logAction('INVESTIGATION_DELETED', 'Investigation', id, userId, { claimId: inv.claimId });
   await prisma.investigation.delete({ where: { id } });
 }

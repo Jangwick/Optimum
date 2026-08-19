@@ -34,9 +34,9 @@ export default function AuditLogs() {
                   <tr>
                     <th className="px-4 py-2">Time</th>
                     <th className="px-4 py-2">Action</th>
-                    <th className="px-4 py-2">Entity</th>
+                    <th className="px-4 py-2">Table</th>
                     <th className="px-4 py-2">User</th>
-                    <th className="px-4 py-2">Details</th>
+                    <th className="px-4 py-2">Record</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border text-body-md">
@@ -45,9 +45,9 @@ export default function AuditLogs() {
                       <tr key={l.id}>
                         <td className="px-4 py-2">{new Date(l.createdAt).toLocaleString()}</td>
                         <td className="px-4 py-2 font-medium">{l.action}</td>
-                        <td className="px-4 py-2">{l.entityType} #{l.entityId}</td>
+                        <td className="px-4 py-2">{l.tableName} #{l.recordId}</td>
                         <td className="px-4 py-2">{l.user?.firstName} {l.user?.lastName}</td>
-                        <td className="px-4 py-2">{l.details || '—'}</td>
+                        <td className="px-4 py-2">{l.newValues ? JSON.stringify(l.newValues).slice(0, 80) : '—'}</td>
                       </tr>
                     ))
                   ) : (

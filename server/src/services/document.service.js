@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -42,7 +43,7 @@ export async function uploadDocument(claimId, file, data, userId) {
     throw new AppError('Claim not found', 404);
   }
 
-  return prisma.document.create({
+  const doc = await prisma.document.create({
     data: {
       claimId: Number(claimId),
       documentCategoryId: data.documentCategoryId ? Number(data.documentCategoryId) : null,
@@ -58,21 +59,27 @@ export async function uploadDocument(claimId, file, data, userId) {
     },
     include: { documentCategory: true },
   });
+
+  await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, userId, { originalName: doc.originalName, claimId });
+  return doc;
 }
 
-export async function markDocumentReceived(id) {
-  return prisma.document.update({
+export async function markDocumentReceived(id, userId) {
+  const doc = await prisma.document.update({
     where: { id },
     data: { isReceived: true, receivedAt: new Date() },
     include: { documentCategory: true },
   });
+  await logAction('DOCUMENT_RECEIVED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
+  return doc;
 }
 
-export async function deleteDocument(id) {
+export async function deleteDocument(id, userId) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) throw new AppError('Document not found', 404);
   if (fs.existsSync(doc.path)) {
     fs.unlinkSync(doc.path);
   }
+  await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
   await prisma.document.delete({ where: { id } });
 }

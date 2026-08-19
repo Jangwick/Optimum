@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 
 export async function getSettlement(claimId) {
   return prisma.settlement.findFirst({
@@ -18,22 +19,26 @@ export async function upsertSettlement(claimId, data, userId) {
     notes: data.notes,
   };
 
+  let item;
   if (existing) {
-    return prisma.settlement.update({
+    item = await prisma.settlement.update({
       where: { id: existing.id },
       data: values,
-      include: { createdBy: { select: { firstName: true, lastName: true } } },
+      include: { claim: true, createdBy: { select: { firstName: true, lastName: true } } },
+    });
+  } else {
+    item = await prisma.settlement.create({
+      data: {
+        claimId: Number(claimId),
+        createdById: userId,
+        ...values,
+      },
+      include: { claim: true, createdBy: { select: { firstName: true, lastName: true } } },
     });
   }
 
-  return prisma.settlement.create({
-    data: {
-      claimId: Number(claimId),
-      createdById: userId,
-      ...values,
-    },
-    include: { createdBy: { select: { firstName: true, lastName: true } } },
-  });
+  await logAction('SETTLEMENT_SAVED', 'Settlement', item.id, userId, { claimId, amount: item.settledAmount });
+  return item;
 }
 
 export async function listOffers(claimId) {
@@ -48,7 +53,7 @@ export async function listOffers(claimId) {
 }
 
 export async function createOffer(claimId, data, userId) {
-  return prisma.offer.create({
+  const offer = await prisma.offer.create({
     data: {
       claimId: Number(claimId),
       offerDate: data.offerDate ? new Date(data.offerDate) : new Date(),
@@ -58,17 +63,23 @@ export async function createOffer(claimId, data, userId) {
       createdById: userId,
     },
     include: {
+      claim: true,
       createdBy: { select: { firstName: true, lastName: true } },
       responseBy: { select: { firstName: true, lastName: true } },
     },
   });
+  await logAction('OFFER_CREATED', 'Offer', offer.id, userId, { claimId, amount: offer.offeredAmount });
+  if (offer.claim?.clientId) {
+    // placeholder for client notification
+  }
+  return offer;
 }
 
 export async function respondToOffer(id, data, userId) {
-  const offer = await prisma.offer.findUnique({ where: { id } });
+  const offer = await prisma.offer.findUnique({ where: { id }, include: { claim: true } });
   if (!offer) throw new AppError('Offer not found', 404);
 
-  return prisma.offer.update({
+  const updated = await prisma.offer.update({
     where: { id },
     data: {
       status: data.status,
@@ -81,4 +92,12 @@ export async function respondToOffer(id, data, userId) {
       responseBy: { select: { firstName: true, lastName: true } },
     },
   });
+
+  await logAction('OFFER_RESPONDED', 'Offer', id, userId, { status: data.status, amount: offer.offeredAmount });
+
+  if (data.status === 'ACCEPTED' && offer.claim?.clientId) {
+    // placeholder for client notification
+  }
+
+  return updated;
 }

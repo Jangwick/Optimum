@@ -31,7 +31,7 @@ export async function uploadDocument(req, res, next) {
 
 export async function markReceived(req, res, next) {
   try {
-    const item = await documentService.markDocumentReceived(idParam(req));
+    const item = await documentService.markDocumentReceived(idParam(req), req.user.id);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -55,7 +55,7 @@ export async function downloadDocument(req, res, next) {
 
 export async function deleteDocument(req, res, next) {
   try {
-    await documentService.deleteDocument(idParam(req));
+    await documentService.deleteDocument(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

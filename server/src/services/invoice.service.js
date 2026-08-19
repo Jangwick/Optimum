@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 
 async function generateInvoiceNumber() {
   const now = new Date();
@@ -55,10 +56,13 @@ export async function createInvoice(claimId, data, userId) {
     return inv;
   });
 
-  return prisma.invoice.findUnique({
+  const invoice = await prisma.invoice.findUnique({
     where: { id: created.id },
     include: { fees: true, payments: true, createdBy: { select: { firstName: true, lastName: true } } },
   });
+
+  await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId, totalAmount: invoice.totalAmount });
+  return invoice;
 }
 
 export async function recordPayment(invoiceId, data, _userId) {
@@ -91,6 +95,7 @@ export async function recordPayment(invoiceId, data, _userId) {
   const status = newPaid >= Number(invoice.totalAmount) ? 'PAID' : 'PARTIAL';
   await prisma.invoice.update({ where: { id: invoice.id }, data: { status } });
 
+  await logAction('PAYMENT_RECORDED', 'Payment', payment.id, _userId, { invoiceId: invoice.id, claimId: invoice.claimId, amount });
   return payment;
 }
 

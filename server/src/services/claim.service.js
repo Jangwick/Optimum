@@ -1,5 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
+import { createNotification } from './notification.service.js';
 
 export const statusTransitions = {
   NEW: ['ASSIGNED'],
@@ -230,6 +232,24 @@ export async function createClaim(data, createdBy) {
     });
   }
 
+  await logAction('CLAIM_CREATED', 'Claim', claim.id, createdBy, { claimNumber: claim.claimNumber });
+
+  if (data.engineerId) {
+    await createNotification(Number(data.engineerId), {
+      title: 'New claim assignment',
+      message: `You have been assigned to claim ${claim.claimNumber}`,
+      claimId: claim.id,
+    });
+  }
+
+  if (data.accountantId) {
+    await createNotification(Number(data.accountantId), {
+      title: 'New claim assignment',
+      message: `You have been assigned to claim ${claim.claimNumber}`,
+      claimId: claim.id,
+    });
+  }
+
   return formatClaim(claim);
 }
 
@@ -274,6 +294,17 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
       notes,
     },
   });
+
+  await logAction('STATUS_CHANGED', 'Claim', claimId, changedBy, { from: claim.status.code, to: statusCode, notes });
+
+  const notifyUsers = [updated.engineerId, updated.accountantId].filter(Boolean);
+  for (const userId of notifyUsers) {
+    await createNotification(userId, {
+      title: `Status changed to ${statusCode}`,
+      message: `Claim ${updated.claimNumber} moved from ${claim.status.code} to ${statusCode}`,
+      claimId,
+    });
+  }
 
   return formatClaim(updated);
 }

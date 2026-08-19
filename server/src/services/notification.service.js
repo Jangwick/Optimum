@@ -8,14 +8,13 @@ export async function getNotifications(userId) {
   });
 }
 
-export async function createNotification(userId, { title, message, claimId, type }) {
+export async function createNotification(userId, { title, message, claimId }) {
   return prisma.notification.create({
     data: {
       userId,
       title,
       message,
       claimId: claimId ? Number(claimId) : null,
-      type,
       isRead: false,
     },
   });

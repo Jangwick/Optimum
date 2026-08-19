@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
 
 export async function listFees(claimId) {
   return prisma.fee.findMany({
@@ -9,8 +10,8 @@ export async function listFees(claimId) {
   });
 }
 
-export async function createFee(claimId, data) {
-  return prisma.fee.create({
+export async function createFee(claimId, data, userId) {
+  const fee = await prisma.fee.create({
     data: {
       claimId: Number(claimId),
       userId: data.userId ? Number(data.userId) : null,
@@ -20,6 +21,8 @@ export async function createFee(claimId, data) {
     },
     include: { user: { select: { id: true, firstName: true, lastName: true } } },
   });
+  await logAction('FEE_CREATED', 'Fee', fee.id, userId, { claimId, amount: fee.amount });
+  return fee;
 }
 
 export async function updateFee(id, data) {

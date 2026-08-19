@@ -18,7 +18,7 @@ export async function listFees(req, res, next) {
 
 export async function createFee(req, res, next) {
   try {
-    const item = await feeService.createFee(req.params.claimId, req.body);
+    const item = await feeService.createFee(req.params.claimId, req.body, req.user.id);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
