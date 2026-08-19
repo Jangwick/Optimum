@@ -14,7 +14,7 @@
 - [x] 2.1 `Role` and `User` Prisma models, seed roles + initial admin, bcrypt.
 - [x] 2.2 Login/logout/me endpoints with JWT in HTTP-only cookie, auth and RBAC middleware.
 - [x] 2.3 Login page, `AuthContext`, role-based redirect, protected routes, role layouts.
-- [x] 2.4 Users CRUD (admin) + profile.
+- [~] 2.4 Users CRUD (admin) + profile (backend complete; frontend read-only list).
 
 **Checkpoint 2**: Login works for all three roles; RBAC blocks cross-role API calls.
 
@@ -62,9 +62,9 @@
 
 ## Phase 8 — Reports & Templates
 
-- [~] 8.1 Report template model and admin template upload (DOCX).
+- [x] 8.1 Report template model and admin template upload (DOCX).
 - [x] 8.2 Collect client templates / build generic placeholder templates.
-- [~] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
+- [x] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
 - [x] 8.4 PDF generation with `puppeteer` from HTML template.
 - [x] 8.5 Client review / clarification workflow.
 
