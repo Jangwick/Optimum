@@ -60,6 +60,11 @@ model User {
   tasksCreated            Task[]               @relation("TaskCreatedBy")
   notifications           Notification[]
   auditLogs               AuditLog[]
+  processStatusHistory    ClaimProcessStatusHistory[]
+  activities              ClaimActivity[]
+  correspondenceCreated   ClaimCorrespondence[]
+  importBatches           ClaimImportBatch[]
+  adjusterAliases         AdjusterAlias[]
 
   @@map("users")
 }
@@ -74,6 +79,8 @@ model InsuranceCompany {
   address       String?  @db.Text
   policies      Policy[]
   claims        Claim[]
+  claimInsurers ClaimInsurer[]
+  aliases       InsuranceCompanyAlias[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   @@map("insurance_companies")
@@ -89,6 +96,7 @@ model Client {
   address       String?  @db.Text
   policies      Policy[]
   claims        Claim[]
+  aliases       ClientAlias[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   @@map("clients")
@@ -124,6 +132,7 @@ model ClaimType {
   description String?               @db.Text
   policies    Policy[]
   claims      Claim[]
+  aliases     ClaimTypeAlias[]
   requirements DocumentRequirement[]
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
@@ -144,67 +153,183 @@ model ClaimStatus {
   @@map("claim_statuses")
 }
 
-model Claim {
+model ProcessStatus {
+  id         Int                         @id @default(autoincrement())
+  name       String                      @unique @db.VarChar(100)
+  code       String                      @unique @db.VarChar(50)
+  color      String?                     @db.VarChar(20)
+  isTerminal Boolean                     @default(false)
+  sortOrder  Int                         @default(0)
+  claims     Claim[]
+  history    ClaimProcessStatusHistory[]
+  createdAt  DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+  @@map("process_statuses")
+}
+
+model Broker {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  code          String?  @unique @db.VarChar(50)
+  contactPerson String?  @db.VarChar(150)
+  email         String?  @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  address       String?  @db.Text
+  claims        Claim[]
+  aliases       BrokerAlias[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("brokers")
+}
+
+model InsuranceCompanyAlias {
   id                 Int              @id @default(autoincrement())
-  claimNumber        String           @unique @db.VarChar(100)
-  assignmentNumber   String?          @unique @db.VarChar(100)
-  claimTypeId        Int
-  claimType          ClaimType        @relation(fields: [claimTypeId], references: [id])
-  policyId           Int?
-  policy             Policy?          @relation(fields: [policyId], references: [id])
-  clientId           Int
-  client             Client           @relation(fields: [clientId], references: [id])
+  alias              String           @unique @db.VarChar(255)
+  normalizedAlias    String           @unique @db.VarChar(255)
   insuranceCompanyId Int
-  insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
+  insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+  @@map("insurance_company_aliases")
+}
+
+model ClientAlias {
+  id              Int      @id @default(autoincrement())
+  alias           String   @unique @db.VarChar(255)
+  normalizedAlias String   @unique @db.VarChar(255)
+  clientId        Int
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  @@map("client_aliases")
+}
+
+model BrokerAlias {
+  id              Int      @id @default(autoincrement())
+  alias           String   @unique @db.VarChar(255)
+  normalizedAlias String   @unique @db.VarChar(255)
+  brokerId        Int
+  broker          Broker   @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  @@map("broker_aliases")
+}
+
+model AdjusterAlias {
+  id              Int      @id @default(autoincrement())
+  alias           String   @unique @db.VarChar(100)
+  normalizedAlias String   @unique @db.VarChar(100)
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  @@map("adjuster_aliases")
+}
+
+model ClaimTypeAlias {
+  id              Int       @id @default(autoincrement())
+  alias           String    @unique @db.VarChar(255)
+  normalizedAlias String    @unique @db.VarChar(255)
+  claimTypeId     Int
+  claimType       ClaimType @relation(fields: [claimTypeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  @@map("claim_type_aliases")
+}
+
+model Claim {
+  id                 Int               @id @default(autoincrement())
+  claimNumber        String            @unique @db.VarChar(100)
+  assignmentNumber   String?           @unique @db.VarChar(100)
+  insurerClaimNumber String?           @db.VarChar(150)
+  claimTypeId        Int?
+  claimType          ClaimType?        @relation(fields: [claimTypeId], references: [id])
+  policyId           Int?
+  policy             Policy?           @relation(fields: [policyId], references: [id])
+  clientId           Int?
+  client             Client?           @relation(fields: [clientId], references: [id])
+  insuranceCompanyId Int?
+  insuranceCompany   InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id])
+  brokerId           Int?
+  broker             Broker?           @relation(fields: [brokerId], references: [id])
+  brokerReference    String?            @db.VarChar(150)
   engineerId         Int?
-  engineer           User?            @relation("ClaimEngineer", fields: [engineerId], references: [id])
+  engineer           User?              @relation("ClaimEngineer", fields: [engineerId], references: [id])
   accountantId       Int?
-  accountant         User?            @relation("ClaimAccountant", fields: [accountantId], references: [id])
+  accountant         User?              @relation("ClaimAccountant", fields: [accountantId], references: [id])
   statusId           Int
-  status             ClaimStatus      @relation(fields: [statusId], references: [id])
+  status             ClaimStatus       @relation(fields: [statusId], references: [id])
+  processStatusId    Int?
+  processStatus      ProcessStatus?     @relation(fields: [processStatusId], references: [id])
   createdById        Int
-  createdBy          User             @relation("ClaimCreatedBy", fields: [createdById], references: [id])
+  createdBy          User              @relation("ClaimCreatedBy", fields: [createdById], references: [id])
   closedById         Int?
-  closedBy           User?            @relation("ClaimClosedBy", fields: [closedById], references: [id])
+  closedBy           User?             @relation("ClaimClosedBy", fields: [closedById], references: [id])
+  importBatchId      Int?
+  importBatch        ClaimImportBatch? @relation(fields: [importBatchId], references: [id])
+  importRowId        Int?               @unique
+  importRow          ClaimImportRow?    @relation("CommittedClaim", fields: [importRowId], references: [id])
+  duplicateImportRows ClaimImportRow[]  @relation("DuplicateImportRow")
 
-  dateOfLoss     DateTime?
-  dateReceived   DateTime  @default(now())
-  description    String?   @db.Text
-  reserve        Decimal?  @db.Decimal(15,2)
-  estimatedLoss  Decimal?  @db.Decimal(15,2)
-  actualLoss     Decimal?  @db.Decimal(15,2)
-  deductible     Decimal?  @db.Decimal(15,2)
-  depreciation   Decimal?  @db.Decimal(15,2)
-  adjustedLoss   Decimal?  @db.Decimal(15,2)
-  classification String?   @db.VarChar(50)
-  isClosed       Boolean   @default(false)
-  closedAt       DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  dateOfLoss              DateTime?
+  dateReceived            DateTime  @default(now())
+  assignedByName          String?   @db.VarChar(150)
+  natureOfLoss            String?   @db.Text
+  locationOfLoss          String?   @db.Text
+  description             String?   @db.Text
+  policyPeriodText        String?   @db.Text
+  policyCoverageText      String?   @db.Text
+  claimedAmount           Decimal?  @db.Decimal(15,2)
+  claimedAmountRaw        String?   @db.Text
+  reserve                 Decimal?  @db.Decimal(15,2)
+  reserveRaw              String?   @db.Text
+  estimatedLoss           Decimal?  @db.Decimal(15,2)
+  actualLoss              Decimal?  @db.Decimal(15,2)
+  proposedSettlement      Decimal?  @db.Decimal(15,2)
+  proposedSettlementRaw   String?   @db.Text
+  agreedSettlement        Decimal?  @db.Decimal(15,2)
+  agreedSettlementRaw     String?   @db.Text
+  deductible              Decimal?  @db.Decimal(15,2)
+  depreciation            Decimal?  @db.Decimal(15,2)
+  adjustedLoss            Decimal?  @db.Decimal(15,2)
+  classification          String?   @db.VarChar(50)
+  remarksRaw              String?   @db.LongText
+  latestStatusRaw         String?   @db.LongText
+  letterFollowUpRaw       String?   @db.Text
+  isIncomplete            Boolean   @default(false)
+  incompleteReasons       Json?
+  importedAt              DateTime?
+  lastUserModifiedAt      DateTime?
+  isClosed                Boolean   @default(false)
+  closedAt                DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  assignments     ClaimAssignment[]
-  statusHistory   ClaimStatusHistory[]
-  investigations  Investigation[]
-  contacts        Contact[]
-  inspections     Inspection[]
-  documents       Document[]
-  lossAssessments LossAssessment[]
-  lossEstimates   LossEstimate[]
-  reports         Report[]
-  settlements     Settlement[]
-  offers          Offer[]
-  fees            Fee[]
-  invoices        Invoice[]
-  tasks           Task[]
-  notifications   Notification[]
+  assignments          ClaimAssignment[]
+  statusHistory        ClaimStatusHistory[]
+  processStatusHistory ClaimProcessStatusHistory[]
+  insurerPanel         ClaimInsurer[]
+  activities           ClaimActivity[]
+  correspondence       ClaimCorrespondence[]
+  investigations       Investigation[]
+  contacts             Contact[]
+  inspections          Inspection[]
+  documents            Document[]
+  lossAssessments      LossAssessment[]
+  lossEstimates        LossEstimate[]
+  reports              Report[]
+  settlements          Settlement[]
+  offers               Offer[]
+  fees                 Fee[]
+  invoices             Invoice[]
+  tasks                Task[]
+  notifications        Notification[]
 
   @@index([statusId])
+  @@index([processStatusId])
   @@index([engineerId])
   @@index([accountantId])
   @@index([clientId])
   @@index([insuranceCompanyId])
+  @@index([brokerId])
   @@index([claimNumber])
   @@index([dateReceived])
+  @@index([importBatchId])
   @@map("claims")
 }
 
@@ -237,6 +362,23 @@ model ClaimStatusHistory {
   @@map("claim_status_history")
 }
 
+model ClaimProcessStatusHistory {
+  id             Int           @id @default(autoincrement())
+  claimId        Int
+  claim          Claim         @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  processStatusId Int
+  processStatus  ProcessStatus @relation(fields: [processStatusId], references: [id])
+  changedById    Int
+  changedBy      User          @relation(fields: [changedById], references: [id])
+  notes          String?       @db.Text
+  source         String        @default("USER") @db.VarChar(30)
+  isOverride     Boolean       @default(false)
+  overrideReason String?       @db.Text
+  createdAt      DateTime      @default(now())
+  @@index([claimId, createdAt])
+  @@map("claim_process_status_history")
+}
+
 model Investigation {
   id            Int      @id @default(autoincrement())
   claimId       Int
@@ -264,6 +406,70 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@map("contacts")
+}
+
+model ClaimInsurer {
+  id                 Int              @id @default(autoincrement())
+  claimId            Int
+  claim              Claim            @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  insuranceCompanyId Int
+  insuranceCompany   InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id])
+  isLead             Boolean          @default(false)
+  participationPercent Decimal?       @db.Decimal(5,2)
+  insurerClaimNumber String?          @db.VarChar(150)
+  proposedSettlement Decimal?         @db.Decimal(15,2)
+  proposedSettlementRaw String?       @db.Text
+  agreedSettlement   Decimal?         @db.Decimal(15,2)
+  agreedSettlementRaw String?         @db.Text
+  paidAmount         Decimal?         @db.Decimal(15,2)
+  offerStatus        String?          @db.VarChar(50)
+  paymentStatus      String?          @db.VarChar(50)
+  notes              String?          @db.Text
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  @@index([claimId])
+  @@index([insuranceCompanyId])
+  @@map("claim_insurers")
+}
+
+model ClaimActivity {
+  id            Int      @id @default(autoincrement())
+  claimId       Int
+  claim         Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  activityType  String   @db.VarChar(50)
+  occurredAt    DateTime?
+  description   String   @db.Text
+  source        String   @default("USER") @db.VarChar(20)
+  sourceText    String?  @db.Text
+  confidence    String?  @db.VarChar(20)
+  importRowId   Int?
+  importRow     ClaimImportRow? @relation(fields: [importRowId], references: [id], onDelete: SetNull)
+  actorId       Int?
+  actor         User?    @relation(fields: [actorId], references: [id])
+  createdAt     DateTime @default(now())
+  @@index([claimId, occurredAt])
+  @@map("claim_activities")
+}
+
+model ClaimCorrespondence {
+  id             Int      @id @default(autoincrement())
+  claimId        Int
+  claim          Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  type           String   @db.VarChar(50)
+  sentAt         DateTime?
+  receivedAt     DateTime?
+  followUpDate   DateTime?
+  recipient      String?  @db.VarChar(255)
+  notes          String?  @db.Text
+  isHistorical   Boolean  @default(false)
+  documentId     Int?
+  document       Document? @relation(fields: [documentId], references: [id])
+  createdById    Int
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([claimId])
+  @@map("claim_correspondence")
 }
 
 model Inspection {
@@ -343,8 +549,15 @@ model Document {
   isRequired         Boolean           @default(false)
   isReceived         Boolean           @default(false)
   receivedAt         DateTime?
+  isHistorical       Boolean           @default(false)
+  source             String            @default("USER") @db.VarChar(20)
+  importBatchId      Int?
+  sourceText         String?           @db.Text
+  sourceRowNumber    Int?
+  correspondence     ClaimCorrespondence[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  @@index([importBatchId])
   @@map("documents")
 }
 
@@ -423,11 +636,20 @@ model Report {
   generatedBy      User?          @relation("ReportGeneratedBy", fields: [generatedById], references: [id])
   docxPath         String?        @db.VarChar(500)
   pdfPath          String?        @db.VarChar(500)
+  reportDate       DateTime?
+  clientResponseDate DateTime?
+  submittedAt      DateTime?
+  revisedAt        DateTime?
+  isHistorical     Boolean        @default(false)
+  sourceText       String?        @db.Text
+  statusText       String?        @db.VarChar(100)
+  importBatchId    Int?
   notes            String?        @db.Text
   versions         ReportVersion[]
   clarifications   Clarification[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  @@index([importBatchId])
   @@map("reports")
 }
 
@@ -592,4 +814,60 @@ model AuditLog {
   ipAddress String?  @db.VarChar(45)
   createdAt DateTime @default(now())
   @@map("audit_logs")
+}
+
+model ClaimImportBatch {
+  id              Int      @id @default(autoincrement())
+  name            String?  @db.VarChar(255)
+  fileName        String   @db.VarChar(255)
+  filePath        String   @db.VarChar(500)
+  fileSize        Int?
+  fileHash        String?  @db.VarChar(255)
+  status          String   @db.VarChar(50)
+  sheetName       String?  @db.VarChar(100)
+  sourceSheets    Json?
+  headerMapping   Json?
+  duplicateAction String?  @db.VarChar(20)
+  totalRows       Int      @default(0)
+  acceptedRows    Int      @default(0)
+  flaggedRows     Int      @default(0)
+  committedRows   Int      @default(0)
+  committedAt     DateTime?
+  rolledBackAt    DateTime?
+  notes           String?  @db.Text
+  importedById    Int
+  importedBy      User     @relation(fields: [importedById], references: [id])
+  claims          Claim[]
+  rows            ClaimImportRow[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status])
+  @@index([importedById])
+  @@map("claim_import_batches")
+}
+
+model ClaimImportRow {
+  id                  Int               @id @default(autoincrement())
+  importBatchId       Int
+  importBatch         ClaimImportBatch  @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  sourceSheet         String            @db.VarChar(100)
+  sourceRowNumber     Int
+  rawData             Json
+  mappedData          Json?
+  status              String            @db.VarChar(50)
+  confidence          String?           @db.VarChar(20)
+  inferredStatus      String?           @db.VarChar(100)
+  issues              Json?
+  duplicateOfClaimId  Int?
+  duplicateOfClaim    Claim?            @relation("DuplicateImportRow", fields: [duplicateOfClaimId], references: [id], onDelete: SetNull)
+  committedClaim      Claim?            @relation("CommittedClaim")
+  committedAt         DateTime?
+  rolledBackAt        DateTime?
+  activities          ClaimActivity[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  @@index([importBatchId])
+  @@index([status])
+  @@index([duplicateOfClaimId])
+  @@map("claim_import_rows")
 }

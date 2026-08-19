@@ -22,6 +22,50 @@ const statuses = [
   { name: 'Closed', code: 'CLOSED', color: '#28a745', isTerminal: true, sortOrder: 180 },
 ];
 
+// OCS 12-stage process status — primary status for registry/reporting.
+// Maps to the legacy workbook's process flow and is the canonical
+// status for imported and new claims. Existing internal ClaimStatus
+// remains as a secondary workflow status.
+const processStatuses = [
+  { name: 'Received', code: 'RECEIVED', color: '#767683', isTerminal: false, sortOrder: 10 },
+  { name: 'Assigned', code: 'ASSIGNED', color: '#4958ab', isTerminal: false, sortOrder: 20 },
+  { name: 'Under Investigation', code: 'UNDER_INVESTIGATION', color: '#f26522', isTerminal: false, sortOrder: 30 },
+  { name: 'Inspected', code: 'INSPECTED', color: '#f26522', isTerminal: false, sortOrder: 40 },
+  { name: 'Documents Received', code: 'DOCUMENTS_RECEIVED', color: '#28a745', isTerminal: false, sortOrder: 50 },
+  { name: 'Under Assessment', code: 'UNDER_ASSESSMENT', color: '#f26522', isTerminal: false, sortOrder: 60 },
+  { name: 'Report Drafted', code: 'REPORT_DRAFTED', color: '#f26522', isTerminal: false, sortOrder: 70 },
+  { name: 'Report Submitted', code: 'REPORT_SUBMITTED', color: '#2b3a8c', isTerminal: false, sortOrder: 80 },
+  { name: 'Letter Request Under Review', code: 'LETTER_REQUEST_UNDER_REVIEW', color: '#2b3a8c', isTerminal: false, sortOrder: 90 },
+  { name: 'Awaiting Documents', code: 'AWAITING_DOCUMENTS', color: '#bc0100', isTerminal: false, sortOrder: 100 },
+  { name: 'Settled', code: 'SETTLED', color: '#28a745', isTerminal: false, sortOrder: 110 },
+  { name: 'Closed', code: 'CLOSED', color: '#28a745', isTerminal: true, sortOrder: 120 },
+];
+
+// Default mapping from internal ClaimStatus code → ProcessStatus code.
+// Used by the backfill to populate processStatusId on existing claims
+// without overwriting the secondary statusId. Conservative: maps to
+// the closest OCS stage; anything unmapped defaults to RECEIVED.
+const statusToProcess = {
+  NEW: 'RECEIVED',
+  ASSIGNED: 'ASSIGNED',
+  INVESTIGATION: 'UNDER_INVESTIGATION',
+  INSPECTION_SCHEDULED: 'UNDER_INVESTIGATION',
+  INSPECTION_COMPLETED: 'INSPECTED',
+  DOCUMENTS_PENDING: 'AWAITING_DOCUMENTS',
+  DOCUMENTS_RECEIVED: 'DOCUMENTS_RECEIVED',
+  ASSESSMENT: 'UNDER_ASSESSMENT',
+  REPORT_DRAFT: 'REPORT_DRAFTED',
+  REPORT_SUBMITTED: 'REPORT_SUBMITTED',
+  CLIENT_REVIEW: 'LETTER_REQUEST_UNDER_REVIEW',
+  CLARIFICATION_NEEDED: 'AWAITING_DOCUMENTS',
+  CLARIFICATION_PROVIDED: 'DOCUMENTS_RECEIVED',
+  SETTLEMENT: 'SETTLED',
+  OFFER_SENT: 'SETTLED',
+  FEE_INVOICED: 'SETTLED',
+  PAYMENT_RECEIVED: 'SETTLED',
+  CLOSED: 'CLOSED',
+};
+
 const documentCategories = [
   { name: 'Policy', code: 'POLICY' },
   { name: 'Claim Form', code: 'CLAIM_FORM' },
@@ -51,6 +95,33 @@ async function main() {
 
   for (const s of statuses) {
     await prisma.claimStatus.upsert({ where: { code: s.code }, update: s, create: s });
+  }
+
+  // Upsert OCS process statuses (primary status dimension).
+  const processStatusByCode = {};
+  for (const p of processStatuses) {
+    const row = await prisma.processStatus.upsert({ where: { code: p.code }, update: p, create: p });
+    processStatusByCode[p.code] = row;
+  }
+
+  // Backfill processStatusId on existing claims that don't yet have one.
+  // Conservative: only sets a value when null. Never overwrites a user-set
+  // or previously-backfilled value. Maps via statusToProcess using the
+  // claim's existing secondary ClaimStatus code.
+  const claimsWithoutProcess = await prisma.claim.findMany({
+    where: { processStatusId: null },
+    select: { id: true, status: { select: { code: true } } },
+  });
+  let backfilled = 0;
+  for (const c of claimsWithoutProcess) {
+    const processCode = statusToProcess[c.status?.code] || 'RECEIVED';
+    const process = processStatusByCode[processCode];
+    if (!process) continue;
+    await prisma.claim.update({ where: { id: c.id }, data: { processStatusId: process.id } });
+    backfilled += 1;
+  }
+  if (backfilled > 0) {
+    console.log(`Backfilled processStatusId on ${backfilled} existing claim(s).`);
   }
 
   for (const c of documentCategories) {
