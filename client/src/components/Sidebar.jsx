@@ -5,7 +5,6 @@ import {
   Users,
   Building2,
   FileSpreadsheet,
-  BarChart3,
   History,
   LogOut,
 } from 'lucide-react';
@@ -17,7 +16,6 @@ const navItems = [
   { icon: Users, label: 'Employees', href: '/employees' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
   { icon: FileSpreadsheet, label: 'Templates', href: '/templates' },
-  { icon: BarChart3, label: 'Reports', href: '/reports' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },
 ];
 
