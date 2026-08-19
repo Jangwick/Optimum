@@ -17,6 +17,7 @@ import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
 import { Lock, Ban, AlertTriangle } from 'lucide-react';
 
 export default function ClaimDetail() {
@@ -61,6 +62,7 @@ export function ClaimDetailContent({ claimId }) {
     setProcessStatuses(processData.items || []);
     setSelectedStatus(claimData.item.status?.code || '');
     setSelectedProcessStatus(claimData.item.processStatus?.code || '');
+    setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
     setLoading(false);
   }, [claimId]);
 

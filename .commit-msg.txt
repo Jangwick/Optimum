@@ -1,8 +1,15 @@
-revert: remove claim detail modal, restore direct page navigation
+feat: add breadcrumbs navigation across the system
 
-Row clicks in the Claims Registry now navigate to /claims/:id (full page)
-instead of opening a modal overlay. Removes the Modal/ClaimDetailContent
-imports, selectedClaimId state, and the modal JSX from Claims.jsx.
+- Create Breadcrumbs component that parses the current URL and renders
+  a breadcrumb trail (e.g. Dashboard > Claims > CS-2026-0003)
+- Integrate breadcrumbs into the TopBar, replacing the non-functional search
+- Parent crumbs are clickable links; the current page is a static label
+- Dynamic label support: ClaimDetail sets the breadcrumb to the actual
+  claim number via a custom event, instead of a generic "Claim Details"
+- Breadcrumbs hidden on the Dashboard root (no parent to show)
+- Home icon on the first crumb, ChevronRight separators between crumbs
+- All pages verified: Claims, Claim Detail, New Claim, Employees, Master Data,
+  Templates, Audit Logs, Import Wizard
 
 Generated with [Devin](https://devin.ai)
 
