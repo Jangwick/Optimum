@@ -14,7 +14,11 @@ function parseUrl(url) {
     user: parsed.username,
     password: parsed.password,
     database: parsed.pathname.replace(/^\//, ''),
-    connectionLimit: 5,
+    connectionLimit: Number(parsed.searchParams.get('connectionLimit')) || 20,
+    idleTimeout: Number(parsed.searchParams.get('idleTimeout')) || 600000,
+    acquireTimeout: Number(parsed.searchParams.get('acquireTimeout')) || 30000,
+    connectTimeout: Number(parsed.searchParams.get('connectTimeout')) || 30000,
+    reconnect: true,
   };
 }
 
