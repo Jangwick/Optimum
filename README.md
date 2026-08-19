@@ -34,6 +34,40 @@ npm run dev
 
 Copy `.env.example` files to `.env` and fill in real values before running in production.
 
+## Production Deployment
+
+1. Build the client:
+   ```bash
+   cd client && npm run build
+   ```
+
+2. Apply database migrations:
+   ```bash
+   cd server
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
+
+3. Start the server with PM2:
+   ```bash
+   cd server
+   pm2 start ecosystem.config.cjs
+   ```
+
+4. Serve the client with Nginx using the provided `nginx.conf`, or use a static host.
+
+5. Back up MySQL regularly:
+   ```powershell
+   .\backup-mysql.ps1 -Database claims_solutions -User root -Password ''
+   ```
+
+## Runbook Notes
+
+- MySQL is the canonical data store. Run `backup-mysql.ps1` before any schema change.
+- Uploaded files are stored in `server/uploads` by default; configure S3/Azure Blob by replacing `server/src/middleware/upload.js`.
+- Default admin: `admin@optimum.com` / `ChangeMe123!` — change before production.
+- JWT secret and database credentials must be set in `server/.env`.
+
 ## License
 
 Proprietary — Claims Solutions Insurance Adjustment, Inc.
