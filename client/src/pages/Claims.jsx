@@ -1,22 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClaims, exportClaims } from '../services/claim.service.js';
-import { getClaimStatuses } from '../services/master-data.service.js';
+import { getProcessStatuses } from '../services/import.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
-import { Download } from 'lucide-react';
+import { Download, Lock, Ban } from 'lucide-react';
 
-function StatusPill({ code, color }) {
+function StatusPill({ code, color, name }) {
   return (
     <span
       className="inline-flex items-center px-3 py-0.5 rounded-full text-label-md font-medium"
       style={{ backgroundColor: `${color}20`, color }}
+      title={name || code}
     >
-      {code}
+      {name || code}
+    </span>
+  );
+}
+
+function ReadOnlyBadge({ isReadOnly, isCancelled }) {
+  if (!isReadOnly) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium ${
+        isCancelled ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+      }`}
+      title={isCancelled ? 'Cancelled historical record (read-only)' : 'Closed historical record (read-only)'}
+    >
+      {isCancelled ? <Ban size={12} /> : <Lock size={12} />}
+      {isCancelled ? 'Cancelled' : 'Closed'}
     </span>
   );
 }
@@ -38,13 +54,13 @@ export default function Claims() {
   } = useList();
 
   const [data, setData] = useState({ items: [], count: 0 });
-  const [statuses, setStatuses] = useState([]);
+  const [processStatuses, setProcessStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    getClaimStatuses().then((res) => setStatuses(res.items || []));
+    getProcessStatuses().then((res) => setProcessStatuses(res.items || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -53,7 +69,7 @@ export default function Claims() {
       page,
       limit,
       search,
-      status: filters.status || '',
+      processStatus: filters.processStatus || '',
       sortField,
       sortOrder,
     };
@@ -65,11 +81,11 @@ export default function Claims() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportClaims({ search, status: filters.status });
+      const blob = await exportClaims({ search, processStatus: filters.processStatus });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `claims-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      link.setAttribute('download', `claims-registry-${new Date().toISOString().slice(0, 10)}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -80,18 +96,39 @@ export default function Claims() {
   };
 
   const columns = [
-    { key: 'claimNumber', title: 'Claim #', sortable: true, className: 'font-mono text-body-md font-medium text-primary' },
-    { key: 'client', title: 'Client', render: (row) => row.client?.name },
-    { key: 'claimType', title: 'Type', render: (row) => row.claimType?.name },
-    { key: 'status', title: 'Status', render: (row) => <StatusPill code={row.status?.code} color={row.status?.color} /> },
-    { key: 'engineer', title: 'Engineer', render: (row) => row.engineer?.fullName || '—' },
     {
-      key: 'reserve',
-      title: 'Reserve',
+      key: 'claimNumber',
+      title: 'OCS Ref #',
+      sortable: true,
+      className: 'font-mono text-body-md font-medium text-primary',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span>{row.claimNumber}</span>
+          <ReadOnlyBadge isReadOnly={row.isReadOnly} isCancelled={row.isCancelled} />
+        </div>
+      ),
+    },
+    { key: 'client', title: 'Insured', render: (row) => row.client?.name || row.insuredName || '—' },
+    { key: 'insuranceCompany', title: 'Insurer', render: (row) => row.insuranceCompany?.name || '—' },
+    { key: 'broker', title: 'Broker', render: (row) => row.broker?.name || '—' },
+    {
+      key: 'processStatus',
+      title: 'Status',
+      render: (row) =>
+        row.processStatus ? (
+          <StatusPill code={row.processStatus.code} color={row.processStatus.color} name={row.processStatus.name} />
+        ) : (
+          '—'
+        ),
+    },
+    { key: 'engineer', title: 'Adjuster', render: (row) => row.engineer?.fullName || row.handlingAdjuster || '—' },
+    {
+      key: 'claimedAmount',
+      title: 'Claimed',
       sortable: true,
       align: 'right',
       className: 'font-mono',
-      render: (row) => formatCurrency(row.reserve),
+      render: (row) => (row.claimedAmount ? formatCurrency(row.claimedAmount) : row.claimedAmountRaw || '—'),
     },
     {
       key: 'dateReceived',
@@ -109,8 +146,10 @@ export default function Claims() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="mb-6 flex justify-between items-end">
             <div>
-              <h2 className="text-headline-lg font-semibold text-primary">Claims</h2>
-              <p className="text-body-md text-on-surface-variant mt-1">Manage and track all claims.</p>
+              <h2 className="text-headline-lg font-semibold text-primary">Claims Registry</h2>
+              <p className="text-body-md text-on-surface-variant mt-1">
+                Complete claim register with 18-stage workflow status
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -130,21 +169,21 @@ export default function Claims() {
             </div>
           </div>
 
-          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 mb-6 flex gap-4">
+          <div className="bg-surface border border-surface-border rounded shadow-sm p-4 mb-6 flex gap-4 flex-wrap">
             <input
               type="text"
               value={search}
               onChange={(e) => applySearch(e.target.value)}
-              placeholder="Search claim number, client, or description"
-              className="flex-1 h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+              placeholder="Search OCS ref, insured, insurer claim #, policy, broker, nature, location..."
+              className="flex-1 min-w-[300px] h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             />
             <select
-              value={filters.status || ''}
-              onChange={(e) => applyFilters({ ...filters, status: e.target.value })}
+              value={filters.processStatus || ''}
+              onChange={(e) => applyFilters({ ...filters, processStatus: e.target.value })}
               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             >
               <option value="">All statuses</option>
-              {statuses.map((s) => (
+              {processStatuses.map((s) => (
                 <option key={s.id} value={s.code}>
                   {s.name}
                 </option>
@@ -160,6 +199,7 @@ export default function Claims() {
             sortOrder={sortOrder}
             onSort={onSort}
             keyExtractor={(row) => row.id}
+            onRowClick={(row) => navigate(`/claims/${row.id}`)}
           />
 
           <Pagination

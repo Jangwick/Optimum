@@ -9,11 +9,36 @@ const MAX_SHEETS = 50;
 const MAX_ROWS_PER_SHEET = 10000;
 const MAX_COLUMNS_PER_SHEET = 100;
 
-function activeAssignmentYear(name) {
-  if (/closed|cancelled/i.test(name)) return null;
-  const match = name.trim().match(/^assignment\s*(20\d{2})$/i);
-  return match ? Number(match[1]) : null;
+// Classify a sheet name into a type and extract the year if present.
+// Returns { type, year } where type is one of:
+//   ACTIVE    — assignment sheets with open/in-progress claims
+//   CLOSED    — closed register sheets
+//   CANCELLED — cancelled register sheets
+//   LOOKUP    — reference/lookup sheets (status lists, report types)
+//   IGNORE    — anything else
+function classifySheet(name) {
+  const trimmed = name.trim();
+
+  if (/cancelled/i.test(trimmed)) {
+    const match = trimmed.match(/(20\d{2})/);
+    return { type: 'CANCELLED', year: match ? Number(match[1]) : null };
+  }
+  if (/closed/i.test(trimmed)) {
+    const match = trimmed.match(/(20\d{2})/);
+    return { type: 'CLOSED', year: match ? Number(match[1]) : null };
+  }
+  const assignMatch = trimmed.match(/^assignment\s*(20\d{2})$/i);
+  if (assignMatch) {
+    return { type: 'ACTIVE', year: Number(assignMatch[1]) };
+  }
+  if (/^sheet/i.test(trimmed)) {
+    return { type: 'LOOKUP', year: null };
+  }
+  return { type: 'IGNORE', year: null };
 }
+
+// Sheet types that contain importable claim rows.
+const IMPORTABLE_SHEET_TYPES = new Set(['ACTIVE', 'CLOSED', 'CANCELLED']);
 
 function cell(row, column) {
   return column ? normalizeCellText(row.getCell(column).value).trim() : '';
@@ -27,7 +52,7 @@ function combineTimeline(values) {
   return values.filter(Boolean).join('; ');
 }
 
-function parseRow(worksheet, sourceRow, headers) {
+function parseRow(worksheet, sourceRow, headers, sheetType, year) {
   const row = worksheet.getRow(sourceRow);
   const claimed = parseMoney(cell(row, headers.claimedAmount));
   const reserve = parseMoney(cell(row, headers.reserve));
@@ -39,7 +64,7 @@ function parseRow(worksheet, sourceRow, headers) {
   const latestStatus = cell(row, headers.latestStatus);
   const letterFollowUp = cell(row, headers.letterFollowUp);
   const timeline = parseTimeline(combineTimeline([remarks, latestStatus, letterFollowUp]));
-  const status = inferProcessStatus({ remarks, latestStatus, letterFollowUp, sourceSheet: worksheet.name });
+  const status = inferProcessStatus({ remarks, latestStatus, letterFollowUp, sourceSheet: worksheet.name, sheetType });
   const issues = [...insurers.issues];
 
   const ocsReference = cell(row, headers.ocsReference);
@@ -60,6 +85,8 @@ function parseRow(worksheet, sourceRow, headers) {
   return {
     sourceSheet: worksheet.name,
     sourceRow,
+    sheetType,
+    year,
     itemNumber: cell(row, headers.itemNumber),
     dateAssigned: iso(row.getCell(headers.dateAssigned || 1).value),
     insuredName,
@@ -98,8 +125,11 @@ function parseRow(worksheet, sourceRow, headers) {
     letterFollowUp,
     paymentAdvice: cell(row, headers.paymentAdvice),
     suggestedProcessStatus: status.code,
+    suggestedImportStatus: status.importCode,
     statusConfidence: status.confidence,
     statusReason: status.reason,
+    isReadOnly: sheetType === 'CLOSED' || sheetType === 'CANCELLED',
+    isCancelled: sheetType === 'CANCELLED',
     timeline,
     issues: [...new Set(issues)],
     rawData,
@@ -115,8 +145,8 @@ export async function parseClaimWorkbook(input) {
   const sheets = [];
 
   for (const worksheet of workbook.worksheets) {
-    const year = activeAssignmentYear(worksheet.name);
-    if (!year) continue;
+    const { type, year } = classifySheet(worksheet.name);
+    if (!IMPORTABLE_SHEET_TYPES.has(type)) continue;
     if (worksheet.rowCount > MAX_ROWS_PER_SHEET) throw new Error(`Sheet ${worksheet.name} has too many rows`);
     if (worksheet.columnCount > MAX_COLUMNS_PER_SHEET) throw new Error(`Sheet ${worksheet.name} has too many columns`);
 
@@ -133,12 +163,12 @@ export async function parseClaimWorkbook(input) {
     for (let sourceRow = headerRow + 1; sourceRow <= worksheet.rowCount; sourceRow += 1) {
       const row = worksheet.getRow(sourceRow);
       if (!cell(row, headers.itemNumber) && !cell(row, headers.ocsReference)) continue;
-      rows.push(parseRow(worksheet, sourceRow, headers));
+      rows.push(parseRow(worksheet, sourceRow, headers, type, year));
       rowCount += 1;
     }
-    sheets.push({ name: worksheet.name, year, rowCount });
+    sheets.push({ name: worksheet.name, type, year, rowCount });
   }
 
-  if (sheets.length === 0) throw new Error('No active assignment sheets found');
+  if (sheets.length === 0) throw new Error('No importable sheets found');
   return { sheets, rows };
 }

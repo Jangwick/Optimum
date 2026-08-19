@@ -1,6 +1,8 @@
 import { normalizeCellText } from './value-parser.js';
 
-const STATUS_RULES = [
+// OCS 12-status inference rules (for the importStatus field on historical records).
+// Ordered from terminal/late stage to early stage.
+const OCS_STATUS_RULES = [
   { code: 'CANCELLED', pattern: /\bcancell?ed\b/i },
   { code: 'CLOSED', pattern: /\bclosed\b(?!\s+no\s+bill)/i },
   { code: 'FOR_CLOSING_WAIVED_BILLING', pattern: /closed no bill|waived billing|no billing/i },
@@ -14,24 +16,90 @@ const STATUS_RULES = [
   { code: 'DOCUMENTS_UNDER_REVIEW', pattern: /documents?.*(?:received|under review)|submitted documents/i },
 ];
 
-export function inferProcessStatus({ latestStatus = '', remarks = '', letterFollowUp = '', sourceSheet = '' } = {}) {
+// Map OCS 12-status → 18-stage primary workflow status.
+const OCS_TO_18 = {
+  AWAITING_DOCUMENTS: 'DOCUMENTS_REQUIRED',
+  DOCUMENTS_UNDER_REVIEW: 'DOCUMENTS_RECEIVED',
+  REPORT_UNDER_REVIEW: 'CLIENT_REVIEW',
+  LETTER_REQUEST_UNDER_REVIEW: 'CLIENT_REVIEW',
+  LETTER_AND_REPORT_UNDER_REVIEW: 'CLIENT_REVIEW',
+  AWAITING_INSURER_INSTRUCTION: 'CLIENT_REVIEW',
+  FOR_LETTER_OFFER: 'ADJUSTMENT_COMPLETED',
+  OFFER_DECLINED_REEVALUATION: 'FURTHER_CLARIFICATION',
+  FOR_CLOSING_AND_BILLING: 'CLAIM_SETTLED',
+  FOR_CLOSING_WAIVED_BILLING: 'CLAIM_SETTLED',
+  CLOSED: 'CLAIM_CLOSED',
+  CANCELLED: 'CLAIM_CLOSED',
+};
+
+// Infer both the 18-stage primary status and the OCS 12 import status.
+// sheetType: 'ACTIVE' | 'CLOSED' | 'CANCELLED' | 'LOOKUP' | 'IGNORE'
+export function inferProcessStatus({ latestStatus = '', remarks = '', letterFollowUp = '', sourceSheet = '', sheetType = '' } = {}) {
   const source = [latestStatus, remarks, letterFollowUp].map(normalizeCellText).filter(Boolean).join(' ');
   const sheet = normalizeCellText(sourceSheet);
 
-  if (/cancelled/i.test(sheet)) return { code: 'CANCELLED', confidence: 'HIGH', reason: 'Source sheet is cancelled' };
-  if (/closed/i.test(sheet)) return { code: 'CLOSED', confidence: 'HIGH', reason: 'Source sheet is closed' };
+  // Sheet-type-based inference (highest confidence)
+  if (sheetType === 'CANCELLED' || /cancelled/i.test(sheet)) {
+    return {
+      code: 'CLAIM_CLOSED',
+      importCode: 'CANCELLED',
+      confidence: 'HIGH',
+      reason: 'Source sheet is cancelled',
+    };
+  }
+  if (sheetType === 'CLOSED' || /closed/i.test(sheet)) {
+    return {
+      code: 'CLAIM_CLOSED',
+      importCode: 'CLOSED',
+      confidence: 'HIGH',
+      reason: 'Source sheet is closed',
+    };
+  }
 
-  const rule = STATUS_RULES.find(({ pattern }) => pattern.test(source));
-  if (rule) return { code: rule.code, confidence: 'HIGH', reason: `Matched ${rule.pattern}` };
+  // Text-based OCS status inference
+  const rule = OCS_STATUS_RULES.find(({ pattern }) => pattern.test(source));
+  if (rule) {
+    return {
+      code: OCS_TO_18[rule.code] || 'DOCUMENTS_REQUIRED',
+      importCode: rule.code,
+      confidence: 'HIGH',
+      reason: `Matched ${rule.pattern}`,
+    };
+  }
 
+  // Default: awaiting documents stage
   return {
-    code: 'AWAITING_DOCUMENTS',
+    code: 'DOCUMENTS_REQUIRED',
+    importCode: 'AWAITING_DOCUMENTS',
     confidence: source ? 'MEDIUM' : 'LOW',
     reason: source ? 'No later-stage evidence found' : 'No status evidence available',
   };
 }
 
+// The 18 primary workflow statuses.
 export const PROCESS_STATUSES = [
+  'NEW_CLAIM',
+  'CLAIM_ASSIGNED',
+  'INITIAL_REVIEW',
+  'CONTACTED_INSURED',
+  'SITE_INSPECTION_SCHEDULED',
+  'UNDER_INVESTIGATION',
+  'INSPECTION_COMPLETED',
+  'DOCUMENTS_REQUIRED',
+  'DOCUMENTS_RECEIVED',
+  'LOSS_ASSESSMENT',
+  'RESERVE_LOSS_ESTIMATE_PREPARED',
+  'REPORT_PREPARATION',
+  'REPORT_SUBMITTED',
+  'CLIENT_REVIEW',
+  'FURTHER_CLARIFICATION',
+  'ADJUSTMENT_COMPLETED',
+  'CLAIM_SETTLED',
+  'CLAIM_CLOSED',
+];
+
+// The 12 OCS import statuses (read-only on historical records).
+export const IMPORT_STATUSES = [
   'AWAITING_DOCUMENTS',
   'DOCUMENTS_UNDER_REVIEW',
   'REPORT_UNDER_REVIEW',

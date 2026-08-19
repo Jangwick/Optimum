@@ -71,7 +71,7 @@ describe('claim workbook structure parsing', () => {
 });
 
 describe('claim workbook parsing', () => {
-  it('selects active assignment sheets, maps rows, and excludes closed sheets', async () => {
+  it('parses active, closed, and cancelled sheets with sheetType and year', async () => {
     const workbook = new ExcelJS.Workbook();
     const active = workbook.addWorksheet('Assignment2025');
     active.addRows([
@@ -140,23 +140,65 @@ describe('claim workbook parsing', () => {
       ],
     ]);
     const closed = workbook.addWorksheet('CLOSED2025');
-    closed.addRow(['ITEM NO.', 'OCS. REF. NO.']);
-    closed.addRow([1, 'OCS-CLOSED']);
+    closed.addRows([
+      ['ITEM NO.', 'OCS. REF. NO.', 'INSURED NAME', 'LATEST STATUS'],
+      [1, 'OCS-CLOSED-1', 'Closed Corp', 'Closed'],
+    ]);
+    const cancelled = workbook.addWorksheet('CANCELLED2025');
+    cancelled.addRows([
+      ['ITEM NO.', 'OCS. REF. NO.', 'INSURED NAME', 'LATEST STATUS'],
+      [1, 'OCS-CANCELLED-1', 'Cancelled Corp', 'Cancelled'],
+    ]);
+    // Lookup sheet should be ignored
+    const lookup = workbook.addWorksheet('SHEET2024');
+    lookup.addRow(['Status', 'Description']);
+    lookup.addRow(['CLOSED', 'Closed']);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const result = await parseClaimWorkbook(buffer);
 
-    expect(result.sheets).toEqual([{ name: 'Assignment2025', year: 2025, rowCount: 1 }]);
-    expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({
+    expect(result.sheets).toHaveLength(3);
+    const activeSheet = result.sheets.find((s) => s.name === 'Assignment2025');
+    expect(activeSheet).toMatchObject({ type: 'ACTIVE', year: 2025, rowCount: 1 });
+    const closedSheet = result.sheets.find((s) => s.name === 'CLOSED2025');
+    expect(closedSheet).toMatchObject({ type: 'CLOSED', year: 2025, rowCount: 1 });
+    const cancelledSheet = result.sheets.find((s) => s.name === 'CANCELLED2025');
+    expect(cancelledSheet).toMatchObject({ type: 'CANCELLED', year: 2025, rowCount: 1 });
+
+    expect(result.rows).toHaveLength(3);
+
+    const activeRow = result.rows.find((r) => r.ocsReference === 'OCS-012501/ABC');
+    expect(activeRow).toMatchObject({
       sourceSheet: 'Assignment2025',
-      sourceRow: 7,
+      sheetType: 'ACTIVE',
+      year: 2025,
       ocsReference: 'OCS-012501/ABC',
       insuredName: 'Acme Corp',
       handlingAdjuster: 'ABC',
       claimedAmount: '100000.00',
       reserve: '80000.00',
-      suggestedProcessStatus: 'AWAITING_DOCUMENTS',
+      isReadOnly: false,
+      isCancelled: false,
+      suggestedProcessStatus: 'DOCUMENTS_REQUIRED',
+      suggestedImportStatus: 'AWAITING_DOCUMENTS',
+    });
+
+    const closedRow = result.rows.find((r) => r.ocsReference === 'OCS-CLOSED-1');
+    expect(closedRow).toMatchObject({
+      sheetType: 'CLOSED',
+      isReadOnly: true,
+      isCancelled: false,
+      suggestedProcessStatus: 'CLAIM_CLOSED',
+      suggestedImportStatus: 'CLOSED',
+    });
+
+    const cancelledRow = result.rows.find((r) => r.ocsReference === 'OCS-CANCELLED-1');
+    expect(cancelledRow).toMatchObject({
+      sheetType: 'CANCELLED',
+      isReadOnly: true,
+      isCancelled: true,
+      suggestedProcessStatus: 'CLAIM_CLOSED',
+      suggestedImportStatus: 'CANCELLED',
     });
   });
 });
@@ -169,15 +211,34 @@ describe('timeline and process status parsing', () => {
     expect(events[1]).toMatchObject({ type: 'REPORT_SUBMITTED', reportType: 'FIRST_REPORT' });
   });
 
-  it('infers late-stage statuses before early-stage phrases', () => {
+  it('infers late-stage statuses before early-stage phrases and maps to 18-stage codes', () => {
     expect(inferProcessStatus({ remarks: 'Signed offer received. FOR CLOSING & BILLING' })).toMatchObject({
-      code: 'FOR_CLOSING_AND_BILLING',
+      code: 'CLAIM_SETTLED',
+      importCode: 'FOR_CLOSING_AND_BILLING',
       confidence: 'HIGH',
     });
     expect(inferProcessStatus({ remarks: 'Letter offer declined. For re-evaluation' })).toMatchObject({
-      code: 'OFFER_DECLINED_REEVALUATION',
+      code: 'FURTHER_CLARIFICATION',
+      importCode: 'OFFER_DECLINED_REEVALUATION',
       confidence: 'HIGH',
     });
-    expect(inferProcessStatus({ remarks: '' })).toMatchObject({ code: 'AWAITING_DOCUMENTS', confidence: 'LOW' });
+    expect(inferProcessStatus({ remarks: '' })).toMatchObject({
+      code: 'DOCUMENTS_REQUIRED',
+      importCode: 'AWAITING_DOCUMENTS',
+      confidence: 'LOW',
+    });
+  });
+
+  it('infers CLAIM_CLOSED from sheet type for closed and cancelled sheets', () => {
+    expect(inferProcessStatus({ sheetType: 'CLOSED' })).toMatchObject({
+      code: 'CLAIM_CLOSED',
+      importCode: 'CLOSED',
+      confidence: 'HIGH',
+    });
+    expect(inferProcessStatus({ sheetType: 'CANCELLED' })).toMatchObject({
+      code: 'CLAIM_CLOSED',
+      importCode: 'CANCELLED',
+      confidence: 'HIGH',
+    });
   });
 });

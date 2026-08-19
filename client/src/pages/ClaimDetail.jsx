@@ -17,6 +17,7 @@ import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { Lock, Ban, AlertTriangle } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -53,9 +54,13 @@ export default function ClaimDetail() {
     load();
   }, [load, refresh]);
 
-  // Load closing guards when process status approaches CLOSED
+  // Load closing guards when process status approaches CLAIM_CLOSED or CLAIM_SETTLED
   useEffect(() => {
-    if (claim?.processStatus?.code === 'SETTLEMENT' || selectedProcessStatus === 'CLOSED') {
+    if (
+      selectedProcessStatus === 'CLAIM_CLOSED' ||
+      selectedProcessStatus === 'CLAIM_SETTLED' ||
+      claim?.processStatus?.code === 'ADJUSTMENT_COMPLETED'
+    ) {
       getClosingGuards(id).then((res) => setClosingGuards(res.item)).catch(() => {});
     }
   }, [id, claim?.processStatus?.code, selectedProcessStatus]);
@@ -71,9 +76,14 @@ export default function ClaimDetail() {
   const handleProcessTransition = async (e) => {
     e.preventDefault();
     if (!selectedProcessStatus || selectedProcessStatus === claim.processStatus?.code) return;
-    const payload = { processStatusCode: selectedProcessStatus, notes: processNote };
-    if (selectedProcessStatus === 'CLOSED' && overrideReason) {
-      payload.override = true;
+    const payload = { statusCode: selectedProcessStatus, notes: processNote };
+    if ((selectedProcessStatus === 'CLAIM_CLOSED' || selectedProcessStatus === 'CLAIM_SETTLED') && overrideReason) {
+      payload.isOverride = true;
+      payload.overrideReason = overrideReason;
+    }
+    // Read-only records always require override
+    if (claim.isReadOnly && overrideReason) {
+      payload.isOverride = true;
       payload.overrideReason = overrideReason;
     }
     try {
@@ -135,16 +145,61 @@ export default function ClaimDetail() {
                   {claim.processStatus.name}
                 </div>
               )}
-              {claim.status && (
+              {claim.importStatus && (
                 <div
                   className="px-3 py-0.5 rounded-full text-label-sm font-medium opacity-70"
+                  title="Historical OCS import status"
+                >
+                  OCS: {claim.importStatus.name}
+                </div>
+              )}
+              {claim.status && (
+                <div
+                  className="px-3 py-0.5 rounded-full text-label-sm font-medium opacity-50"
                   style={{ backgroundColor: `${claim.status.color}20`, color: claim.status.color }}
+                  title="Secondary internal status (read-only / action-driven)"
                 >
                   Internal: {claim.status.code}
                 </div>
               )}
             </div>
           </div>
+
+          {claim.isReadOnly && (
+            <div
+              className={`mb-6 rounded border p-4 flex items-start gap-3 ${
+                claim.isCancelled
+                  ? 'bg-red-50 border-red-300 text-red-800'
+                  : 'bg-amber-50 border-amber-300 text-amber-800'
+              }`}
+            >
+              {claim.isCancelled ? <Ban size={20} className="mt-0.5 flex-shrink-0" /> : <Lock size={20} className="mt-0.5 flex-shrink-0" />}
+              <div>
+                <p className="font-semibold text-body-md">
+                  {claim.isCancelled ? 'Cancelled Historical Record' : 'Closed Historical Record'}
+                </p>
+                <p className="text-body-sm mt-0.5">
+                  {claim.isCancelled
+                    ? `This claim was cancelled during migration and is read-only. Reason: ${claim.cancellationReason || 'Not specified'}`
+                    : 'This claim was imported from a closed workbook sheet and is read-only. Use Admin override with a reason to make changes.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {claim.isIncomplete && !claim.isReadOnly && (
+            <div className="mb-6 bg-amber-50 border border-amber-300 rounded p-4 flex items-start gap-3 text-amber-800">
+              <AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-body-md">Incomplete Record</p>
+                {claim.incompleteReasons?.length > 0 && (
+                  <ul className="text-body-sm list-disc list-inside mt-1">
+                    {claim.incompleteReasons.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 border-b border-surface-border mb-6">
             {tabs.map((t) => (
@@ -186,34 +241,46 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
           <h3 className="text-headline-sm font-semibold text-primary mb-4">Claim Summary</h3>
           <div className="grid grid-cols-2 gap-4 text-body-md">
+            <Info label="OCS Ref #" value={claim.claimNumber} />
             <Info label="Assignment #" value={claim.assignmentNumber} />
             <Info label="Insurer Claim #" value={claim.insurerClaimNumber} />
-            <Info label="Policy" value={claim.policy?.policyNumber} />
+            <Info label="Handling Adjuster" value={claim.handlingAdjuster || claim.engineer?.fullName} />
+            <Info label="Insured" value={claim.client?.name} />
             <Info label="Insurer" value={claim.insuranceCompany?.name} />
             <Info label="Broker" value={claim.broker?.name} />
+            <Info label="Broker Ref" value={claim.brokerReference} />
+            <Info label="Policy No." value={claim.policy?.policyNumber || claim.policyNumber} />
+            <Info label="Policy Type" value={claim.policyType} />
+            <Info label="Policy Period" value={claim.policyPeriodText} />
             <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
-            <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
             <Info label="Nature of Loss" value={claim.natureOfLoss} />
-            <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
-            <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
-            <Info label="Claimed Amount" value={formatCurrency(claim.claimedAmount)} money />
-            <Info label="Proposed Settlement" value={formatCurrency(claim.proposedSettlement)} money />
-            <Info label="Agreed Settlement" value={formatCurrency(claim.agreedSettlement)} money />
+            <Info label="Location" value={claim.locationOfLoss} />
+            <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
+            <Info label="Date Inspected" value={claim.dateInspected ? new Date(claim.dateInspected).toLocaleDateString() : '—'} />
+            <Info label="Letter Request" value={claim.letterRequestDate ? new Date(claim.letterRequestDate).toLocaleDateString() : '—'} />
+            <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : '—'} />
           </div>
+          {claim.policyCoverageText && (
+            <div className="mt-4">
+              <span className="text-label-md text-outline uppercase">Policy Coverage / Sum Insured</span>
+              <p className="text-body-md mt-1">{claim.policyCoverageText}</p>
+            </div>
+          )}
           <div className="mt-4">
             <span className="text-label-md text-outline uppercase">Description</span>
             <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
-          {claim.isIncomplete && (
-            <div className="mt-4 bg-error-container/10 border border-error/30 rounded p-3">
-              <p className="text-body-sm font-medium text-error">Incomplete Record</p>
-              {claim.incompleteReasons?.length > 0 && (
-                <ul className="text-label-sm text-on-surface list-disc list-inside mt-1">
-                  {claim.incompleteReasons.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-              )}
-            </div>
-          )}
+        </section>
+
+        <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+          <h3 className="text-headline-sm font-semibold text-primary mb-4">Financial Summary</h3>
+          <div className="grid grid-cols-2 gap-4 text-body-md">
+            <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
+            <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
+            <Info label="Claimed Amount" value={claim.claimedAmountRaw || formatCurrency(claim.claimedAmount)} money />
+            <Info label="Proposed Settlement" value={claim.proposedSettlementRaw || formatCurrency(claim.proposedSettlement)} money />
+            <Info label="Agreed Settlement" value={claim.agreedSettlementRaw || formatCurrency(claim.agreedSettlement)} money />
+          </div>
         </section>
 
         <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
@@ -222,9 +289,34 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Engineer" value={claim.engineer?.fullName} />
             <Info label="Accountant" value={claim.accountant?.fullName} />
             <Info label="Assigned By" value={claim.assignedByName} />
-            <Info label="Broker Reference" value={claim.brokerReference} />
+            <Info label="Contact" value={claim.contactRaw} />
           </div>
         </section>
+
+        {claim.importStatus && (
+          <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
+            <h3 className="text-headline-sm font-semibold text-primary mb-4">Historical Import Metadata</h3>
+            <div className="grid grid-cols-2 gap-4 text-body-md">
+              <Info label="OCS Import Status" value={claim.importStatus.name} />
+              <Info label="Import Batch" value={claim.importBatchId} />
+              <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : '—'} />
+              <Info label="Cancelled" value={claim.isCancelled ? 'Yes' : 'No'} />
+              {claim.isCancelled && <Info label="Cancellation Reason" value={claim.cancellationReason} />}
+            </div>
+            {claim.remarksRaw && (
+              <div className="mt-4">
+                <span className="text-label-md text-outline uppercase">Original Remarks</span>
+                <p className="text-body-md mt-1 whitespace-pre-wrap">{claim.remarksRaw}</p>
+              </div>
+            )}
+            {claim.latestStatusRaw && (
+              <div className="mt-4">
+                <span className="text-label-md text-outline uppercase">Original Latest Status</span>
+                <p className="text-body-md mt-1 whitespace-pre-wrap">{claim.latestStatusRaw}</p>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -779,11 +871,17 @@ function TasksTab({ claimId }) {
 }
 
 function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSelectedProcessStatus, processNote, setProcessNote, overrideReason, setOverrideReason, onTransition, closingGuards, isAdmin }) {
+  const needsOverride =
+    claim.isReadOnly ||
+    selectedProcessStatus === 'CLAIM_CLOSED' ||
+    selectedProcessStatus === 'CLAIM_SETTLED';
+  const guardsNotMet = needsOverride && closingGuards && !closingGuards.canClose;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <section className="bg-surface border border-surface-border rounded shadow-sm p-6">
-          <h3 className="text-headline-sm font-semibold text-primary mb-4">OCS Process Status</h3>
+          <h3 className="text-headline-sm font-semibold text-primary mb-4">18-Stage Workflow Status</h3>
           <div className="mb-4">
             <p className="text-label-md text-outline uppercase">Current Process Status</p>
             {claim.processStatus && (
@@ -795,6 +893,13 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
               </div>
             )}
           </div>
+
+          {claim.isReadOnly && (
+            <div className="mb-4 bg-amber-50 border border-amber-300 rounded p-3 text-amber-800 text-body-sm">
+              <p className="font-medium">This is a read-only historical record.</p>
+              <p className="mt-0.5">Any status change requires an Admin override with a reason.</p>
+            </div>
+          )}
 
           {isAdmin && (
             <form onSubmit={onTransition} className="space-y-4">
@@ -814,22 +919,26 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
                 placeholder="Notes"
                 className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
               />
-              {selectedProcessStatus === 'CLOSED' && closingGuards && !closingGuards.canClose && (
+              {guardsNotMet && (
                 <div className="bg-error-container/10 border border-error/30 rounded p-4 space-y-3">
-                  <p className="text-body-md font-medium text-error">Closing guards not met:</p>
+                  <p className="text-body-md font-medium text-error">Guards not met:</p>
                   <ul className="text-body-sm text-on-surface list-disc list-inside">
                     {closingGuards.reasons?.map((r, i) => <li key={i}>{r}</li>)}
                   </ul>
-                  <div>
-                    <label className="block text-label-md text-on-surface-variant mb-1">Override reason (Admin only)</label>
-                    <input
-                      type="text"
-                      value={overrideReason}
-                      onChange={(e) => setOverrideReason(e.target.value)}
-                      placeholder="Provide a reason to override closing guards"
-                      className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-                    />
-                  </div>
+                </div>
+              )}
+              {needsOverride && (
+                <div>
+                  <label className="block text-label-md text-on-surface-variant mb-1">
+                    Override reason {claim.isReadOnly ? '(required for read-only records)' : '(Admin only)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="Provide a reason to override"
+                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+                  />
                 </div>
               )}
               <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors">

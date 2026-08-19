@@ -8,14 +8,12 @@ import {
   History,
   LogOut,
   Upload,
-  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: FileText, label: 'Claims', href: '/claims' },
-  { icon: ClipboardList, label: 'Registry', href: '/registry' },
   { icon: Users, label: 'Employees', href: '/employees' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
   { icon: FileSpreadsheet, label: 'Templates', href: '/templates' },

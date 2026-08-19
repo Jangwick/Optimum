@@ -10,7 +10,6 @@ import AuditLogs from './pages/AuditLogs.jsx';
 import Templates from './pages/Templates.jsx';
 import Employees from './pages/Employees.jsx';
 import ImportWizard from './pages/ImportWizard.jsx';
-import Registry from './pages/Registry.jsx';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -104,14 +103,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/registry"
-        element={
-          <ProtectedRoute>
-            <Registry />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/registry" element={<Navigate to="/claims" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -68,6 +68,41 @@ Copy `.env.example` files to `.env` and fill in real values before running in pr
 - Default admin: `admin@optimum.com` / `ChangeMe123!` — change before production.
 - JWT secret and database credentials must be set in `server/.env`.
 
+## Workflow Architecture
+
+The system uses a three-tier status model (see `docs/adr-004-18stage-workflow-historical-import.md`):
+
+1. **18-stage ProcessStatus** (primary operational workflow):
+   `NEW_CLAIM` → `CLAIM_ASSIGNED` → `INITIAL_REVIEW` → `CONTACTED_INSURED` → `SITE_INSPECTION_SCHEDULED` → `UNDER_INVESTIGATION` → `INSPECTION_COMPLETED` → `DOCUMENTS_REQUIRED` → `DOCUMENTS_RECEIVED` → `LOSS_ASSESSMENT` → `RESERVE_LOSS_ESTIMATE_PREPARED` → `REPORT_PREPARATION` → `REPORT_SUBMITTED` → `CLIENT_REVIEW` → `FURTHER_CLARIFICATION` → `ADJUSTMENT_COMPLETED` → `CLAIM_SETTLED` → `CLAIM_CLOSED`
+
+2. **12-stage ImportStatus** (historical OCS source status, read-only):
+   `AWAITING_DOCUMENTS`, `DOCUMENTS_UNDER_REVIEW`, `REPORT_UNDER_REVIEW`, `LETTER_REQUEST_UNDER_REVIEW`, `LETTER_AND_REPORT_UNDER_REVIEW`, `AWAITING_INSURER_INSTRUCTION`, `FOR_LETTER_OFFER`, `OFFER_DECLINED_REEVALUATION`, `FOR_CLOSING_AND_BILLING`, `FOR_CLOSING_WAIVED_BILLING`, `CLOSED`, `CANCELLED`
+
+3. **ClaimStatus** (secondary internal status, read-only/action-driven)
+
+### Claim Intake
+
+Two intake modes are supported:
+- **From Policy**: Full intake with existing policy, client, and insurer
+- **Record Assignment**: Excel-style direct entry with OCS ref, insured name, and policy details
+
+### Workbook Import
+
+The importer parses all workbook sheets (active, closed, cancelled) and:
+- Classifies sheets by type (ACTIVE/CLOSED/CANCELLED/LOOKUP)
+- Infers both 18-stage primary and 12-stage historical status
+- Marks closed/cancelled records as read-only
+- Preserves raw source values and import provenance
+- Supports Admin-only upload, parse, mapping, validation, commit, and rollback
+
+### Read-Only Historical Records
+
+Imported closed/cancelled claims are marked `isReadOnly = true` and cannot be edited or transitioned without an Admin override with a reason. The claim detail UI displays a banner for these records.
+
+### Currency
+
+All amounts are displayed in Philippine Peso (₱ / PHP). Monetary values are stored as exact Decimal-compatible strings, not floating-point.
+
 ## License
 
 Proprietary — Claims Solutions Insurance Adjustment, Inc.

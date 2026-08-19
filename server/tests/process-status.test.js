@@ -37,12 +37,14 @@ async function ensureSeed() {
   });
   accountantId = accountant.id;
 
-  // Ensure process statuses exist
+  // Ensure 18-stage process statuses exist
   const processStatuses = [
-    { name: 'Received', code: 'RECEIVED', color: '#767683', isTerminal: false, sortOrder: 10 },
-    { name: 'Assigned', code: 'ASSIGNED', color: '#4958ab', isTerminal: false, sortOrder: 20 },
-    { name: 'Under Investigation', code: 'UNDER_INVESTIGATION', color: '#f26522', isTerminal: false, sortOrder: 30 },
-    { name: 'Closed', code: 'CLOSED', color: '#28a745', isTerminal: true, sortOrder: 120 },
+    { name: 'New Claim', code: 'NEW_CLAIM', color: '#767683', isTerminal: false, sortOrder: 10 },
+    { name: 'Claim Assigned', code: 'CLAIM_ASSIGNED', color: '#4958ab', isTerminal: false, sortOrder: 20 },
+    { name: 'Initial Review', code: 'INITIAL_REVIEW', color: '#4958ab', isTerminal: false, sortOrder: 30 },
+    { name: 'Under Investigation', code: 'UNDER_INVESTIGATION', color: '#f26522', isTerminal: false, sortOrder: 60 },
+    { name: 'Claim Settled', code: 'CLAIM_SETTLED', color: '#28a745', isTerminal: false, sortOrder: 170 },
+    { name: 'Claim Closed', code: 'CLAIM_CLOSED', color: '#28a745', isTerminal: true, sortOrder: 180 },
   ];
   for (const p of processStatuses) {
     await prisma.processStatus.upsert({ where: { code: p.code }, update: p, create: p });
@@ -128,39 +130,39 @@ describe('Process status endpoints', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(4);
+    expect(res.body.items.length).toBeGreaterThanOrEqual(6);
     const codes = res.body.items.map((s) => s.code);
-    expect(codes).toContain('RECEIVED');
-    expect(codes).toContain('CLOSED');
+    expect(codes).toContain('NEW_CLAIM');
+    expect(codes).toContain('CLAIM_CLOSED');
   });
 
-  it('POST /api/claims creates a claim with processStatus RECEIVED', async () => {
+  it('POST /api/claims creates a claim with processStatus NEW_CLAIM', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const item = await createTestClaim(agent);
     claimId = item.id;
     expect(item.processStatus).toBeTruthy();
-    expect(item.processStatus.code).toBe('RECEIVED');
+    expect(item.processStatus.code).toBe('NEW_CLAIM');
   });
 
-  it('PATCH /api/claims/:id/process-status transitions from RECEIVED to ASSIGNED', async () => {
+  it('PATCH /api/claims/:id/process-status transitions from NEW_CLAIM to CLAIM_ASSIGNED', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.patch(`/api/claims/${claimId}/process-status`).send({
-      statusCode: 'ASSIGNED',
+      statusCode: 'CLAIM_ASSIGNED',
       notes: 'Engineer assigned',
     });
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.item.processStatus.code).toBe('ASSIGNED');
+    expect(res.body.item.processStatus.code).toBe('CLAIM_ASSIGNED');
   });
 
   it('PATCH /api/claims/:id/process-status rejects invalid transition', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
-    // ASSIGNED -> SETTLED is not a valid direct transition
+    // CLAIM_ASSIGNED -> CLAIM_SETTLED is not a valid direct transition
     const res = await agent.patch(`/api/claims/${claimId}/process-status`).send({
-      statusCode: 'SETTLED',
+      statusCode: 'CLAIM_SETTLED',
     });
     expect(res.statusCode).toBe(400);
   });
@@ -181,7 +183,7 @@ describe('Process status endpoints', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(2); // RECEIVED + ASSIGNED
+    expect(res.body.items.length).toBeGreaterThanOrEqual(2); // NEW_CLAIM + CLAIM_ASSIGNED
   });
 
   it('GET /api/claims/:id/closing-guards returns guard status', async () => {
@@ -195,32 +197,34 @@ describe('Process status endpoints', () => {
     expect(Array.isArray(res.body.item.reasons)).toBe(true);
   });
 
-  it('PATCH /api/claims/:id/process-status to CLOSED is blocked by guards', async () => {
+  it('PATCH /api/claims/:id/process-status to CLAIM_CLOSED is blocked by guards', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
-    // Move to a status that can transition to CLOSED
+    // Move to a status that can transition to CLAIM_CLOSED
     await agent.patch(`/api/claims/${claimId}/process-status`).send({
       statusCode: 'UNDER_INVESTIGATION',
       notes: 'Investigation started',
+      isOverride: true,
+      overrideReason: 'Test skip to investigation',
     });
     // Try to close without meeting guards
     const res = await agent.patch(`/api/claims/${claimId}/process-status`).send({
-      statusCode: 'CLOSED',
+      statusCode: 'CLAIM_CLOSED',
     });
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/close/i);
   });
 
-  it('PATCH /api/claims/:id/process-status to CLOSED succeeds with override', async () => {
+  it('PATCH /api/claims/:id/process-status to CLAIM_CLOSED succeeds with override', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.patch(`/api/claims/${claimId}/process-status`).send({
-      statusCode: 'CLOSED',
+      statusCode: 'CLAIM_CLOSED',
       isOverride: true,
       overrideReason: 'Test override — closing without report for test purposes',
     });
     expect(res.statusCode).toBe(200);
-    expect(res.body.item.processStatus.code).toBe('CLOSED');
+    expect(res.body.item.processStatus.code).toBe('CLAIM_CLOSED');
     expect(res.body.item.isClosed).toBe(true);
   });
 

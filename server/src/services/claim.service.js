@@ -105,6 +105,19 @@ function formatClaim(c) {
     importedAt: c.importedAt?.toISOString(),
     createdById: c.createdById,
     closedById: c.closedById,
+    handlingAdjuster: c.handlingAdjuster,
+    dateInspected: c.dateInspected?.toISOString(),
+    letterRequestDate: c.letterRequestDate?.toISOString(),
+    denialLetterDate: c.denialLetterDate?.toISOString(),
+    contactRaw: c.contactRaw,
+    policyNumber: c.policyNumber,
+    policyType: c.policyType,
+    isCancelled: c.isCancelled,
+    isReadOnly: c.isReadOnly,
+    cancellationReason: c.cancellationReason,
+    importStatus: c.importStatus
+      ? { id: c.importStatus.id, name: c.importStatus.name, code: c.importStatus.code }
+      : null,
   };
 }
 
@@ -134,9 +147,16 @@ export async function getClaims(filters, user) {
   if (search) {
     where.OR = [
       { claimNumber: { contains: search } },
+      { assignmentNumber: { contains: search } },
+      { insurerClaimNumber: { contains: search } },
       { description: { contains: search } },
       { classification: { contains: search } },
+      { natureOfLoss: { contains: search } },
+      { locationOfLoss: { contains: search } },
+      { handlingAdjuster: { contains: search } },
       { client: { name: { contains: search } } },
+      { insuranceCompany: { name: { contains: search } } },
+      { broker: { name: { contains: search } } },
     ];
   }
 
@@ -151,7 +171,7 @@ export async function getClaims(filters, user) {
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
 
   const orderBy = {};
-  const allowedSort = ['claimNumber', 'dateReceived', 'estimatedLoss', 'reserve', 'createdAt'];
+  const allowedSort = ['claimNumber', 'dateReceived', 'estimatedLoss', 'reserve', 'claimedAmount', 'createdAt'];
   if (allowedSort.includes(sortField)) {
     orderBy[sortField] = sortOrder === 'asc' ? 'asc' : 'desc';
   } else {
@@ -171,6 +191,7 @@ export async function getClaims(filters, user) {
         claimType: true,
         status: true,
         processStatus: true,
+        importStatus: true,
         broker: true,
         engineer: { select: { id: true, firstName: true, lastName: true } },
         accountant: { select: { id: true, firstName: true, lastName: true } },
@@ -192,6 +213,7 @@ export async function getClaim(id, user) {
       claimType: true,
       status: true,
       processStatus: true,
+      importStatus: true,
       broker: true,
       engineer: { select: { id: true, firstName: true, lastName: true } },
       accountant: { select: { id: true, firstName: true, lastName: true } },
@@ -309,7 +331,7 @@ export async function createClaim(data, createdBy) {
   const defaultStatus = await prisma.claimStatus.findFirst({ where: { code: 'NEW' } });
   if (!defaultStatus) throw new AppError('Default claim status not found', 500);
 
-  const defaultProcessStatus = await prisma.processStatus.findFirst({ where: { code: 'RECEIVED' } });
+  const defaultProcessStatus = await prisma.processStatus.findFirst({ where: { code: 'NEW_CLAIM' } });
   if (!defaultProcessStatus) throw new AppError('Default process status not found', 500);
 
   const claim = await prisma.claim.create({
@@ -350,6 +372,10 @@ export async function createClaim(data, createdBy) {
       // Assignments
       engineerId: data.engineerId ? Number(data.engineerId) : null,
       accountantId: data.accountantId ? Number(data.accountantId) : null,
+      // Direct assignment fields
+      handlingAdjuster: data.handlingAdjuster || null,
+      policyNumber: data.policyNumber || null,
+      policyType: data.policyType || null,
     },
     include: {
       policy: { include: { client: true, insuranceCompany: true } },

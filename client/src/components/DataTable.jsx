@@ -1,7 +1,7 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 
-export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort, rowActions, keyExtractor }) {
+export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort, rowActions, keyExtractor, onRowClick }) {
   if (loading) {
     return (
       <div className="bg-surface border border-surface-border rounded shadow-sm p-8 text-center">
@@ -46,7 +46,11 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
         </thead>
         <tbody className="divide-y divide-surface-border text-body-md">
           {rows.map((row, idx) => (
-            <tr key={keyExtractor ? keyExtractor(row, idx) : row.id} className="hover:bg-surface-container-low">
+            <tr
+              key={keyExtractor ? keyExtractor(row, idx) : row.id}
+              className={cn('hover:bg-surface-container-low', onRowClick && 'cursor-pointer')}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+            >
               {columns.map((col) => (
                 <td
                   key={col.key}

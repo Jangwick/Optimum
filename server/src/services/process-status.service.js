@@ -3,28 +3,33 @@ import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { createNotification } from './notification.service.js';
 
-// OCS 12-stage process status transitions.
+// 18-stage primary workflow status transitions.
 // The primary status dimension for registry/reporting.
-// More permissive than the internal workflow status because imported
-// historical claims may skip stages.
+// Admin may override any transition with a reason.
 export const processStatusTransitions = {
-  RECEIVED: ['ASSIGNED', 'CLOSED'],
-  ASSIGNED: ['UNDER_INVESTIGATION', 'CLOSED'],
-  UNDER_INVESTIGATION: ['INSPECTED', 'AWAITING_DOCUMENTS', 'CLOSED'],
-  INSPECTED: ['UNDER_ASSESSMENT', 'AWAITING_DOCUMENTS', 'DOCUMENTS_RECEIVED', 'CLOSED'],
-  DOCUMENTS_RECEIVED: ['UNDER_ASSESSMENT', 'REPORT_DRAFTED', 'CLOSED'],
-  UNDER_ASSESSMENT: ['REPORT_DRAFTED', 'CLOSED'],
-  REPORT_DRAFTED: ['REPORT_SUBMITTED', 'CLOSED'],
-  REPORT_SUBMITTED: ['LETTER_REQUEST_UNDER_REVIEW', 'AWAITING_DOCUMENTS', 'SETTLED', 'CLOSED'],
-  LETTER_REQUEST_UNDER_REVIEW: ['AWAITING_DOCUMENTS', 'SETTLED', 'CLOSED'],
-  AWAITING_DOCUMENTS: ['DOCUMENTS_RECEIVED', 'UNDER_ASSESSMENT', 'CLOSED'],
-  SETTLED: ['CLOSED'],
-  CLOSED: [],
+  NEW_CLAIM: ['CLAIM_ASSIGNED', 'CLAIM_CLOSED'],
+  CLAIM_ASSIGNED: ['INITIAL_REVIEW', 'CLAIM_CLOSED'],
+  INITIAL_REVIEW: ['CONTACTED_INSURED', 'SITE_INSPECTION_SCHEDULED', 'CLAIM_CLOSED'],
+  CONTACTED_INSURED: ['SITE_INSPECTION_SCHEDULED', 'UNDER_INVESTIGATION', 'CLAIM_CLOSED'],
+  SITE_INSPECTION_SCHEDULED: ['UNDER_INVESTIGATION', 'CLAIM_CLOSED'],
+  UNDER_INVESTIGATION: ['INSPECTION_COMPLETED', 'DOCUMENTS_REQUIRED', 'CLAIM_CLOSED'],
+  INSPECTION_COMPLETED: ['DOCUMENTS_REQUIRED', 'LOSS_ASSESSMENT', 'CLAIM_CLOSED'],
+  DOCUMENTS_REQUIRED: ['DOCUMENTS_RECEIVED', 'CLAIM_CLOSED'],
+  DOCUMENTS_RECEIVED: ['LOSS_ASSESSMENT', 'CLAIM_CLOSED'],
+  LOSS_ASSESSMENT: ['RESERVE_LOSS_ESTIMATE_PREPARED', 'CLAIM_CLOSED'],
+  RESERVE_LOSS_ESTIMATE_PREPARED: ['REPORT_PREPARATION', 'CLAIM_CLOSED'],
+  REPORT_PREPARATION: ['REPORT_SUBMITTED', 'CLAIM_CLOSED'],
+  REPORT_SUBMITTED: ['CLIENT_REVIEW', 'CLAIM_CLOSED'],
+  CLIENT_REVIEW: ['FURTHER_CLARIFICATION', 'ADJUSTMENT_COMPLETED', 'CLAIM_CLOSED'],
+  FURTHER_CLARIFICATION: ['CLIENT_REVIEW', 'ADJUSTMENT_COMPLETED', 'CLAIM_CLOSED'],
+  ADJUSTMENT_COMPLETED: ['CLAIM_SETTLED', 'CLAIM_CLOSED'],
+  CLAIM_SETTLED: ['CLAIM_CLOSED'],
+  CLAIM_CLOSED: [],
 };
 
 // Closing guards: conditions that must be met before a claim can be
-// moved to the CLOSED process status. Each guard returns an array of
-// reason strings (empty = satisfied).
+// moved to the CLAIM_CLOSED or CLAIM_SETTLED process status.
+// Each guard returns an array of reason strings (empty = satisfied).
 async function checkClosingGuards(claimId) {
   const reasons = [];
 
@@ -54,6 +59,27 @@ async function checkClosingGuards(claimId) {
   // Guard 3: incomplete claims can be closed only with an explicit override
   if (claim.isIncomplete) {
     reasons.push('Claim is marked incomplete — requires explicit override to close');
+  }
+
+  return reasons;
+}
+
+// Settlement guards: conditions for entering CLAIM_SETTLED.
+async function checkSettlementGuards(claimId) {
+  const reasons = [];
+
+  const claim = await prisma.claim.findUnique({
+    where: { id: claimId },
+    include: {
+      settlements: { select: { id: true, settledAmount: true } },
+    },
+  });
+
+  if (!claim) throw new AppError('Claim not found', 404);
+
+  // Must have at least one settlement or a documented waiver
+  if (claim.settlements.length === 0 && !claim.isIncomplete) {
+    reasons.push('No settlement or disposition on file');
   }
 
   return reasons;
@@ -111,6 +137,15 @@ export async function updateProcessStatus(
   });
   if (!claim) throw new AppError('Claim not found', 404);
 
+  // Read-only enforcement: historical closed/cancelled records cannot be
+  // transitioned except via Admin override with a reason.
+  if (claim.isReadOnly && !isOverride) {
+    throw new AppError(
+      'Claim is read-only (historical closed/cancelled record). Use override with a reason to bypass.',
+      403
+    );
+  }
+
   const newStatus = await prisma.processStatus.findFirst({ where: { code: statusCode } });
   if (!newStatus) throw new AppError('Invalid process status', 400);
 
@@ -127,8 +162,8 @@ export async function updateProcessStatus(
     }
   }
 
-  // Closing guards
-  if (statusCode === 'CLOSED') {
+  // Closing guards for CLAIM_CLOSED
+  if (statusCode === 'CLAIM_CLOSED') {
     const guardReasons = await checkClosingGuards(claimId);
     if (guardReasons.length > 0 && !isOverride) {
       throw new AppError(
@@ -141,13 +176,27 @@ export async function updateProcessStatus(
     }
   }
 
+  // Settlement guards for CLAIM_SETTLED
+  if (statusCode === 'CLAIM_SETTLED') {
+    const guardReasons = await checkSettlementGuards(claimId);
+    if (guardReasons.length > 0 && !isOverride) {
+      throw new AppError(
+        `Cannot settle claim: ${guardReasons.join('; ')}. Use override with a reason to bypass.`,
+        400
+      );
+    }
+    if (guardReasons.length > 0 && isOverride && !overrideReason) {
+      throw new AppError('Override requires a reason when settling with unmet guards', 400);
+    }
+  }
+
   const updated = await prisma.claim.update({
     where: { id: claimId },
     data: {
       processStatusId: newStatus.id,
-      isClosed: statusCode === 'CLOSED' ? true : claim.isClosed,
-      closedAt: statusCode === 'CLOSED' ? new Date() : claim.closedAt,
-      closedById: statusCode === 'CLOSED' ? changedBy : claim.closedById,
+      isClosed: statusCode === 'CLAIM_CLOSED' ? true : claim.isClosed,
+      closedAt: statusCode === 'CLAIM_CLOSED' ? new Date() : claim.closedAt,
+      closedById: statusCode === 'CLAIM_CLOSED' ? changedBy : claim.closedById,
       lastUserModifiedAt: new Date(),
     },
     include: {

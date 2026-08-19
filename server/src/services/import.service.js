@@ -6,26 +6,32 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 
-// Map inferred workbook status codes to ProcessStatus codes in the database.
-// Conservative: maps to the closest OCS process stage. Unmapped codes default
-// to AWAITING_DOCUMENTS (a safe middle-stage status for review).
+// Map inferred 18-stage workflow status codes to ProcessStatus codes in the database.
+// These are the 18 primary workflow statuses. Unmapped codes default to
+// DOCUMENTS_REQUIRED (a safe early-stage status for review).
 const INFERRED_TO_PROCESS = {
-  AWAITING_DOCUMENTS: 'AWAITING_DOCUMENTS',
-  DOCUMENTS_UNDER_REVIEW: 'DOCUMENTS_RECEIVED',
-  REPORT_UNDER_REVIEW: 'REPORT_SUBMITTED',
-  LETTER_REQUEST_UNDER_REVIEW: 'LETTER_REQUEST_UNDER_REVIEW',
-  LETTER_AND_REPORT_UNDER_REVIEW: 'LETTER_REQUEST_UNDER_REVIEW',
-  AWAITING_INSURER_INSTRUCTION: 'AWAITING_DOCUMENTS',
-  FOR_LETTER_OFFER: 'SETTLED',
-  OFFER_DECLINED_REEVALUATION: 'UNDER_ASSESSMENT',
-  FOR_CLOSING_AND_BILLING: 'SETTLED',
-  FOR_CLOSING_WAIVED_BILLING: 'SETTLED',
-  CLOSED: 'CLOSED',
-  CANCELLED: 'CLOSED',
+  NEW_CLAIM: 'NEW_CLAIM',
+  CLAIM_ASSIGNED: 'CLAIM_ASSIGNED',
+  INITIAL_REVIEW: 'INITIAL_REVIEW',
+  CONTACTED_INSURED: 'CONTACTED_INSURED',
+  SITE_INSPECTION_SCHEDULED: 'SITE_INSPECTION_SCHEDULED',
+  UNDER_INVESTIGATION: 'UNDER_INVESTIGATION',
+  INSPECTION_COMPLETED: 'INSPECTION_COMPLETED',
+  DOCUMENTS_REQUIRED: 'DOCUMENTS_REQUIRED',
+  DOCUMENTS_RECEIVED: 'DOCUMENTS_RECEIVED',
+  LOSS_ASSESSMENT: 'LOSS_ASSESSMENT',
+  RESERVE_LOSS_ESTIMATE_PREPARED: 'RESERVE_LOSS_ESTIMATE_PREPARED',
+  REPORT_PREPARATION: 'REPORT_PREPARATION',
+  REPORT_SUBMITTED: 'REPORT_SUBMITTED',
+  CLIENT_REVIEW: 'CLIENT_REVIEW',
+  FURTHER_CLARIFICATION: 'FURTHER_CLARIFICATION',
+  ADJUSTMENT_COMPLETED: 'ADJUSTMENT_COMPLETED',
+  CLAIM_SETTLED: 'CLAIM_SETTLED',
+  CLAIM_CLOSED: 'CLAIM_CLOSED',
 };
 
 function inferredToProcessCode(inferredCode) {
-  return INFERRED_TO_PROCESS[inferredCode] || 'AWAITING_DOCUMENTS';
+  return INFERRED_TO_PROCESS[inferredCode] || 'DOCUMENTS_REQUIRED';
 }
 
 const IMPORT_DIR = path.resolve(process.env.UPLOAD_DIR || './uploads', 'imports');
@@ -87,10 +93,21 @@ function buildClaimDataFromMappedRow(row, context) {
   if (m.remarksRaw) data.remarksRaw = m.remarksRaw;
   if (m.latestStatusRaw) data.latestStatusRaw = m.latestStatusRaw;
   if (m.letterFollowUpRaw) data.letterFollowUpRaw = m.letterFollowUpRaw;
+  if (m.handlingAdjuster) data.handlingAdjuster = m.handlingAdjuster;
+  if (m.policyNumber) data.policyNumber = m.policyNumber;
+  if (m.policyType) data.policyType = m.policyType;
+  if (m.contactRaw) data.contactRaw = m.contactRaw;
 
   // Dates
   if (m.dateOfLoss) data.dateOfLoss = new Date(m.dateOfLoss);
   if (m.dateReceived) data.dateReceived = new Date(m.dateReceived);
+  if (m.dateInspected) data.dateInspected = new Date(m.dateInspected);
+  if (m.letterRequestDate) data.letterRequestDate = new Date(m.letterRequestDate);
+  if (m.denialLetterDate) data.denialLetterDate = new Date(m.denialLetterDate);
+
+  // Read-only / cancelled flags for closed/cancelled historical records
+  if (m.isReadOnly) data.isReadOnly = true;
+  if (m.isCancelled) data.isCancelled = true;
 
   // Relations — resolve by ID from context
   if (m.claimTypeId) data.claimTypeId = Number(m.claimTypeId);
@@ -106,12 +123,17 @@ function buildClaimDataFromMappedRow(row, context) {
   if (context.defaultProcessStatusId) {
     data.processStatusId = context.defaultProcessStatusId;
   }
-  // Override process status if inference produced a specific code
+  // Override process status if inference produced a specific 18-stage code
   if (row.inferredStatus) {
     const processCode = inferredToProcessCode(row.inferredStatus);
     if (processCode && context.processStatusByCode[processCode]) {
       data.processStatusId = context.processStatusByCode[processCode].id;
     }
+  }
+  // Set import status (OCS 12-status) for historical records
+  const importStatusCode = row.importStatus || m.importStatus;
+  if (importStatusCode && context.importStatusByCode[importStatusCode]) {
+    data.importStatusId = context.importStatusByCode[importStatusCode].id;
   }
 
   data.createdById = context.importedById;
@@ -188,14 +210,14 @@ export async function previewWorkbook(batchId, importedBy) {
     where: { id: batchId },
     data: {
       status: 'PARSED',
-      sourceSheets: result.sheets.map((s) => ({ name: s.name, rowCount: s.rowCount })),
+      sourceSheets: result.sheets.map((s) => ({ name: s.name, type: s.type, year: s.year, rowCount: s.rowCount })),
       totalRows,
     },
   });
 
   await logAction('IMPORT_PREVIEWED', 'ClaimImportBatch', batchId, importedBy, {
     totalRows,
-    sheets: result.sheets.map((s) => s.name),
+    sheets: result.sheets.map((s) => ({ name: s.name, type: s.type })),
   });
 
   return {
@@ -208,6 +230,8 @@ export async function previewWorkbook(batchId, importedBy) {
     sampleRows: result.rows.slice(0, 20).map((r) => ({
       sourceSheet: r.sourceSheet,
       sourceRowNumber: r.sourceRow,
+      sheetType: r.sheetType,
+      year: r.year,
       mappedData: {
         claimNumber: r.ocsReference,
         assignmentNumber: r.itemNumber,
@@ -222,8 +246,18 @@ export async function previewWorkbook(batchId, importedBy) {
         latestStatus: r.latestStatus,
         brokerRaw: r.brokerRaw,
         assignedBy: r.assignedBy,
+        handlingAdjuster: r.handlingAdjuster,
+        policyNumber: r.policyNumber,
+        policyType: r.policyType,
+        dateInspected: r.dateInspected,
+        letterRequestDate: r.letterRequestDate,
+        denialLetterDate: r.denialLetterDate,
+        contactRaw: r.contactRaw,
+        isReadOnly: r.isReadOnly,
+        isCancelled: r.isCancelled,
       },
       inferredStatus: r.suggestedProcessStatus,
+      importStatus: r.suggestedImportStatus,
       statusConfidence: r.statusConfidence,
       issues: r.issues,
     })),
@@ -268,6 +302,30 @@ export async function persistRows(batchId, importedBy) {
       latestStatus: row.latestStatus,
       brokerRaw: row.brokerRaw,
       assignedBy: row.assignedBy,
+      handlingAdjuster: row.handlingAdjuster,
+      policyNumber: row.policyNumber,
+      policyType: row.policyType,
+      dateInspected: row.dateInspected,
+      letterRequestDate: row.letterRequestDate,
+      denialLetterDate: row.denialLetterDate,
+      contactRaw: row.contactRaw,
+      isReadOnly: row.isReadOnly,
+      isCancelled: row.isCancelled,
+      importStatus: row.suggestedImportStatus,
+      sheetType: row.sheetType,
+      year: row.year,
+      insurerPanel: row.insurerPanel,
+      timelineEvents: row.timelineEvents,
+      policyPeriodText: row.policyPeriodText,
+      policyCoverageText: row.policyCoverageText,
+      proposedSettlement: row.proposedSettlement,
+      proposedSettlementRaw: row.proposedSettlementRaw,
+      agreedSettlement: row.agreedSettlement,
+      agreedSettlementRaw: row.agreedSettlementRaw,
+      reserveRaw: row.reserveRaw,
+      remarksRaw: row.remarksRaw,
+      latestStatusRaw: row.latestStatusRaw,
+      letterFollowUpRaw: row.letterFollowUpRaw,
     };
 
     await prisma.claimImportRow.create({
@@ -438,10 +496,11 @@ export async function commitBatch(batchId, importedBy, options = {}) {
   const { duplicateAction = 'SKIP' } = options;
 
   // Load context for claim creation
-  const [defaultStatus, defaultProcessStatus, allProcessStatuses] = await Promise.all([
+  const [defaultStatus, defaultProcessStatus, allProcessStatuses, allImportStatuses] = await Promise.all([
     prisma.claimStatus.findFirst({ where: { code: 'NEW' } }),
-    prisma.processStatus.findFirst({ where: { code: 'RECEIVED' } }),
+    prisma.processStatus.findFirst({ where: { code: 'NEW_CLAIM' } }),
     prisma.processStatus.findMany(),
+    prisma.importStatus.findMany(),
   ]);
 
   if (!defaultStatus) throw new AppError('Default claim status not found', 500);
@@ -452,6 +511,7 @@ export async function commitBatch(batchId, importedBy, options = {}) {
     defaultStatusId: defaultStatus.id,
     defaultProcessStatusId: defaultProcessStatus.id,
     processStatusByCode: Object.fromEntries(allProcessStatuses.map((p) => [p.code, p])),
+    importStatusByCode: Object.fromEntries(allImportStatuses.map((s) => [s.code, s])),
   };
 
   const rows = await prisma.claimImportRow.findMany({

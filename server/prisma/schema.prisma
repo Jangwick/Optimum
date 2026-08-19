@@ -167,6 +167,15 @@ model ProcessStatus {
   @@map("process_statuses")
 }
 
+model ImportStatus {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique @db.VarChar(100)
+  code      String  @unique @db.VarChar(50)
+  sortOrder Int     @default(0)
+  claims    Claim[]
+  @@map("import_statuses")
+}
+
 model Broker {
   id            Int      @id @default(autoincrement())
   name          String   @db.VarChar(255)
@@ -291,12 +300,24 @@ model Claim {
   remarksRaw              String?   @db.LongText
   latestStatusRaw         String?   @db.LongText
   letterFollowUpRaw       String?   @db.Text
+  handlingAdjuster        String?   @db.VarChar(100)
+  dateInspected           DateTime?
+  letterRequestDate       DateTime?
+  denialLetterDate        DateTime?
+  contactRaw              String?   @db.Text
+  policyNumber            String?   @db.VarChar(100)
+  policyType              String?   @db.VarChar(100)
   isIncomplete            Boolean   @default(false)
   incompleteReasons       Json?
   importedAt              DateTime?
   lastUserModifiedAt      DateTime?
   isClosed                Boolean   @default(false)
   closedAt                DateTime?
+  isCancelled             Boolean   @default(false)
+  isReadOnly              Boolean   @default(false)
+  cancellationReason      String?   @db.Text
+  importStatusId          Int?
+  importStatus            ImportStatus? @relation(fields: [importStatusId], references: [id])
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -330,6 +351,8 @@ model Claim {
   @@index([claimNumber])
   @@index([dateReceived])
   @@index([importBatchId])
+  @@index([importStatusId])
+  @@index([isReadOnly])
   @@map("claims")
 }
 

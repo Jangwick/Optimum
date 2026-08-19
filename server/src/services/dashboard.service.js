@@ -7,16 +7,20 @@ export async function getDashboard(user) {
 
   const now = new Date();
 
-  const [claims, statusCounts, openTasksCount, openTasksList, recentActivity] = await Promise.all([
+  const [claims, processStatusCounts, openTasksCount, openTasksList, recentActivity, readOnlyCount, cancelledCount, overdueTasksCount] = await Promise.all([
     prisma.claim.findMany({
       where: baseWhere,
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: { client: { select: { name: true } }, status: { select: { name: true, code: true } } },
+      include: {
+        client: { select: { name: true } },
+        processStatus: { select: { name: true, code: true, color: true } },
+        status: { select: { name: true, code: true, color: true } },
+      },
     }),
     prisma.claim.groupBy({
-      by: ['statusId'],
-      where: baseWhere,
+      by: ['processStatusId'],
+      where: { ...baseWhere, isReadOnly: false },
       _count: { id: true },
     }),
     prisma.task.count({
@@ -42,15 +46,27 @@ export async function getDashboard(user) {
       take: 10,
       include: { user: { select: { firstName: true, lastName: true } } },
     }),
+    prisma.claim.count({ where: { ...baseWhere, isReadOnly: true } }),
+    prisma.claim.count({ where: { ...baseWhere, isCancelled: true } }),
+    prisma.task.count({
+      where: {
+        assignedToId: user.id,
+        status: { not: 'COMPLETED' },
+        dueDate: { lt: now },
+      },
+    }),
   ]);
 
-  const statuses = await prisma.claimStatus.findMany();
-  const statusMap = new Map(statuses.map((s) => [s.id, s]));
+  const processStatuses = await prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } });
+  const processStatusMap = new Map(processStatuses.map((s) => [s.id, s]));
 
-  const statusBreakdown = statusCounts.map((s) => ({
-    status: statusMap.get(s.statusId),
-    count: s._count.id,
-  }));
+  const statusBreakdown = processStatusCounts
+    .map((s) => ({
+      status: processStatusMap.get(s.processStatusId),
+      count: s._count.id,
+    }))
+    .filter((s) => s.status)
+    .sort((a, b) => (a.status.sortOrder || 0) - (b.status.sortOrder || 0));
 
   const totals = await prisma.claim.aggregate({
     where: baseWhere,
@@ -58,21 +74,24 @@ export async function getDashboard(user) {
     _count: { id: true },
   });
 
-  const overdueCount = openTasksList.filter((t) => t.dueDate && new Date(t.dueDate) < now).length;
-
   return {
     counts: {
       total: totals._count.id,
       estimated: Number(totals._sum.estimatedLoss || 0),
       reserve: Number(totals._sum.reserve || 0),
       openTasks: openTasksCount,
-      overdueTasks: overdueCount,
+      overdueTasks: overdueTasksCount,
+      readOnly: readOnlyCount,
+      cancelled: cancelledCount,
     },
     recentClaims: claims.map((c) => ({
       id: c.id,
       claimNumber: c.claimNumber,
       client: c.client?.name,
+      processStatus: c.processStatus,
       status: c.status,
+      isReadOnly: c.isReadOnly,
+      isCancelled: c.isCancelled,
       createdAt: c.createdAt.toISOString(),
     })),
     openTasksList: openTasksList.map((t) => ({
