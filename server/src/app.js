@@ -43,10 +43,10 @@ app.use(cookieParser());
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: config.nodeEnv === 'development' ? 1000 : 100,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.path === '/api/health',
+    skip: (req) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
   })
 );
 
