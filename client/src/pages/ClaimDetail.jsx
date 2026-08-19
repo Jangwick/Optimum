@@ -18,7 +18,7 @@ import ClaimFinance from '../components/ClaimFinance.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -442,6 +442,7 @@ function DocumentsTab({ claimId }) {
   const [file, setFile] = useState(null);
   const [categoryId, setCategoryId] = useState('');
   const [desc, setDesc] = useState('');
+  const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -589,15 +590,69 @@ function DocumentsTab({ claimId }) {
           <h3 className="text-headline-sm font-semibold text-primary">Upload Document</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
+          <div className="sm:col-span-3">
             <label className="block text-label-md text-outline uppercase mb-1.5">File</label>
             <input
               ref={fileInputRef}
               type="file"
               onChange={(e) => setFile(e.target.files[0])}
-              className="w-full text-body-md file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-white file:font-medium file:cursor-pointer hover:file:bg-primary-container transition-colors"
+              className="hidden"
               required
             />
+            {file ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/40 bg-primary/5">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <FileText size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-body-md font-medium text-on-surface truncate">{file.name}</p>
+                  <p className="text-label-md text-on-surface-variant">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors shrink-0"
+                  title="Remove file"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+                }}
+                className={`w-full flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-lg border-2 border-dashed transition-colors ${
+                  dragging
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline text-on-surface-variant hover:border-primary/50 hover:bg-surface-container-low'
+                }`}
+              >
+                <UploadCloud size={28} className={dragging ? 'text-primary' : 'text-outline'} />
+                <div className="text-center">
+                  <p className="text-body-md font-medium">
+                    {dragging ? 'Drop file to upload' : 'Click to browse or drag a file here'}
+                  </p>
+                  <p className="text-label-md text-outline mt-0.5">
+                    PDF, DOC, DOCX, XLS, XLSX, JPG, PNG
+                  </p>
+                </div>
+              </button>
+            )}
           </div>
           <div>
             <label className="block text-label-md text-outline uppercase mb-1.5">Category</label>
@@ -613,7 +668,7 @@ function DocumentsTab({ claimId }) {
               ))}
             </select>
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
             <input
               type="text"
