@@ -20,6 +20,8 @@ import settlementRoutes from './routes/settlement.routes.js';
 import feeRoutes from './routes/fee.routes.js';
 import invoiceRoutes from './routes/invoice.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import auditRoutes from './routes/audit.routes.js';
 import exportRoutes from './routes/export.routes.js';
 
 const app = express();
@@ -59,6 +61,8 @@ app.use('/api/claims/:claimId/settlements', settlementRoutes);
 app.use('/api/claims/:claimId/fees', feeRoutes);
 app.use('/api/claims/:claimId/invoices', invoiceRoutes);
 app.use('/api/claims/:claimId/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/audit-logs', auditRoutes);
 app.use('/api/export', exportRoutes);
 
 app.use((req, res) => {
