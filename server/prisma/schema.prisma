@@ -115,9 +115,9 @@ model Policy {
   policyType         String?          @db.VarChar(100)
   startDate          DateTime
   endDate            DateTime?
-  sumInsured         Decimal?         @db.Decimal(15,2)
-  premium            Decimal?         @db.Decimal(15,2)
-  excess             Decimal?         @db.Decimal(15,2)
+  sumInsured         Decimal?         @db.Decimal(18,2)
+  premium            Decimal?         @db.Decimal(18,2)
+  excess             Decimal?         @db.Decimal(18,2)
   notes              String?          @db.Text
   claims             Claim[]
   createdAt          DateTime         @default(now())
@@ -283,19 +283,19 @@ model Claim {
   description             String?   @db.Text
   policyPeriodText        String?   @db.Text
   policyCoverageText      String?   @db.Text
-  claimedAmount           Decimal?  @db.Decimal(15,2)
+  claimedAmount           Decimal?  @db.Decimal(18,2)
   claimedAmountRaw        String?   @db.Text
-  reserve                 Decimal?  @db.Decimal(15,2)
+  reserve                 Decimal?  @db.Decimal(18,2)
   reserveRaw              String?   @db.Text
-  estimatedLoss           Decimal?  @db.Decimal(15,2)
-  actualLoss              Decimal?  @db.Decimal(15,2)
-  proposedSettlement      Decimal?  @db.Decimal(15,2)
+  estimatedLoss           Decimal?  @db.Decimal(18,2)
+  actualLoss              Decimal?  @db.Decimal(18,2)
+  proposedSettlement      Decimal?  @db.Decimal(18,2)
   proposedSettlementRaw   String?   @db.Text
-  agreedSettlement        Decimal?  @db.Decimal(15,2)
+  agreedSettlement        Decimal?  @db.Decimal(18,2)
   agreedSettlementRaw     String?   @db.Text
-  deductible              Decimal?  @db.Decimal(15,2)
-  depreciation            Decimal?  @db.Decimal(15,2)
-  adjustedLoss            Decimal?  @db.Decimal(15,2)
+  deductible              Decimal?  @db.Decimal(18,2)
+  depreciation            Decimal?  @db.Decimal(18,2)
+  adjustedLoss            Decimal?  @db.Decimal(18,2)
   classification          String?   @db.VarChar(50)
   remarksRaw              String?   @db.LongText
   latestStatusRaw         String?   @db.LongText
@@ -440,11 +440,11 @@ model ClaimInsurer {
   isLead             Boolean          @default(false)
   participationPercent Decimal?       @db.Decimal(5,2)
   insurerClaimNumber String?          @db.VarChar(150)
-  proposedSettlement Decimal?         @db.Decimal(15,2)
+  proposedSettlement Decimal?         @db.Decimal(18,2)
   proposedSettlementRaw String?       @db.Text
-  agreedSettlement   Decimal?         @db.Decimal(15,2)
+  agreedSettlement   Decimal?         @db.Decimal(18,2)
   agreedSettlementRaw String?         @db.Text
-  paidAmount         Decimal?         @db.Decimal(15,2)
+  paidAmount         Decimal?         @db.Decimal(18,2)
   offerStatus        String?          @db.VarChar(50)
   paymentStatus      String?          @db.VarChar(50)
   notes              String?          @db.Text
@@ -591,10 +591,10 @@ model LossAssessment {
   preparedById   Int
   preparedBy     User                 @relation("LossAssessmentPreparedBy", fields: [preparedById], references: [id])
   assessmentDate DateTime             @default(now())
-  totalAmount    Decimal?             @db.Decimal(15,2)
-  depreciation   Decimal?             @db.Decimal(15,2)
-  deductible     Decimal?             @db.Decimal(15,2)
-  adjustedAmount Decimal?             @db.Decimal(15,2)
+  totalAmount    Decimal?             @db.Decimal(18,2)
+  depreciation   Decimal?             @db.Decimal(18,2)
+  deductible     Decimal?             @db.Decimal(18,2)
+  adjustedAmount Decimal?             @db.Decimal(18,2)
   notes          String?              @db.Text
   items          LossAssessmentItem[]
   createdAt      DateTime             @default(now())
@@ -608,11 +608,11 @@ model LossAssessmentItem {
   lossAssessment  LossAssessment @relation(fields: [lossAssessmentId], references: [id], onDelete: Cascade)
   description     String         @db.VarChar(255)
   quantity        Int            @default(1)
-  unitCost        Decimal?       @db.Decimal(15,2)
-  amount          Decimal?       @db.Decimal(15,2)
-  depreciation    Decimal?       @db.Decimal(15,2)
-  deductible      Decimal?       @db.Decimal(15,2)
-  adjustedAmount  Decimal?       @db.Decimal(15,2)
+  unitCost        Decimal?       @db.Decimal(18,2)
+  amount          Decimal?       @db.Decimal(18,2)
+  depreciation    Decimal?       @db.Decimal(18,2)
+  deductible      Decimal?       @db.Decimal(18,2)
+  adjustedAmount  Decimal?       @db.Decimal(18,2)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   @@map("loss_assessment_items")
@@ -625,7 +625,7 @@ model LossEstimate {
   preparedById Int
   preparedBy   User      @relation("LossEstimatePreparedBy", fields: [preparedById], references: [id])
   estimateDate DateTime  @default(now())
-  totalAmount  Decimal?  @db.Decimal(15,2)
+  totalAmount  Decimal?  @db.Decimal(18,2)
   notes        String?   @db.Text
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -714,7 +714,7 @@ model Settlement {
   claimId        Int
   claim          Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
   settlementDate DateTime?
-  settledAmount  Decimal?  @db.Decimal(15,2)
+  settledAmount  Decimal?  @db.Decimal(18,2)
   status         String    @db.VarChar(50)
   notes          String?   @db.Text
   createdById    Int
@@ -729,7 +729,7 @@ model Offer {
   claimId       Int
   claim         Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
   offerDate     DateTime  @default(now())
-  offeredAmount Decimal?  @db.Decimal(15,2)
+  offeredAmount Decimal?  @db.Decimal(18,2)
   status        String    @db.VarChar(50)
   responseDate  DateTime?
   responseById  Int?
@@ -749,7 +749,7 @@ model Fee {
   userId      Int?
   user        User?     @relation(fields: [userId], references: [id])
   feeType     String    @db.VarChar(50)
-  amount      Decimal   @db.Decimal(15,2)
+  amount      Decimal   @db.Decimal(18,2)
   description String?   @db.Text
   isInvoiced  Boolean   @default(false)
   invoiceId   Int?
@@ -766,7 +766,7 @@ model Invoice {
   invoiceNumber String    @unique @db.VarChar(100)
   issueDate     DateTime  @default(now())
   dueDate       DateTime?
-  totalAmount   Decimal   @db.Decimal(15,2)
+  totalAmount   Decimal   @db.Decimal(18,2)
   status        String    @db.VarChar(50)
   notes         String?   @db.Text
   createdById   Int
@@ -783,7 +783,7 @@ model Payment {
   invoiceId   Int
   invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   paymentDate DateTime  @default(now())
-  amount      Decimal   @db.Decimal(15,2)
+  amount      Decimal   @db.Decimal(18,2)
   method      String?   @db.VarChar(50)
   reference   String?   @db.VarChar(100)
   notes       String?   @db.Text
