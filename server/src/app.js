@@ -39,13 +39,23 @@ const app = express();
 // Trust proxy — Railway uses a reverse proxy
 app.set('trust proxy', 1);
 
-app.use(helmet());
-app.use(
-  cors({
-    origin: config.clientUrl,
-    credentials: true,
-  })
-);
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// CORS: allow the configured origin, or any origin in production.
+// Note: wildcard (*) cannot be used with credentials=true.
+// Use the request origin dynamically when config.clientUrl is '*'.
+const corsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (config.clientUrl === '*') return callback(null, true);
+    if (config.clientUrl && origin === config.clientUrl) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
@@ -90,11 +100,15 @@ app.use('/api/claims', activityRoutes);
 const clientDist = path.resolve(__dirname, '../../client/dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
-  // SPA fallback: serve index.html for non-API routes
+  // SPA fallback: serve index.html for non-API, non-file routes
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
+    if (req.path.includes('.')) return next(); // let 404 handler return real files
     res.sendFile(path.join(clientDist, 'index.html'));
   });
+} else {
+  // eslint-disable-next-line no-console
+  console.warn(`client/dist not found at ${clientDist}`);
 }
 
 app.use((req, res) => {

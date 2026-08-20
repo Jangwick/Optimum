@@ -1,7 +1,6 @@
 import app from './app.js';
 import { config } from './config/index.js';
 import { logger } from './config/logger.js';
-import { prisma } from './db/client.js';
 import { execSync } from 'node:child_process';
 
 async function syncSchema() {
