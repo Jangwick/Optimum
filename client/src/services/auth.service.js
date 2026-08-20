@@ -13,3 +13,13 @@ export async function getMe() {
   const { data } = await api.get('/auth/me');
   return data;
 }
+
+export async function updateProfile(payload) {
+  const { data } = await api.put('/auth/me', payload);
+  return data;
+}
+
+export async function changePassword(payload) {
+  const { data } = await api.put('/auth/me/password', payload);
+  return data;
+}

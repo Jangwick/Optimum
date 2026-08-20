@@ -1,24 +1,31 @@
-feat: reflect all Claim Detail actions in Summary tab and activity history
+feat: implement TopBar notifications, help, and settings features
 
-Backend:
-- Add recordActivity() helper in activity.service.js for system-generated activities
-- Auto-sync financial fields to Claim record: assessment total -> estimatedLoss/reserve,
-  settlement/offer -> proposedSettlement/agreedSettlement, fee total -> actualLoss
-- Create ClaimActivity records for all tab mutations (assessment, settlement, fee,
-  invoice, payment, document, investigation, inspection, contact, report, clarification,
-  task, insurer panel)
-- Enhance getClaim() response with financials object (assessmentTotal, feeTotal,
-  invoiceTotal, paymentTotal, documentCount, taskCount, openTaskCount)
-- Increase activity limit from 20 to 50
-- Update controllers to pass req.user.id to service functions
+All three TopBar buttons are now fully functional:
 
-Frontend:
-- Pass onClaimChange callback to all tab components, triggered after every mutation
-- Reload claim data on tab switch so Summary/Timeline always show fresh data
-- Redesign Summary tab: replace Status History with compact Recent Activity timeline
-  (merges processHistory + activities + correspondence, shows latest 12 events)
-- Add financial summary rows: Assessment Total, Fee Total, Invoice Total, Payment Total
-- Add count badges: Documents, Open/Total Tasks, Process Status
+Notifications (bell):
+- Dropdown showing user notifications with unread badge count
+- Mark individual or all notifications as read
+- Link to related claim from each notification
+- Auto-refreshes unread count every 30s
+- Empty state when no notifications exist
+
+Help (question mark):
+- User Guide modal with getting started, registry, lifecycle,
+  claim detail, cancellation, and currency sections
+- Keyboard Shortcuts modal
+- Contact support link
+
+Settings (user avatar):
+- User profile card with name, email, and role badge
+- My Profile modal to edit first name, last name, and phone
+- Change Password modal with current/new/confirm fields
+- Sign Out button
+
+Backend additions:
+- PUT /auth/me - update own profile (firstName, lastName, phone)
+- PUT /auth/me/password - change own password
+- GET /notifications/unread-count - unread notification count
+- PUT /notifications/read-all - mark all notifications as read
 
 Generated with [Devin](https://devin.ai)
 
