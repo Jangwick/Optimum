@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClaims, exportClaims } from '../services/claim.service.js';
-import { getProcessStatuses } from '../services/import.service.js';
+import { getClaimStatuses } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
@@ -27,29 +27,28 @@ import {
   Eye,
 } from 'lucide-react';
 
-// Semantic color mapping for process statuses.
+// Semantic color mapping for internal claim statuses.
 // Maps status codes to design-system token colors so each workflow stage
-// has a visually distinct, meaningful color rather than relying on the
-// database default (which assigns gray to "New Claim").
+// has a visually distinct, meaningful color.
 const STATUS_COLORS = {
-  NEW_CLAIM: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
-  CLAIM_ASSIGNED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
-  INITIAL_REVIEW: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
-  CONTACTED_INSURED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
-  SITE_INSPECTION_SCHEDULED: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
-  UNDER_INVESTIGATION: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+  NEW: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
+  ASSIGNED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
+  INVESTIGATION: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+  INSPECTION_SCHEDULED: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
   INSPECTION_COMPLETED: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
-  DOCUMENTS_REQUIRED: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
+  DOCUMENTS_PENDING: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
   DOCUMENTS_RECEIVED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
-  LOSS_ASSESSMENT: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
-  RESERVE_LOSS_ESTIMATE_PREPARED: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
-  REPORT_PREPARATION: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+  ASSESSMENT: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
+  REPORT_DRAFT: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
   REPORT_SUBMITTED: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
   CLIENT_REVIEW: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
-  FURTHER_CLARIFICATION: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
-  ADJUSTMENT_COMPLETED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
-  CLAIM_SETTLED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
-  CLAIM_CLOSED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
+  CLARIFICATION_NEEDED: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
+  CLARIFICATION_PROVIDED: { bg: 'bg-secondary/10', text: 'text-secondary', dot: 'bg-secondary' },
+  SETTLEMENT: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
+  OFFER_SENT: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
+  FEE_INVOICED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
+  PAYMENT_RECEIVED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
+  CLOSED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
 };
 
 function StatusPill({ code, name }) {
@@ -84,7 +83,7 @@ const ALL_COLUMNS = [
   { key: 'client', label: 'Insured', default: true },
   { key: 'insuranceCompany', label: 'Insurer', default: true },
   { key: 'broker', label: 'Broker', default: true },
-  { key: 'processStatus', label: 'Status', default: true },
+  { key: 'status', label: 'Status', default: true },
   { key: 'engineer', label: 'Adjuster', default: true },
   { key: 'claimedAmount', label: 'Claimed', default: true },
   { key: 'dateReceived', label: 'Received', default: true },
@@ -120,7 +119,7 @@ export default function Claims() {
   } = useList();
 
   const [data, setData] = useState({ items: [], count: 0 });
-  const [processStatuses, setProcessStatuses] = useState([]);
+  const [claimStatuses, setClaimStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
@@ -132,8 +131,8 @@ export default function Claims() {
   const [showNewClaim, setShowNewClaim] = useState(false);
 
   useEffect(() => {
-    getProcessStatuses()
-      .then((res) => setProcessStatuses(res.items || []))
+    getClaimStatuses()
+      .then((res) => setClaimStatuses(res.items || []))
       .catch(() => {});
   }, []);
 
@@ -143,7 +142,7 @@ export default function Claims() {
       page,
       limit,
       search,
-      processStatus: filters.processStatus || '',
+      status: filters.status || '',
       view,
       sortField,
       sortOrder,
@@ -156,7 +155,7 @@ export default function Claims() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportClaims({ search, processStatus: filters.processStatus, view });
+      const blob = await exportClaims({ search, status: filters.status, view });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
@@ -170,7 +169,7 @@ export default function Claims() {
     }
   };
 
-  const hasActiveFilters = search || filters.processStatus || view !== 'active';
+  const hasActiveFilters = search || filters.status || view !== 'active';
 
   const summaryStats = useMemo(() => {
     const items = data.items;
@@ -224,11 +223,11 @@ export default function Claims() {
       render: (row) => row.broker?.name || '—',
     },
     {
-      key: 'processStatus',
+      key: 'status',
       title: 'Status',
       render: (row) =>
-        row.processStatus ? (
-          <StatusPill code={row.processStatus.code} name={row.processStatus.name} />
+        row.status ? (
+          <StatusPill code={row.status.code} name={row.status.name} />
         ) : (
           '—'
         ),
@@ -311,7 +310,7 @@ export default function Claims() {
 
   const clearFilters = () => {
     applySearch('');
-    applyFilters({ ...filters, processStatus: '' });
+    applyFilters({ ...filters, status: '' });
     setView('active');
     setPage(1);
   };
@@ -435,16 +434,16 @@ export default function Claims() {
                   />
                 </div>
                 <select
-                  value={filters.processStatus || ''}
+                  value={filters.status || ''}
                   onChange={(e) => {
-                    applyFilters({ ...filters, processStatus: e.target.value });
+                    applyFilters({ ...filters, status: e.target.value });
                     setPage(1);
                   }}
                   className="h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer min-w-[180px]"
-                  aria-label="Filter by process status"
+                  aria-label="Filter by status"
                 >
                   <option value="">All Statuses</option>
-                  {processStatuses.map((s) => (
+                  {claimStatuses.map((s) => (
                     <option key={s.id} value={s.code}>
                       {s.name}
                     </option>
