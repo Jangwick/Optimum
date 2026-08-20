@@ -4,7 +4,7 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 import { formatCurrency } from '../utils/currency.js';
-import puppeteer from 'puppeteer';
+import { logger } from '../config/logger.js';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import fs from 'fs';
@@ -123,11 +123,24 @@ export async function generateReport(id, userId) {
   const fileName = `report-${id}-${Date.now()}.pdf`;
   const filePath = path.join(reportOutputDir, String(claim.id), fileName);
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  await page.pdf({ path: filePath, format: 'A4', printBackground: true });
-  await browser.close();
+  // Puppeteer is optional — not available on Vercel serverless
+  let pdfPath = null;
+  try {
+    const puppeteer = (await import('puppeteer')).default;
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.pdf({ path: filePath, format: 'A4', printBackground: true });
+    await browser.close();
+    pdfPath = filePath;
+  } catch (err) {
+    // Puppeteer not available (e.g. Vercel serverless) — skip PDF generation
+    logger.warn({ err: err.message }, 'PDF generation skipped (Puppeteer not available)');
+  }
 
   let docxPath = null;
   if (report.reportTemplate?.path && fs.existsSync(report.reportTemplate.path)) {
@@ -154,7 +167,7 @@ export async function generateReport(id, userId) {
       data: {
         reportId: id,
         versionNumber: versionCount + 1,
-        pdfPath: filePath,
+        pdfPath: pdfPath,
         docxPath,
         generatedById: userId,
         notes: 'Generated from template',
@@ -163,12 +176,12 @@ export async function generateReport(id, userId) {
 
     return tx.report.update({
       where: { id },
-      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: userId, pdfPath: filePath, docxPath },
+      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: userId, pdfPath: pdfPath, docxPath },
       include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
     });
   });
 
-  await logAction('REPORT_GENERATED', 'Report', id, userId, { claimId: updated.claimId, pdfPath: filePath });
+  await logAction('REPORT_GENERATED', 'Report', id, userId, { claimId: updated.claimId, pdfPath: pdfPath });
   await recordActivity(updated.claimId, 'REPORT_GENERATED', `Report generated: ${report.title}`, userId);
   await autoAdvanceStatus(updated.claimId, 'REPORT_SUBMITTED', userId);
   return updated;

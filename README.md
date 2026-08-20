@@ -36,9 +36,88 @@ Copy `.env.example` files to `.env` and fill in real values before running in pr
 
 ## Production Deployment
 
-### Railway (recommended)
+### Vercel + Supabase (recommended)
 
-The project includes a `Dockerfile` and `railway.json` for one-click Railway deployment.
+The project is configured for deployment on Vercel (frontend + serverless API) with Supabase (PostgreSQL database).
+
+#### Prerequisites
+
+1. A [Vercel](https://vercel.com) account
+2. A [Supabase](https://supabase.com) account
+3. The [Vercel CLI](https://vercel.com/docs/cli): `npm i -g vercel`
+
+#### Step 1: Create a Supabase project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project.
+2. Wait for the database to provision.
+3. Go to **Project Settings → Database** and copy the **Connection string** (URI format).
+   It looks like: `postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres`
+
+#### Step 2: Deploy to Vercel
+
+1. Push your code to GitHub.
+
+2. Import the repo on Vercel:
+   - Go to [vercel.com/new](https://vercel.com/new)
+   - Select your GitHub repository
+   - Vercel auto-detects Vite from `vercel.json`
+
+3. Set environment variables (Settings → Environment Variables):
+   See `.env.vercel.example` for the full list:
+
+   | Variable | Value |
+   |----------|-------|
+   | `DATABASE_URL` | Supabase connection string from Step 1 |
+   | `JWT_SECRET` | Generate with `openssl rand -hex 32` |
+   | `JWT_EXPIRES_IN` | `24h` |
+   | `BCRYPT_ROUNDS` | `12` |
+   | `NODE_ENV` | `production` |
+   | `CLIENT_URL` | Your Vercel domain or `*` |
+   | `UPLOAD_DIR` | `/tmp/uploads` |
+   | `REPORT_DIR` | `/tmp/reports` |
+
+4. Deploy. Vercel will:
+   - Install server dependencies and generate the Prisma client
+   - Install client dependencies and build the Vite app
+   - Deploy the Express API as a serverless function at `/api/*`
+   - Serve the React client for all other routes
+
+#### Step 3: Run database migrations
+
+After the first deploy, run migrations against Supabase:
+
+```bash
+# Set DATABASE_URL to your Supabase connection string
+cd server
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+Or use the Vercel CLI:
+```bash
+vercel env pull .env.local
+cd server
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+#### Step 4: Login
+
+- URL: `https://your-app.vercel.app`
+- Email: `admin@optimum.com`
+- Password: `ChangeMe123!`
+- **Change the password immediately after first login.**
+
+#### Notes
+
+- **Database**: Supabase provides PostgreSQL. The Prisma schema uses `provider = "postgresql"`.
+- **Puppeteer**: PDF report generation is gracefully skipped on Vercel serverless (no Chrome). DOCX generation still works.
+- **File uploads**: Stored in `/tmp` (ephemeral). For persistent storage, configure Supabase Storage or S3 and update `server/src/middleware/upload.js`.
+- **API timeout**: Vercel Pro allows 60s serverless function timeout (set in `vercel.json`).
+
+### Railway (alternative)
+
+The project also includes a `Dockerfile` and `railway.json` for Railway deployment with MySQL.
 
 #### Steps
 

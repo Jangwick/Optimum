@@ -15,7 +15,7 @@ FROM node:22-slim AS prisma-builder
 WORKDIR /app/server
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
 # Only install what prisma generate needs (not puppeteer, bcrypt, express, etc.)
 COPY server/package.json server/package-lock.json* ./
