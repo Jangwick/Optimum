@@ -4,7 +4,7 @@ FROM node:22-slim AS client-builder
 WORKDIR /app/client
 
 COPY client/package.json client/package-lock.json* ./
-RUN rm -f package-lock.json && npm install --legacy-peer-deps --no-optional
+RUN rm -f package-lock.json && npm install --legacy-peer-deps --omit=optional
 
 COPY client/ .
 RUN npm run build
@@ -19,7 +19,7 @@ ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 
 # Only install what prisma generate needs (not puppeteer, bcrypt, express, etc.)
 COPY server/package.json server/package-lock.json* ./
-RUN rm -f package-lock.json && npm install --legacy-peer-deps --no-optional \
+RUN rm -f package-lock.json && npm install --legacy-peer-deps --omit=optional \
     prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@^7.9.1 dotenv
 
 COPY server/prisma ./prisma
@@ -58,7 +58,7 @@ WORKDIR /app
 
 # Copy server package files and install production deps
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --no-optional
+RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --omit=optional
 
 # Copy server source
 COPY server/src ./server/src
