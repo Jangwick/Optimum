@@ -5,29 +5,28 @@ import { recordActivity } from './activity.service.js';
 
 // Sync settlement and offer data to the claim record
 async function syncSettlementToClaim(claimId) {
-  const claim = await prisma.claim.findUnique({
-    where: { id: Number(claimId) },
-    include: {
-      settlement: true,
-      offers: { orderBy: { createdAt: 'desc' }, take: 1 },
-    },
-  });
-  if (!claim) return;
+  const [latestOffer, acceptedOffer, settlement] = await Promise.all([
+    prisma.offer.findFirst({
+      where: { claimId: Number(claimId) },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.offer.findFirst({
+      where: { claimId: Number(claimId), status: 'ACCEPTED' },
+      orderBy: { responseDate: 'desc' },
+    }),
+    prisma.settlement.findFirst({ where: { claimId: Number(claimId) } }),
+  ]);
 
   const update = {};
   // proposedSettlement = latest offer amount (if any)
-  if (claim.offers.length > 0) {
-    update.proposedSettlement = claim.offers[0].offeredAmount;
+  if (latestOffer) {
+    update.proposedSettlement = latestOffer.offeredAmount;
   }
   // agreedSettlement = accepted offer amount, or settlement agreed amount
-  const acceptedOffer = await prisma.offer.findFirst({
-    where: { claimId: Number(claimId), status: 'ACCEPTED' },
-    orderBy: { responseDate: 'desc' },
-  });
   if (acceptedOffer) {
     update.agreedSettlement = acceptedOffer.offeredAmount;
-  } else if (claim.settlement?.status === 'AGREED' && claim.settlement?.settledAmount) {
-    update.agreedSettlement = claim.settlement.settledAmount;
+  } else if (settlement?.status === 'AGREED' && settlement?.settledAmount) {
+    update.agreedSettlement = settlement.settledAmount;
   }
 
   if (Object.keys(update).length > 0) {
