@@ -276,7 +276,7 @@ ALTER TABLE `claims`
   ADD COLUMN `proposedSettlement` decimal(15,2) DEFAULT NULL,
   ADD COLUMN `proposedSettlementRaw` text,
   ADD COLUMN `agreedSettlementRaw` text,
-  ADD COLUMN `classification` varchar(50) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `classification` varchar(50) DEFAULT NULL,
   ADD COLUMN `remarksRaw` longtext,
   ADD COLUMN `latestStatusRaw` longtext,
   ADD COLUMN `letterFollowUpRaw` text,
