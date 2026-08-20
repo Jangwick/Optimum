@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 
 // Sync the latest assessment total to the claim's estimatedLoss and reserve
 async function syncAssessmentToClaim(claimId) {
@@ -85,6 +86,7 @@ export async function createAssessment(claimId, data, userId) {
   await syncAssessmentToClaim(claimId);
   await logAction('ASSESSMENT_CREATED', 'LossAssessment', item.id, userId, { claimId, totalAmount });
   await recordActivity(claimId, 'ASSESSMENT_CREATED', `Assessment created for ${totalAmount.toFixed(2)}`, userId);
+  await autoAdvanceStatus(claimId, 'ASSESSMENT', userId);
   return item;
 }
 

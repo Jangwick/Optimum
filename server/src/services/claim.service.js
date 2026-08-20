@@ -24,6 +24,70 @@ export const statusTransitions = {
   PAYMENT_RECEIVED: ['CLOSED'],
 };
 
+// Ordered list of statuses for auto-advancement (forward-only)
+const STATUS_ORDER = [
+  'NEW',
+  'ASSIGNED',
+  'INVESTIGATION',
+  'INSPECTION_SCHEDULED',
+  'INSPECTION_COMPLETED',
+  'DOCUMENTS_PENDING',
+  'DOCUMENTS_RECEIVED',
+  'ASSESSMENT',
+  'REPORT_DRAFT',
+  'REPORT_SUBMITTED',
+  'CLIENT_REVIEW',
+  'CLARIFICATION_NEEDED',
+  'CLARIFICATION_PROVIDED',
+  'SETTLEMENT',
+  'OFFER_SENT',
+  'FEE_INVOICED',
+  'PAYMENT_RECEIVED',
+  'CLOSED',
+];
+
+/**
+ * Auto-advance the claim status forward when a child action occurs.
+ * Only moves forward — never backward. Skips if the claim is already at
+ * or past the target status, or if the claim is closed/read-only.
+ */
+export async function autoAdvanceStatus(claimId, targetStatusCode, userId) {
+  const claim = await prisma.claim.findUnique({
+    where: { id: Number(claimId) },
+    include: { status: true },
+  });
+  if (!claim) return;
+  if (claim.isClosed || claim.isReadOnly) return;
+
+  const currentCode = claim.status?.code;
+  if (!currentCode) return;
+
+  const currentIdx = STATUS_ORDER.indexOf(currentCode);
+  const targetIdx = STATUS_ORDER.indexOf(targetStatusCode);
+
+  // Only advance forward
+  if (targetIdx <= currentIdx) return;
+
+  const newStatus = await prisma.claimStatus.findFirst({ where: { code: targetStatusCode } });
+  if (!newStatus) return;
+
+  await prisma.claim.update({
+    where: { id: Number(claimId) },
+    data: { statusId: newStatus.id },
+  });
+
+  await prisma.claimStatusHistory.create({
+    data: {
+      claimId: Number(claimId),
+      statusId: newStatus.id,
+      changedById: userId,
+      notes: `Auto-advanced from ${currentCode} to ${targetStatusCode}`,
+    },
+  });
+
+  await recordActivity(claimId, 'STATUS_CHANGED', `Status auto-advanced from ${currentCode} to ${targetStatusCode}`, userId);
+}
+
 function formatMoney(value) {
   if (value === null || value === undefined) return null;
   return Number(value).toFixed(2);
@@ -621,6 +685,9 @@ export async function updateClaim(claimId, data, updatedBy) {
   }
   if (assignmentChanges.length > 0) {
     await recordActivity(claimId, 'ASSIGNMENT_UPDATED', `Assignment updated — ${assignmentChanges.join(', ')}`, updatedBy);
+    if (data.engineerId) {
+      await autoAdvanceStatus(claimId, 'ASSIGNED', updatedBy);
+    }
   }
 
   return formatClaim(updated);

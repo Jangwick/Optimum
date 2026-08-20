@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 
 export async function listInvestigations(claimId) {
   return prisma.investigation.findMany({
@@ -28,6 +29,7 @@ export async function createInvestigation(claimId, data, userId) {
   });
   await logAction('INVESTIGATION_CREATED', 'Investigation', inv.id, userId, { claimId });
   await recordActivity(claimId, 'INVESTIGATION_CREATED', 'Investigation created', userId);
+  await autoAdvanceStatus(claimId, 'INVESTIGATION', userId);
   return inv;
 }
 

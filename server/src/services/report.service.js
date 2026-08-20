@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
@@ -56,6 +57,7 @@ export async function createReportDraft(claimId, data, userId) {
     include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
   });
   await recordActivity(claimId, 'REPORT_CREATED', `Report draft created: ${data.title}`, userId);
+  await autoAdvanceStatus(claimId, 'REPORT_DRAFT', userId);
   return report;
 }
 
@@ -168,6 +170,7 @@ export async function generateReport(id, userId) {
 
   await logAction('REPORT_GENERATED', 'Report', id, userId, { claimId: updated.claimId, pdfPath: filePath });
   await recordActivity(updated.claimId, 'REPORT_GENERATED', `Report generated: ${report.title}`, userId);
+  await autoAdvanceStatus(updated.claimId, 'REPORT_SUBMITTED', userId);
   return updated;
 }
 

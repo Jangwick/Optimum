@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -34,6 +35,9 @@ export async function createInspection(claimId, data, userId) {
   // Sync claim.dateInspected when an inspection has a conductedAt date
   if (data.conductedAt) {
     await prisma.claim.update({ where: { id: Number(claimId) }, data: { dateInspected: new Date(data.conductedAt) } });
+    await autoAdvanceStatus(claimId, 'INSPECTION_COMPLETED', userId);
+  } else {
+    await autoAdvanceStatus(claimId, 'INSPECTION_SCHEDULED', userId);
   }
 
   return inspection;
@@ -67,6 +71,7 @@ export async function updateInspection(id, data, userId) {
     if (latest?.conductedAt) {
       await prisma.claim.update({ where: { id: inspection.claimId }, data: { dateInspected: latest.conductedAt } });
     }
+    await autoAdvanceStatus(inspection.claimId, 'INSPECTION_COMPLETED', userId);
   }
 
   return updated;

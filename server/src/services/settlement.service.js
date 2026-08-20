@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 
 // Sync settlement and offer data to the claim record
 async function syncSettlementToClaim(claimId) {
@@ -72,6 +73,7 @@ export async function upsertSettlement(claimId, data, userId) {
   await logAction('SETTLEMENT_SAVED', 'Settlement', item.id, userId, { claimId, amount: item.settledAmount });
   await syncSettlementToClaim(claimId);
   await recordActivity(claimId, 'SETTLEMENT_SAVED', `Settlement saved: ${Number(item.settledAmount || 0).toFixed(2)} (${item.status})`, userId);
+  await autoAdvanceStatus(claimId, 'SETTLEMENT', userId);
   return item;
 }
 
@@ -105,6 +107,7 @@ export async function createOffer(claimId, data, userId) {
   await logAction('OFFER_CREATED', 'Offer', offer.id, userId, { claimId, amount: offer.offeredAmount });
   await syncSettlementToClaim(claimId);
   await recordActivity(claimId, 'OFFER_CREATED', `Offer created: ${Number(offer.offeredAmount || 0).toFixed(2)}`, userId);
+  await autoAdvanceStatus(claimId, 'OFFER_SENT', userId);
   if (offer.claim?.clientId) {
     // placeholder for client notification
   }

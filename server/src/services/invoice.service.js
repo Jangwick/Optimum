@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 
 async function generateInvoiceNumber() {
   const now = new Date();
@@ -64,6 +65,7 @@ export async function createInvoice(claimId, data, userId) {
 
   await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId, totalAmount: invoice.totalAmount });
   await recordActivity(claimId, 'INVOICE_CREATED', `Invoice created: ${invoice.invoiceNumber} — ${Number(invoice.totalAmount || 0).toFixed(2)}`, userId);
+  await autoAdvanceStatus(claimId, 'FEE_INVOICED', userId);
   return invoice;
 }
 
@@ -99,6 +101,7 @@ export async function recordPayment(invoiceId, data, _userId) {
 
   await logAction('PAYMENT_RECORDED', 'Payment', payment.id, _userId, { invoiceId: invoice.id, claimId: invoice.claimId, amount });
   await recordActivity(invoice.claimId, 'PAYMENT_RECORDED', `Payment recorded: ${Number(amount || 0).toFixed(2)} for ${invoice.invoiceNumber}`, _userId);
+  await autoAdvanceStatus(invoice.claimId, 'PAYMENT_RECEIVED', _userId);
   return payment;
 }
 

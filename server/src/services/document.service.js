@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus } from './claim.service.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -106,6 +107,7 @@ export async function uploadDocument(claimId, file, data, userId) {
 
   await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, userId, { originalName: doc.originalName, claimId });
   await recordActivity(claimId, 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, userId);
+  await autoAdvanceStatus(claimId, 'DOCUMENTS_PENDING', userId);
   return doc;
 }
 
@@ -117,6 +119,7 @@ export async function markDocumentReceived(id, userId) {
   });
   await logAction('DOCUMENT_RECEIVED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
   await recordActivity(doc.claimId, 'DOCUMENT_RECEIVED', `Document marked received: ${doc.originalName}`, userId);
+  await autoAdvanceStatus(doc.claimId, 'DOCUMENTS_RECEIVED', userId);
   return doc;
 }
 
