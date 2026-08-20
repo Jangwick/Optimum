@@ -28,7 +28,6 @@ import taskRoutes from './routes/task.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import processStatusRoutes from './routes/process-status.routes.js';
-import importRoutes from './routes/import.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -79,7 +78,6 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/process-statuses', processStatusRoutes);
-app.use('/api/imports', importRoutes);
 app.use('/api/claims', activityRoutes);
 
 // Serve built client in production

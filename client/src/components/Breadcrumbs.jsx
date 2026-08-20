@@ -9,7 +9,6 @@ const SEGMENT_LABELS = {
   employees: 'Employees',
   'master-data': 'Master Data',
   'audit-logs': 'Audit Logs',
-  imports: 'Import Wizard',
 };
 
 // When a dynamic segment (e.g. an ID) follows one of these parents,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { getClaims, exportClaims } from '../services/claim.service.js';
-import { getProcessStatuses } from '../services/import.service.js';
+import { getProcessStatuses } from '../services/process-status.service.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';

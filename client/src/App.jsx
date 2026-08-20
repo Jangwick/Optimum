@@ -9,7 +9,6 @@ import NewClaim from './pages/NewClaim.jsx';
 import MasterData from './pages/MasterData.jsx';
 import AuditLogs from './pages/AuditLogs.jsx';
 import Employees from './pages/Employees.jsx';
-import ImportWizard from './pages/ImportWizard.jsx';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -97,16 +96,6 @@ export default function App() {
           <ProtectedRoute roles={['ADMIN']}>
             <ErrorBoundary>
               <Employees />
-            </ErrorBoundary>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/imports"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <ErrorBoundary>
-              <ImportWizard />
             </ErrorBoundary>
           </ProtectedRoute>
         }

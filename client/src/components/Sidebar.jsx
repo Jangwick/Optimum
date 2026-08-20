@@ -5,7 +5,6 @@ import {
   Users,
   Building2,
   History,
-  Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -18,7 +17,6 @@ const navItems = [
 const adminNavItems = [
   { icon: Users, label: 'Employees', href: '/employees' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },
-  { icon: Upload, label: 'Import Wizard', href: '/imports' },
 ];
 
 export function Sidebar() {
