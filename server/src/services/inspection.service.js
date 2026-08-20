@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -12,11 +13,11 @@ export async function listInspections(claimId) {
   });
 }
 
-export async function createInspection(claimId, data) {
+export async function createInspection(claimId, data, userId) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
 
-  return prisma.inspection.create({
+  const inspection = await prisma.inspection.create({
     data: {
       claimId: Number(claimId),
       scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
@@ -28,9 +29,11 @@ export async function createInspection(claimId, data) {
     },
     include: { photos: true },
   });
+  await recordActivity(claimId, 'INSPECTION_CREATED', `Inspection scheduled${data.location ? ` at ${data.location}` : ''}`, userId);
+  return inspection;
 }
 
-export async function updateInspection(id, data) {
+export async function updateInspection(id, data, userId) {
   const inspection = await prisma.inspection.findUnique({ where: { id } });
   if (!inspection) throw new AppError('Inspection not found', 404);
 
@@ -42,11 +45,21 @@ export async function updateInspection(id, data) {
   if (data.notes !== undefined) update.notes = data.notes;
   if (data.inspectorId !== undefined) update.inspectorId = data.inspectorId ? Number(data.inspectorId) : null;
 
-  return prisma.inspection.update({ where: { id }, data: update, include: { photos: true } });
+  const updated = await prisma.inspection.update({ where: { id }, data: update, include: { photos: true } });
+  if (data.conductedAt && !inspection.conductedAt) {
+    await recordActivity(inspection.claimId, 'INSPECTION_COMPLETED', 'Inspection completed', userId);
+  } else {
+    await recordActivity(inspection.claimId, 'INSPECTION_UPDATED', 'Inspection updated', userId);
+  }
+  return updated;
 }
 
-export async function deleteInspection(id) {
+export async function deleteInspection(id, userId) {
+  const inspection = await prisma.inspection.findUnique({ where: { id } });
+  if (!inspection) throw new AppError('Inspection not found', 404);
+  const claimId = inspection.claimId;
   await prisma.inspection.delete({ where: { id } });
+  await recordActivity(claimId, 'INSPECTION_DELETED', 'Inspection deleted', userId);
 }
 
 export async function uploadPhoto(inspectionId, file, caption, userId) {
@@ -67,6 +80,7 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
   });
 
   await logAction('INSPECTION_PHOTO_UPLOADED', 'InspectionPhoto', photo.id, userId, { inspectionId });
+  await recordActivity(inspection.claimId, 'INSPECTION_PHOTO_UPLOADED', `Inspection photo uploaded: ${file.originalname}`, userId);
   return photo;
 }
 

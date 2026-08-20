@@ -51,6 +51,17 @@ export function ClaimDetailContent({ claimId }) {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
 
+  const onClaimChange = useCallback(() => setRefresh((r) => r + 1), []);
+
+  // Reload claim data whenever active tab changes (so Summary/Timeline always show fresh data)
+  const prevTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (prevTabRef.current !== activeTab) {
+      prevTabRef.current = activeTab;
+      setRefresh((r) => r + 1);
+    }
+  }, [activeTab]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const [claimData, statusesData, processData] = await Promise.all([
@@ -248,20 +259,56 @@ export function ClaimDetailContent({ claimId }) {
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} />}
           {activeTab === 'process' && <ProcessStatusTab claim={claim} processStatuses={processStatuses} selectedProcessStatus={selectedProcessStatus} setSelectedProcessStatus={setSelectedProcessStatus} processNote={processNote} setProcessNote={setProcessNote} overrideReason={overrideReason} setOverrideReason={setOverrideReason} onTransition={handleProcessTransition} closingGuards={closingGuards} isAdmin={user?.role === 'ADMIN'} />}
-          {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} />}
-          {activeTab === 'documents' && <DocumentsTab claimId={claimId} />}
-          {activeTab === 'assessment' && <AssessmentTab claimId={claimId} />}
-          {activeTab === 'settlement' && <SettlementTab claimId={claimId} />}
-          {activeTab === 'finance' && <ClaimFinance claimId={claimId} />}
-          {activeTab === 'reports' && <ReportsTab claimId={claimId} />}
-          {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} />}
+          {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'assessment' && <AssessmentTab claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'settlement' && <SettlementTab claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'finance' && <ClaimFinance claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'reports' && <ReportsTab claimId={claimId} onClaimChange={onClaimChange} />}
+          {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} onClaimChange={onClaimChange} />}
           {activeTab === 'timeline' && <TimelineTab claim={claim} />}
-          {activeTab === 'tasks' && <TasksTab claimId={claimId} />}
+          {activeTab === 'tasks' && <TasksTab claimId={claimId} onClaimChange={onClaimChange} />}
     </div>
   );
 }
 
 function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition }) {
+  const fin = claim.financials || {};
+
+  // Build compact timeline from processHistory + activities + correspondence
+  const timelineEvents = [
+    ...(claim.processHistory || []).map((h) => ({
+      id: `p-${h.id}`,
+      type: 'status',
+      date: h.createdAt,
+      title: h.status?.name || h.status?.code || 'Status Change',
+      desc: h.notes,
+      actor: h.changedBy,
+    })),
+    ...(claim.activities || []).map((a) => ({
+      id: `a-${a.id}`,
+      type: 'activity',
+      date: a.occurredAt,
+      title: a.activityType?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      desc: a.description,
+      actor: a.actor,
+    })),
+    ...(claim.correspondence || []).map((c) => ({
+      id: `c-${c.id}`,
+      type: 'correspondence',
+      date: c.sentAt,
+      title: c.type,
+      desc: c.notes,
+      actor: c.recipient,
+    })),
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 12);
+
+  const EVENT_ICONS = {
+    status: CheckCircle,
+    activity: GitBranch,
+    correspondence: FileText,
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
@@ -300,6 +347,26 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <span className="text-label-md text-outline uppercase">Description</span>
             <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
+          {/* Count badges */}
+          <div className="mt-4 pt-4 border-t border-surface-border flex flex-wrap gap-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-body-sm font-medium">
+              <FileText size={14} />
+              {fin.documentCount ?? 0} Documents
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-orange/5 text-accent-orange text-body-sm font-medium">
+              <ListTodo size={14} />
+              {fin.openTaskCount ?? 0} Open / {fin.taskCount ?? 0} Total Tasks
+            </span>
+            {claim.processStatus && (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body-sm font-medium"
+                style={{ backgroundColor: `${claim.processStatus.color}1a`, color: claim.processStatus.color }}
+              >
+                <GitBranch size={14} />
+                {claim.processStatus.name}
+              </span>
+            )}
+          </div>
         </section>
 
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
@@ -313,6 +380,10 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Claimed Amount" value={claim.claimedAmountRaw || formatCurrency(claim.claimedAmount)} money />
             <Info label="Proposed Settlement" value={claim.proposedSettlementRaw || formatCurrency(claim.proposedSettlement)} money />
             <Info label="Agreed Settlement" value={claim.agreedSettlementRaw || formatCurrency(claim.agreedSettlement)} money />
+            <Info label="Assessment Total" value={formatCurrency(fin.assessmentTotal)} money />
+            <Info label="Fee Total" value={formatCurrency(fin.feeTotal)} money />
+            <Info label="Invoice Total" value={formatCurrency(fin.invoiceTotal)} money />
+            <Info label="Payment Total" value={formatCurrency(fin.paymentTotal)} money />
           </div>
         </section>
 
@@ -399,24 +470,31 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <Clock size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Status History</h3>
+            <h3 className="text-headline-sm font-semibold text-primary">Recent Activity</h3>
           </div>
-          {claim.history?.length ? (
-            <ul className="space-y-4 text-body-sm">
-              {claim.history.map((h) => (
-                <li key={h.id} className="relative pl-6 pb-4 last:pb-0">
-                  <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
-                  <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
-                  <p className="font-medium text-on-surface">{h.status?.code || '—'}</p>
-                  <p className="text-on-surface-variant mt-0.5">{h.notes || 'No notes'}</p>
-                  <p className="text-label-sm text-outline mt-1 font-mono">
-                    {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
-                  </p>
-                </li>
-              ))}
+          {timelineEvents.length ? (
+            <ul className="space-y-3 text-body-sm">
+              {timelineEvents.map((e) => {
+                const Icon = EVENT_ICONS[e.type] || GitBranch;
+                const badgeText = e.type === 'status' ? 'text-success' : e.type === 'correspondence' ? 'text-secondary' : 'text-primary';
+                return (
+                  <li key={e.id} className="relative pl-6 pb-3 last:pb-0">
+                    <span className={`absolute left-0 top-1 w-2 h-2 rounded-full ${badgeText.replace('text-', 'bg-')} ring-2 ring-surface`} />
+                    <span className="absolute left-[3px] top-4 bottom-0 w-px bg-surface-border" />
+                    <div className="flex items-center gap-1.5">
+                      <Icon size={12} className={`${badgeText} shrink-0`} />
+                      <p className="font-medium text-on-surface">{e.title}</p>
+                    </div>
+                    {e.desc && <p className="text-on-surface-variant mt-0.5 text-body-sm">{e.desc}</p>}
+                    <p className="text-label-sm text-outline mt-1 font-mono">
+                      {e.actor ? `${e.actor} · ` : ''}{e.date ? new Date(e.date).toLocaleString() : '—'}
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
-            <p className="text-on-surface-variant text-body-sm">No history yet.</p>
+            <p className="text-on-surface-variant text-body-sm">No activity yet.</p>
           )}
         </section>
       </div>
@@ -433,7 +511,7 @@ function Info({ label, value, money, mono }) {
   );
 }
 
-function DocumentsTab({ claimId }) {
+function DocumentsTab({ claimId, onClaimChange }) {
   const [checklist, setChecklist] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -479,6 +557,7 @@ function DocumentsTab({ claimId }) {
       setDesc('');
       if (fileInputRef.current) fileInputRef.current.value = '';
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to upload document');
     } finally {
@@ -490,6 +569,7 @@ function DocumentsTab({ claimId }) {
     try {
       await markDocumentReceived(claimId, docId);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to mark document as received');
     }
@@ -500,6 +580,7 @@ function DocumentsTab({ claimId }) {
     try {
       await deleteDocument(claimId, docId);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to delete document');
     }
@@ -793,7 +874,7 @@ function DocumentsTab({ claimId }) {
   );
 }
 
-function AssessmentTab({ claimId }) {
+function AssessmentTab({ claimId, onClaimChange }) {
   const [assessments, setAssessments] = useState([]);
   const [items, setItems] = useState([{ description: '', quantity: 1, unitCost: 0 }]);
   const [notes, setNotes] = useState('');
@@ -842,6 +923,7 @@ function AssessmentTab({ claimId }) {
       setNotes('');
       setItems([{ description: '', quantity: 1, unitCost: 0 }]);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to save assessment');
     } finally {
@@ -854,6 +936,7 @@ function AssessmentTab({ claimId }) {
     try {
       await deleteAssessment(claimId, id);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to delete assessment');
     }
@@ -1032,7 +1115,7 @@ function AssessmentTab({ claimId }) {
   );
 }
 
-function SettlementTab({ claimId }) {
+function SettlementTab({ claimId, onClaimChange }) {
   const [offers, setOffers] = useState([]);
   const [settlement, setSettlement] = useState(null);
   const [form, setForm] = useState({ settledAmount: '', settlementDate: '', status: 'PENDING', notes: '' });
@@ -1077,6 +1160,7 @@ function SettlementTab({ claimId }) {
     try {
       await saveSettlement(claimId, form);
       await load();
+      onClaimChange?.();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save settlement');
     } finally {
@@ -1102,6 +1186,7 @@ function SettlementTab({ claimId }) {
       await createOffer(claimId, offerForm);
       setOfferForm({ offeredAmount: '', notes: '' });
       await load();
+      onClaimChange?.();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create offer');
     } finally {
@@ -1118,6 +1203,7 @@ function SettlementTab({ claimId }) {
       await respondToOffer(claimId, offerId, r);
       setResponse({ ...response, [offerId]: {} });
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to respond to offer');
     } finally {
@@ -1408,7 +1494,7 @@ function SettlementTab({ claimId }) {
   );
 }
 
-function ReportsTab({ claimId }) {
+function ReportsTab({ claimId, onClaimChange }) {
   const [reports, setReports] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [title, setTitle] = useState('');
@@ -1454,6 +1540,7 @@ function ReportsTab({ claimId }) {
       setNotes('');
       setReportTemplateId('');
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to create report draft');
     } finally {
@@ -1467,6 +1554,7 @@ function ReportsTab({ claimId }) {
     try {
       await generateReport(claimId, reportId);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to generate report. Make sure Puppeteer is available.');
     } finally {
@@ -1483,6 +1571,7 @@ function ReportsTab({ claimId }) {
       await askClarification(claimId, reportId, { question: q });
       setClarification({ ...clarification, [reportId]: '' });
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to send clarification request');
     } finally {
@@ -1783,7 +1872,7 @@ function ReportsTab({ claimId }) {
   );
 }
 
-function TasksTab({ claimId }) {
+function TasksTab({ claimId, onClaimChange }) {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
@@ -1821,6 +1910,7 @@ function TasksTab({ claimId }) {
       await createTask({ ...form, claimId });
       setForm({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to create task');
     } finally {
@@ -1834,6 +1924,7 @@ function TasksTab({ claimId }) {
     try {
       await updateTask(id, { status });
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to update task status');
     } finally {
@@ -1848,6 +1939,7 @@ function TasksTab({ claimId }) {
     try {
       await deleteTask(id);
       await load();
+      onClaimChange?.();
     } catch {
       setError('Failed to delete task');
     } finally {
@@ -2295,7 +2387,7 @@ function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSe
   );
 }
 
-function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
+function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange }) {
   const [insurers, setInsurers] = useState([]);
   const [panel, setPanel] = useState(initialClaim?.insurerPanel || []);
   const [showForm, setShowForm] = useState(false);
@@ -2368,6 +2460,7 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
       }
       resetForm();
       await loadPanel();
+      onClaimChange?.();
     } catch {
       setError(editingId ? 'Failed to update insurer' : 'Failed to add insurer');
     } finally {
@@ -2398,6 +2491,7 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
     try {
       await updateClaimInsurer(claimId, ci.id, { isLead: !ci.isLead });
       await loadPanel();
+      onClaimChange?.();
     } catch {
       setError('Failed to toggle lead status');
     } finally {
@@ -2412,6 +2506,7 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin }) {
     try {
       await removeClaimInsurer(claimId, ci.id);
       await loadPanel();
+      onClaimChange?.();
     } catch {
       setError('Failed to remove insurer');
     } finally {

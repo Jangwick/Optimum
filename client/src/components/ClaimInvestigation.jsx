@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
 import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2, X, Download } from 'lucide-react';
 
-export default function ClaimInvestigation({ claimId }) {
+export default function ClaimInvestigation({ claimId, onClaimChange }) {
   const [tab, setTab] = useState('investigations');
   const [investigations, setInvestigations] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -35,12 +35,14 @@ export default function ClaimInvestigation({ claimId }) {
     await createInvestigation(claimId, invForm);
     setInvForm({ findings: '', notes: '' });
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const removeInvestigation = async (id) => {
     if (!confirm('Delete this investigation?')) return;
     await deleteInvestigation(claimId, id);
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const saveContact = async (e) => {
@@ -48,12 +50,14 @@ export default function ClaimInvestigation({ claimId }) {
     await createContact(claimId, conForm);
     setConForm({ name: '', role: '', phone: '', email: '' });
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const removeContact = async (id) => {
     if (!confirm('Delete this contact?')) return;
     await deleteContact(claimId, id);
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const saveInspection = async (e) => {
@@ -61,18 +65,21 @@ export default function ClaimInvestigation({ claimId }) {
     await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
     setInspForm({ scheduledAt: '', location: '', scope: '', notes: '' });
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const completeInspection = async (id) => {
     await updateInspection(claimId, id, { findings: findings[id] || '', conductedAt: new Date().toISOString() });
     setFindings({ ...findings, [id]: '' });
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const removeInspection = async (id) => {
     if (!confirm('Delete this inspection and all its photos?')) return;
     await deleteInspection(claimId, id);
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const fileInputRefs = useRef({});
@@ -83,6 +90,7 @@ export default function ClaimInvestigation({ claimId }) {
     await uploadInspectionPhoto(claimId, inspectionId, file, 'Inspection photo');
     e.target.value = '';
     setRefresh((r) => r + 1);
+    onClaimChange?.();
   };
 
   const triggerFileInput = (inspectionId) => {

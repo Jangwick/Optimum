@@ -45,7 +45,7 @@ export async function updateAssessment(req, res, next) {
 
 export async function deleteAssessment(req, res, next) {
   try {
-    await assessmentService.deleteAssessment(idParam(req));
+    await assessmentService.deleteAssessment(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

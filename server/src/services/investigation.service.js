@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
 
 export async function listInvestigations(claimId) {
   return prisma.investigation.findMany({
@@ -26,6 +27,7 @@ export async function createInvestigation(claimId, data, userId) {
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
   await logAction('INVESTIGATION_CREATED', 'Investigation', inv.id, userId, { claimId });
+  await recordActivity(claimId, 'INVESTIGATION_CREATED', 'Investigation created', userId);
   return inv;
 }
 
@@ -46,6 +48,7 @@ export async function updateInvestigation(id, data, userId) {
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
   await logAction('INVESTIGATION_UPDATED', 'Investigation', id, userId, { claimId: updated.claimId });
+  await recordActivity(updated.claimId, 'INVESTIGATION_UPDATED', 'Investigation updated', userId);
   return updated;
 }
 
@@ -53,5 +56,6 @@ export async function deleteInvestigation(id, userId) {
   const inv = await prisma.investigation.findUnique({ where: { id } });
   if (!inv) throw new AppError('Investigation not found', 404);
   await logAction('INVESTIGATION_DELETED', 'Investigation', id, userId, { claimId: inv.claimId });
+  await recordActivity(inv.claimId, 'INVESTIGATION_DELETED', 'Investigation deleted', userId);
   await prisma.investigation.delete({ where: { id } });
 }

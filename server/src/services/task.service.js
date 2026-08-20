@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { recordActivity } from './activity.service.js';
 
 export async function getTasks(filters, user) {
   const where = {};
@@ -19,7 +20,7 @@ export async function getTasks(filters, user) {
 }
 
 export async function createTask(data, createdBy) {
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       title: data.title,
       description: data.description,
@@ -36,9 +37,13 @@ export async function createTask(data, createdBy) {
       createdBy: { select: { firstName: true, lastName: true } },
     },
   });
+  if (data.claimId) {
+    await recordActivity(data.claimId, 'TASK_CREATED', `Task created: ${data.title}`, createdBy);
+  }
+  return task;
 }
 
-export async function updateTask(id, data) {
+export async function updateTask(id, data, userId) {
   const task = await prisma.task.findUnique({ where: { id } });
   if (!task) throw new AppError('Task not found', 404);
 
@@ -58,7 +63,7 @@ export async function updateTask(id, data) {
     }
   }
 
-  return prisma.task.update({
+  const updated = await prisma.task.update({
     where: { id },
     data: update,
     include: {
@@ -67,8 +72,23 @@ export async function updateTask(id, data) {
       createdBy: { select: { firstName: true, lastName: true } },
     },
   });
+  if (task.claimId) {
+    if (data.status !== undefined) {
+      await recordActivity(task.claimId, 'TASK_STATUS_CHANGED', `Task "${task.title}" → ${data.status}`, userId);
+    } else {
+      await recordActivity(task.claimId, 'TASK_UPDATED', `Task updated: ${task.title}`, userId);
+    }
+  }
+  return updated;
 }
 
-export async function deleteTask(id) {
+export async function deleteTask(id, userId) {
+  const task = await prisma.task.findUnique({ where: { id } });
+  if (!task) throw new AppError('Task not found', 404);
+  const claimId = task.claimId;
+  const title = task.title;
   await prisma.task.delete({ where: { id } });
+  if (claimId) {
+    await recordActivity(claimId, 'TASK_DELETED', `Task deleted: ${title}`, userId);
+  }
 }

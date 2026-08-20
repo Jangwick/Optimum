@@ -23,7 +23,7 @@ function StatusPill({ status }) {
   );
 }
 
-export default function ClaimFinance({ claimId }) {
+export default function ClaimFinance({ claimId, onClaimChange }) {
   const [tab, setTab] = useState('fees');
   const [fees, setFees] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -68,6 +68,7 @@ export default function ClaimFinance({ claimId }) {
       await createFee(claimId, feeForm);
       setFeeForm({ feeType: 'INSPECTION', amount: '', description: '', userId: '' });
       setRefresh((r) => r + 1);
+      onClaimChange?.();
     } catch {
       setError('Failed to create fee');
     } finally {
@@ -87,6 +88,7 @@ export default function ClaimFinance({ claimId }) {
       await createInvoice(claimId, invoiceForm);
       setInvoiceForm({ feeIds: [], dueDate: '', notes: '' });
       setRefresh((r) => r + 1);
+      onClaimChange?.();
     } catch {
       setError('Failed to create invoice');
     } finally {
@@ -103,6 +105,7 @@ export default function ClaimFinance({ claimId }) {
       await recordPayment(claimId, invoiceId, p);
       setPayment({ ...payment, [invoiceId]: {} });
       setRefresh((r) => r + 1);
+      onClaimChange?.();
     } catch {
       setError('Failed to record payment');
     } finally {

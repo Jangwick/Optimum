@@ -18,7 +18,7 @@ export async function listContacts(req, res, next) {
 
 export async function createContact(req, res, next) {
   try {
-    const item = await contactService.createContact(req.params.claimId, req.body);
+    const item = await contactService.createContact(req.params.claimId, req.body, req.user.id);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -27,7 +27,7 @@ export async function createContact(req, res, next) {
 
 export async function updateContact(req, res, next) {
   try {
-    const item = await contactService.updateContact(idParam(req), req.body);
+    const item = await contactService.updateContact(idParam(req), req.body, req.user.id);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -36,7 +36,7 @@ export async function updateContact(req, res, next) {
 
 export async function deleteContact(req, res, next) {
   try {
-    await contactService.deleteContact(idParam(req));
+    await contactService.deleteContact(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

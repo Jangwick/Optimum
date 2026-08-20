@@ -27,7 +27,7 @@ export async function createFee(req, res, next) {
 
 export async function updateFee(req, res, next) {
   try {
-    const item = await feeService.updateFee(idParam(req), req.body);
+    const item = await feeService.updateFee(idParam(req), req.body, req.user.id);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -36,7 +36,7 @@ export async function updateFee(req, res, next) {
 
 export async function deleteFee(req, res, next) {
   try {
-    await feeService.deleteFee(idParam(req));
+    await feeService.deleteFee(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

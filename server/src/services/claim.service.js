@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 
 export const statusTransitions = {
@@ -232,7 +233,7 @@ export async function getClaim(id, user) {
       insurerPanel: { include: { insuranceCompany: { select: { id: true, name: true, code: true } } } },
       activities: {
         orderBy: { occurredAt: 'desc' },
-        take: 20,
+        take: 50,
         include: { actor: { select: { id: true, firstName: true, lastName: true } } },
       },
       correspondence: {
@@ -317,7 +318,31 @@ export async function getClaim(id, user) {
     isHistorical: c.isHistorical,
   }));
 
-  return { ...formatClaim(claim), history, processHistory, insurerPanel, activities, correspondence };
+  // Fetch financial totals and counts from related records
+  const [assessmentAgg, feeAgg, invoiceAgg, paymentAgg, documentCount, taskCount, openTaskCount] = await Promise.all([
+    prisma.lossAssessment.aggregate({ where: { claimId: Number(id) }, _sum: { totalAmount: true } }),
+    prisma.fee.aggregate({ where: { claimId: Number(id) }, _sum: { amount: true } }),
+    prisma.invoice.aggregate({ where: { claimId: Number(id) }, _sum: { totalAmount: true } }),
+    prisma.payment.aggregate({
+      where: { invoice: { claimId: Number(id) } },
+      _sum: { amount: true },
+    }),
+    prisma.document.count({ where: { claimId: Number(id) } }),
+    prisma.task.count({ where: { claimId: Number(id) } }),
+    prisma.task.count({ where: { claimId: Number(id), status: { in: ['PENDING', 'IN_PROGRESS'] } } }),
+  ]);
+
+  const financials = {
+    assessmentTotal: assessmentAgg._sum.totalAmount ? Number(assessmentAgg._sum.totalAmount) : null,
+    feeTotal: feeAgg._sum.amount ? Number(feeAgg._sum.amount) : null,
+    invoiceTotal: invoiceAgg._sum.totalAmount ? Number(invoiceAgg._sum.totalAmount) : null,
+    paymentTotal: paymentAgg._sum.amount ? Number(paymentAgg._sum.amount) : null,
+    documentCount,
+    taskCount,
+    openTaskCount,
+  };
+
+  return { ...formatClaim(claim), history, processHistory, insurerPanel, activities, correspondence, financials };
 }
 
 export async function createClaim(data, createdBy) {
@@ -635,6 +660,7 @@ export async function addClaimInsurer(claimId, data, addedBy) {
   });
 
   await logAction('CLAIM_INSURER_ADDED', 'Claim', claimId, addedBy, { insurerId: data.insuranceCompanyId });
+  await recordActivity(claimId, 'INSURER_ADDED', `Insurer added to panel: ${insurer.insuranceCompany?.name || ''}`, addedBy);
   return insurer;
 }
 
@@ -664,6 +690,7 @@ export async function updateClaimInsurer(claimId, insurerId, data, updatedBy) {
   });
 
   await logAction('CLAIM_INSURER_UPDATED', 'Claim', claimId, updatedBy, { insurerId, fields: Object.keys(updateData) });
+  await recordActivity(claimId, 'INSURER_UPDATED', `Insurer panel updated: ${updated.insuranceCompany?.name || ''}`, updatedBy);
   return updated;
 }
 
@@ -675,5 +702,6 @@ export async function removeClaimInsurer(claimId, insurerId, removedBy) {
 
   await prisma.claimInsurer.delete({ where: { id: insurerId } });
   await logAction('CLAIM_INSURER_REMOVED', 'Claim', claimId, removedBy, { insurerId });
+  await recordActivity(claimId, 'INSURER_REMOVED', 'Insurer removed from panel', removedBy);
   return { id: insurerId, deleted: true };
 }

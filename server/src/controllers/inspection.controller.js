@@ -18,7 +18,7 @@ export async function listInspections(req, res, next) {
 
 export async function createInspection(req, res, next) {
   try {
-    const item = await inspectionService.createInspection(req.params.claimId, req.body);
+    const item = await inspectionService.createInspection(req.params.claimId, req.body, req.user.id);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -27,7 +27,7 @@ export async function createInspection(req, res, next) {
 
 export async function updateInspection(req, res, next) {
   try {
-    const item = await inspectionService.updateInspection(idParam(req), req.body);
+    const item = await inspectionService.updateInspection(idParam(req), req.body, req.user.id);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -36,7 +36,7 @@ export async function updateInspection(req, res, next) {
 
 export async function deleteInspection(req, res, next) {
   try {
-    await inspectionService.deleteInspection(idParam(req));
+    await inspectionService.deleteInspection(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);

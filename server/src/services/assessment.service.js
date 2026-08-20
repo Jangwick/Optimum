@@ -1,5 +1,26 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
+
+// Sync the latest assessment total to the claim's estimatedLoss and reserve
+async function syncAssessmentToClaim(claimId) {
+  const latest = await prisma.lossAssessment.findFirst({
+    where: { claimId: Number(claimId) },
+    orderBy: { assessmentDate: 'desc' },
+  });
+  if (latest) {
+    await prisma.claim.update({
+      where: { id: Number(claimId) },
+      data: { estimatedLoss: latest.totalAmount, reserve: latest.totalAmount },
+    });
+  } else {
+    await prisma.claim.update({
+      where: { id: Number(claimId) },
+      data: { estimatedLoss: null, reserve: null },
+    });
+  }
+}
 
 export async function getAssessments(claimId) {
   return prisma.lossAssessment.findMany({
@@ -61,6 +82,9 @@ export async function createAssessment(claimId, data, userId) {
     },
   });
 
+  await syncAssessmentToClaim(claimId);
+  await logAction('ASSESSMENT_CREATED', 'LossAssessment', item.id, userId, { claimId, totalAmount });
+  await recordActivity(claimId, 'ASSESSMENT_CREATED', `Assessment created for ${totalAmount.toFixed(2)}`, userId);
   return item;
 }
 
@@ -91,9 +115,18 @@ export async function updateAssessment(id, data, _userId) {
     },
   });
 
+  await syncAssessmentToClaim(assessment.claimId);
+  await logAction('ASSESSMENT_UPDATED', 'LossAssessment', id, _userId, { claimId: assessment.claimId, totalAmount });
+  await recordActivity(assessment.claimId, 'ASSESSMENT_UPDATED', `Assessment updated to ${totalAmount.toFixed(2)}`, _userId);
   return item;
 }
 
-export async function deleteAssessment(id) {
+export async function deleteAssessment(id, userId) {
+  const assessment = await prisma.lossAssessment.findUnique({ where: { id } });
+  if (!assessment) throw new AppError('Assessment not found', 404);
+  const claimId = assessment.claimId;
   await prisma.lossAssessment.delete({ where: { id } });
+  await syncAssessmentToClaim(claimId);
+  await logAction('ASSESSMENT_DELETED', 'LossAssessment', id, userId, { claimId });
+  await recordActivity(claimId, 'ASSESSMENT_DELETED', 'Assessment deleted', userId);
 }

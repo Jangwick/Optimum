@@ -1,6 +1,7 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -104,6 +105,7 @@ export async function uploadDocument(claimId, file, data, userId) {
   });
 
   await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, userId, { originalName: doc.originalName, claimId });
+  await recordActivity(claimId, 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, userId);
   return doc;
 }
 
@@ -114,6 +116,7 @@ export async function markDocumentReceived(id, userId) {
     include: { documentCategory: true },
   });
   await logAction('DOCUMENT_RECEIVED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
+  await recordActivity(doc.claimId, 'DOCUMENT_RECEIVED', `Document marked received: ${doc.originalName}`, userId);
   return doc;
 }
 
@@ -124,5 +127,6 @@ export async function deleteDocument(id, userId) {
     fs.unlinkSync(doc.path);
   }
   await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
+  await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, userId);
   await prisma.document.delete({ where: { id } });
 }

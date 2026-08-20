@@ -2,6 +2,24 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 
+// Record a system-generated activity for a claim (used by all services to reflect tab actions)
+export async function recordActivity(claimId, activityType, description, actorId, source = 'SYSTEM') {
+  try {
+    return await prisma.claimActivity.create({
+      data: {
+        claimId: Number(claimId),
+        activityType,
+        description,
+        actorId: actorId || null,
+        source,
+        occurredAt: new Date(),
+      },
+    });
+  } catch {
+    // Non-blocking: activity recording must not break the business transaction
+  }
+}
+
 // List activities for a claim
 export async function getActivities(claimId, filters = {}) {
   const { activityType, source, page = 1, limit = 50 } = filters;

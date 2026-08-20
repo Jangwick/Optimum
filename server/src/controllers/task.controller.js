@@ -27,7 +27,7 @@ export async function createTask(req, res, next) {
 
 export async function updateTask(req, res, next) {
   try {
-    const item = await taskService.updateTask(idParam(req), req.body);
+    const item = await taskService.updateTask(idParam(req), req.body, req.user.id);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -36,7 +36,7 @@ export async function updateTask(req, res, next) {
 
 export async function deleteTask(req, res, next) {
   try {
-    await taskService.deleteTask(idParam(req));
+    await taskService.deleteTask(idParam(req), req.user.id);
     res.json({ success: true });
   } catch (err) {
     next(err);
