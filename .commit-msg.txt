@@ -1,0 +1,37 @@
+feat: migrate from Railway/MySQL to Vercel/Supabase (PostgreSQL)
+
+Migrate the deployment platform from Railway (MySQL + Docker) to
+Vercel (serverless) + Supabase (PostgreSQL).
+
+Database changes:
+- Prisma schema provider changed from mysql to postgresql
+- Removed @db.LongText (MySQL-only) -> @db.Text (PostgreSQL)
+- Removed @prisma/adapter-mariadb and mariadb dependencies
+- db/client.js: use standard PrismaClient (native PostgreSQL support)
+  with global singleton for serverless connection reuse
+- Deleted MySQL migrations, generated fresh PostgreSQL migration
+- Updated migration_lock.toml to postgresql
+- Updated .env.example DATABASE_URL to postgresql format
+
+Serverless adaptation:
+- Puppeteer import made dynamic with try/catch fallback
+- PDF generation gracefully skips on Vercel (no Chrome available)
+- DOCX generation still works
+- report.service.js uses pdfPath variable (null when skipped)
+
+Vercel configuration:
+- api/index.js: serverless entry point exporting Express app
+- vercel.json: build command, output directory, rewrites for /api/*
+  and SPA fallback, 60s function timeout, includeFiles for server
+- .env.vercel.example: Supabase DATABASE_URL, JWT_SECRET, etc.
+
+Documentation:
+- README: full Vercel + Supabase deployment guide (Supabase project
+  setup, Vercel import, env vars, migration steps, login)
+- AGENTS.md: tech stack updated to PostgreSQL + Vercel serverless
+- Dockerfile: dummy DATABASE_URL updated to postgresql (kept for
+  Railway as alternative)
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

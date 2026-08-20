@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd server && npm install --legacy-peer-deps && npx prisma generate && cd ../client && npm install --legacy-peer-deps && npm run build",
+  "buildCommand": "npm install --legacy-peer-deps && DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy npx prisma generate --schema=server/prisma/schema.prisma && cd client && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "client/dist",
   "framework": "vite",
   "functions": {
