@@ -20,6 +20,27 @@ import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
 import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil } from 'lucide-react';
 
+const STATUS_ORDER = [
+  'NEW',
+  'ASSIGNED',
+  'INVESTIGATION',
+  'INSPECTION_SCHEDULED',
+  'INSPECTION_COMPLETED',
+  'DOCUMENTS_PENDING',
+  'DOCUMENTS_RECEIVED',
+  'ASSESSMENT',
+  'REPORT_DRAFT',
+  'REPORT_SUBMITTED',
+  'CLIENT_REVIEW',
+  'CLARIFICATION_NEEDED',
+  'CLARIFICATION_PROVIDED',
+  'SETTLEMENT',
+  'OFFER_SENT',
+  'FEE_INVOICED',
+  'PAYMENT_RECEIVED',
+  'CLOSED',
+];
+
 export default function ClaimDetail() {
   const { id } = useParams();
   return (
@@ -428,11 +449,17 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               >
-                {statuses.map((s) => (
-                  <option key={s.id} value={s.code}>
-                    {s.name}
-                  </option>
-                ))}
+                {statuses.map((s) => {
+                  const currentIdx = STATUS_ORDER.indexOf(claim.status?.code);
+                  const optionIdx = STATUS_ORDER.indexOf(s.code);
+                  const isBackward = optionIdx < currentIdx;
+                  const isCurrent = optionIdx === currentIdx;
+                  return (
+                    <option key={s.id} value={s.code} disabled={isBackward}>
+                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' — past' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>

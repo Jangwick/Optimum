@@ -557,8 +557,14 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
   const newStatus = await prisma.claimStatus.findFirst({ where: { code: statusCode } });
   if (!newStatus) throw new AppError('Invalid status', 400);
 
-  if (statusTransitions[claim.status.code]?.includes(statusCode) === false) {
-    throw new AppError(`Invalid status transition from ${claim.status.code} to ${statusCode}`, 400);
+  // Forward-only: allow advancing to any later status, never backward
+  const currentIdx = STATUS_ORDER.indexOf(claim.status.code);
+  const targetIdx = STATUS_ORDER.indexOf(statusCode);
+  if (targetIdx < currentIdx) {
+    throw new AppError(`Cannot move status backward from ${claim.status.code} to ${statusCode}`, 400);
+  }
+  if (targetIdx === currentIdx) {
+    throw new AppError(`Claim is already at ${statusCode}`, 400);
   }
 
   const updated = await prisma.claim.update({
