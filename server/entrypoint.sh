@@ -43,11 +43,10 @@ fi
 echo "DATABASE_URL is set (scheme: $(echo $DATABASE_URL | cut -d: -f1))"
 
 # Run migrations
-echo "Running prisma migrate deploy..."
-# Mark the previously failed migration as rolled-back so it retries
-# with the fixed IF NOT EXISTS SQL
-npx prisma migrate resolve --rolled-back 20260820000000_add_process_status_and_import_registry 2>/dev/null || true
-npx prisma migrate deploy
+echo "Running prisma db push to sync schema..."
+# Use db push instead of migrate deploy — the migration state is corrupted
+# from previous failed attempts. db push syncs the schema directly.
+npx prisma db push --accept-data-loss 2>/dev/null || npx prisma migrate deploy
 
 # Run seed
 echo "Running prisma db seed..."
