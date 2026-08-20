@@ -103,6 +103,263 @@ Imported closed/cancelled claims are marked `isReadOnly = true` and cannot be ed
 
 All amounts are displayed in Philippine Peso (₱ / PHP). Monetary values are stored as exact Decimal-compatible strings, not floating-point.
 
+## User Guide — Claims & Claim Details
+
+A step-by-step procedure for using the Claims Registry and Claim Detail page.
+
+### 1. Logging In
+
+1. Open **http://localhost:5173** in your browser.
+2. You will be redirected to the **Login page**.
+3. Enter your credentials:
+   - **Email**: `admin@optimum.com`
+   - **Password**: `ChangeMe123!`
+4. Click **Sign In**.
+5. You will land on the **Dashboard**.
+
+### 2. Claims Registry (`/claims`)
+
+The Claims Registry is the master list of all claims in the system.
+
+#### 2.1 Navigate to the Claims Registry
+- Click **Claims** in the left sidebar, OR
+- Click the **Claims** breadcrumb at the top.
+
+#### 2.2 Summary Cards
+At the top of the registry you will see four counters:
+
+| Card | Meaning |
+|---|---|
+| **Total Claims** | Every claim in the system |
+| **Active (Editable)** | Claims still being worked on (`isReadOnly = false`) |
+| **Historical** | Closed / read-only claims |
+| **Cancelled** | Claims marked as cancelled |
+
+#### 2.3 View Tabs
+Three tabs filter the table:
+- **Active** — claims you can still edit (default)
+- **Closed** — finished, read-only claims
+- **Cancelled** — cancelled claims
+
+#### 2.4 Search and Filter
+- **Search box**: Type any keyword (claim number, insured name, insurer) to filter rows instantly.
+- **Filter by process status**: Dropdown to show only claims at a specific 18-stage workflow stage (e.g. "New Claim", "Report Preparation", "Claim Closed").
+
+#### 2.5 Columns and Pagination
+- **Toggle columns** button: Show/hide table columns.
+- **Rows per page** dropdown: Choose 10, 25, 50, or 100 rows per page.
+- **Pagination buttons**: Move between pages if there are more claims than one page can show.
+
+#### 2.6 Export the Registry
+- Click **Export** to download the current filtered registry as a spreadsheet.
+
+#### 2.7 View a Claim's Details
+- Click the **View** button (eye icon) on any row to open that claim's full detail page.
+
+### 3. Creating a New Claim
+
+You can start a new claim from either the **Claims Registry** or the **Dashboard**.
+
+#### 3.1 Open the New Claim Modal
+- Click the **NEW CLAIM** button (top-right of Claims Registry or Dashboard).
+
+#### 3.2 Choose an Intake Mode
+The modal presents two options:
+
+| Mode | When to use |
+|---|---|
+| **From Policy** | The claim is linked to an existing policy already in the system |
+| **Record Assignment** | Direct, Excel-style entry — no policy needed (matches the old workbook flow) |
+
+##### Option A: From Policy
+1. Click **From Policy**.
+2. **Policy & Parties** section:
+   - Select a **Policy** from the dropdown (e.g. `POL-2026-0001 · XYZ Retail · Global Insurance`).
+3. **Loss Information** section:
+   - **Date of Loss** *(required)* — pick the date the loss occurred.
+   - **Location** — where the loss happened.
+   - **Estimated Loss** — initial peso estimate.
+   - **Reserve** — reserve amount.
+   - **Description** *(required)* — describe what happened.
+4. **Assignments** section:
+   - **Engineer** — select the assigned field engineer.
+   - **Accountant** — select the assigned accountant.
+5. Click **Create Claim**.
+
+##### Option B: Record Assignment (Excel-style)
+1. Click **Record Assignment**.
+2. Fill in the direct-entry fields (OCS Ref #, insured, insurer, broker, dates, etc.) — these mirror the columns from the legacy Excel workbook.
+3. Click **Create Claim**.
+
+#### 3.3 After Creation
+- The modal closes.
+- You are automatically navigated to the new claim's **Claim Detail** page.
+- The claim appears in the Claims Registry with status **New Claim**.
+- A `CLAIM_CREATED` audit log entry is written.
+- The Dashboard **Total Claims** count increases by 1.
+
+### 4. Claim Detail Page (`/claims/:id`)
+
+This is where the full lifecycle of a single claim is managed. It has **11 tabs**.
+
+#### 4.1 Header Area
+- **Back to Claims** button — return to the registry.
+- **Claim number** (e.g. `CS-2026-0003`) and claim type.
+- **Current process status pill** — colored badge showing the workflow stage.
+- **Internal status** — the legacy internal status (ASSIGNED, INVESTIGATION, etc.).
+- **Breadcrumbs** — Dashboard › Claims › [Claim Number].
+
+#### 4.2 Tab 1: Summary
+Read-only overview of the claim's master data.
+
+- **Claim Summary**: OCS Ref #, Assignment #, Insurer Claim #, Handling Adjuster, Insured, Insurer, Broker, Policy No., Policy Type, Date of Loss, Nature of Loss, Location, Received, Date Inspected, Description.
+- **Financial Summary**: Estimated Loss, Reserve, Claimed Amount, Proposed Settlement, Agreed Settlement (all in ₱).
+- **Assignment**: Engineer, Accountant, Assigned By, Contact.
+- **Update Status** panel (right side): Change the legacy internal status with notes.
+- **Status History**: Timeline of past status transitions.
+
+#### 4.3 Tab 2: Process Status
+Advance the claim through the 18-stage workflow.
+
+The 18 stages in order:
+```
+NEW_CLAIM → CLAIM_ASSIGNED → INITIAL_REVIEW → CONTACTED_INSURED →
+SITE_INSPECTION_SCHEDULED → UNDER_INVESTIGATION → INSPECTION_COMPLETED →
+DOCUMENTS_REQUIRED → DOCUMENTS_RECEIVED → LOSS_ASSESSMENT →
+RESERVE_LOSS_ESTIMATE_PREPARED → REPORT_PREPARATION → REPORT_SUBMITTED →
+CLIENT_REVIEW → FURTHER_CLARIFICATION → ADJUSTMENT_COMPLETED →
+CLAIM_SETTLED → CLAIM_CLOSED
+```
+
+How to use it:
+1. Select the next status from the dropdown (only allowed transitions are shown).
+2. Add **Notes** explaining the transition.
+3. Click **Update Status**.
+4. The system:
+   - Persists the new status to the database.
+   - Creates a **status history** record.
+   - Writes a `PROCESS_STATUS_CHANGED` **audit log**.
+   - Sends **notifications** to the assigned Engineer and Accountant.
+   - Updates the status pill in the header.
+
+**Closing guards**: Before moving to `CLAIM_CLOSED`, the system checks that a submitted report exists and fee/invoice conditions are met. If not met, you must provide an **override reason**.
+
+#### 4.4 Tab 3: Investigation
+Record investigation findings and inspection details.
+
+- Create / edit / delete investigation records.
+- Record findings, dates, and notes.
+- Upload inspection photos.
+- Each action is audit-logged (`INVESTIGATION_CREATED`, `INSPECTION_PHOTO_UPLOADED`, etc.).
+
+#### 4.5 Tab 4: Documents
+Manage the document checklist and upload files.
+
+- A **drag-and-drop dropzone** lets you upload files (click to select or drag files in).
+- Documents are categorized (e.g. Police Report, Photos, Policy, etc.).
+- Mark documents as **Received** once they arrive.
+- Delete documents if needed.
+- Each action is audit-logged (`DOCUMENT_UPLOADED`, `DOCUMENT_RECEIVED`, `DOCUMENT_DELETED`).
+
+#### 4.6 Tab 5: Assessment
+Record loss assessment and reserve / loss estimate details.
+
+- Create assessment records with loss evaluation data.
+- Set the reserve and estimated loss amounts.
+- These values feed into the **Financial Summary** on the Summary tab.
+
+#### 4.7 Tab 6: Settlement
+Manage settlement records and offers.
+
+- Create a settlement record for the claim.
+- Add **offers** (proposed settlement amounts) with a maximum of ₱9,999,999,999,999.99.
+- Record **offer responses** (accepted / rejected) with response metadata.
+- Each action is audit-logged (`SETTLEMENT_SAVED`, `OFFER_CREATED`, `OFFER_RESPONDED`).
+- Settlement must exist before the claim can move to `CLAIM_SETTLED`.
+
+#### 4.8 Tab 7: Finance
+Track fees, invoices, and payments (Accountant's workspace).
+
+- **Fees**: Create fee records for the adjustment service.
+- **Invoices**: Generate invoices for fees.
+- **Payments**: Record payments received.
+- Each action is audit-logged (`FEE_CREATED`, `INVOICE_CREATED`, `PAYMENT_RECORDED`).
+- Fee / invoice conditions are checked by the closing guards before `CLAIM_CLOSED`.
+
+#### 4.9 Tab 8: Reports
+Generate, submit, and clarify reports.
+
+- Create report drafts.
+- Generate reports from Word / PDF templates.
+- **Submit** reports to the client (required before closing).
+- Create **clarifications** if the client has questions.
+- **Answer** clarifications.
+- Each action is audit-logged (`REPORT_GENERATED`, `CLARIFICATION_CREATED`, `CLARIFICATION_ANSWERED`).
+
+#### 4.10 Tab 9: Insurer Panel
+Manage insurer participation and financials for the claim.
+
+- Add / update / remove insurers on the panel.
+- Track each insurer's financial contribution.
+- Each action is audit-logged (`CLAIM_INSURER_ADDED / UPDATED / REMOVED`).
+
+#### 4.11 Tab 10: Timeline
+Read-only chronological feed of everything that happened on the claim.
+
+- Aggregates: process status history, activities, correspondence, document events, report events, settlement events.
+- Filter by event type.
+- This is the audit trail for the claim's lifecycle.
+
+#### 4.12 Tab 11: Tasks
+Create and track tasks related to the claim.
+
+- Create tasks with: title, description, assigned to, priority (LOW / MEDIUM / HIGH), due date.
+- Task status workflow: `PENDING` → `IN PROGRESS` → `COMPLETED`.
+- Edit and delete tasks.
+- Task counts feed into the Dashboard (**Open Tasks**, **Overdue**).
+
+### 5. Full Claim Lifecycle (End-to-End)
+
+| Step | Who | Where | What happens |
+|---|---|---|---|
+| 1 | Admin | Claims Registry / Dashboard | Click **NEW CLAIM**, fill in details, assign Engineer & Accountant |
+| 2 | Admin | Claim Detail → Process Status | Move from `NEW_CLAIM` → `CLAIM_ASSIGNED` |
+| 3 | Engineer | Investigation tab | Perform initial review, record findings |
+| 4 | Admin / Engineer | Process Status | Move to `INITIAL_REVIEW` → `CONTACTED_INSURED` |
+| 5 | Engineer | Investigation tab | Schedule inspection, upload photos |
+| 6 | — | Process Status | Move to `SITE_INSPECTION_SCHEDULED` → `UNDER_INVESTIGATION` → `INSPECTION_COMPLETED` |
+| 7 | Engineer | Documents tab | Request required documents, upload received docs, mark as received |
+| 8 | — | Process Status | Move to `DOCUMENTS_REQUIRED` → `DOCUMENTS_RECEIVED` |
+| 9 | Engineer | Assessment tab | Record loss assessment and reserve estimate |
+| 10 | — | Process Status | Move to `LOSS_ASSESSMENT` → `RESERVE_LOSS_ESTIMATE_PREPARED` |
+| 11 | Engineer | Reports tab | Prepare report draft, generate from template |
+| 12 | — | Process Status | Move to `REPORT_PREPARATION` → `REPORT_SUBMITTED` |
+| 13 | Admin | Process Status | Move to `CLIENT_REVIEW` |
+| 14 | Admin | Reports tab | If client has questions, create clarification → answer it |
+| 15 | — | Process Status | Move to `FURTHER_CLARIFICATION` → back to `CLIENT_REVIEW` |
+| 16 | — | Process Status | Move to `ADJUSTMENT_COMPLETED` |
+| 17 | Admin | Settlement tab | Create settlement record, add offers, record accepted offer |
+| 18 | — | Process Status | Move to `CLAIM_SETTLED` (settlement guard checked) |
+| 19 | Accountant | Finance tab | Record fees, create invoices, record payments |
+| 20 | Admin | Process Status | Move to `CLAIM_CLOSED` (closing guards checked — report + fees) |
+| 21 | System | Automatic | Claim becomes read-only, appears in **Closed** tab of Claims Registry |
+
+### 6. Where Each Action Is Reflected
+
+When you complete an action in any tab, the result shows up in:
+
+| Location | What updates |
+|---|---|
+| **Current tab** | Immediate display of the saved data |
+| **Summary tab** | Financial values, statuses, assignment info |
+| **Process Status tab** | Status history timeline |
+| **Timeline tab** | Chronological event feed |
+| **Tasks tab** | Task list and counts |
+| **Dashboard** | Total claims, financial aggregates, open / overdue tasks, recent activity |
+| **Claims Registry** | Status pill color, Active / Closed / Cancelled tab placement |
+| **Audit Logs** (`/audit-logs`) | Every mutation is logged with user, action, timestamp |
+| **Database** | The source of truth — all data persists to MySQL |
+
 ## License
 
 Proprietary — Claims Solutions Insurance Adjustment, Inc.
