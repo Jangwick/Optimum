@@ -1,33 +1,30 @@
-# ---- Build stage ----
-FROM node:22-slim AS builder
+# ---- Builder: client only ----
+FROM node:22-slim AS client-builder
 
-WORKDIR /app
+WORKDIR /app/client
 
-# Install dependencies for both client and server
-COPY package.json package-lock.json* ./
-COPY server/package.json server/package-lock.json* ./server/
-COPY client/package.json client/package-lock.json* ./client/
+COPY client/package.json client/package-lock.json* ./
+RUN rm -f package-lock.json && npm install --legacy-peer-deps --no-optional
 
-# Remove lockfiles to avoid npm edgesOut compatibility issues
-RUN rm -f package-lock.json server/package-lock.json client/package-lock.json
+COPY client/ .
+RUN npm run build
 
-# Skip Puppeteer browser download (Chromium installed in production stage)
+# ---- Builder: prisma generate only ----
+FROM node:22-slim AS prisma-builder
+
+WORKDIR /app/server
+
 ENV PUPPETEER_SKIP_DOWNLOAD=true
-# Dummy DATABASE_URL for prisma generate (not used at build time)
 ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 
-RUN npm install --legacy-peer-deps
-RUN cd server && npm install --legacy-peer-deps
-RUN cd client && npm install --legacy-peer-deps
+# Only install what prisma generate needs (not puppeteer, bcrypt, express, etc.)
+COPY server/package.json server/package-lock.json* ./
+RUN rm -f package-lock.json && npm install --legacy-peer-deps --no-optional \
+    prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@^7.9.1 dotenv
 
-# Copy source and build
-COPY . .
-
-# Generate Prisma client
-RUN cd server && npx prisma generate
-
-# Build the client
-RUN cd client && npm run build
+COPY server/prisma ./prisma
+COPY server/prisma.config.js .
+RUN npx prisma generate
 
 # ---- Production stage ----
 FROM node:22-slim AS production
@@ -61,22 +58,20 @@ WORKDIR /app
 
 # Copy server package files and install production deps
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps
+RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --no-optional
 
 # Copy server source
 COPY server/src ./server/src
 COPY server/prisma ./server/prisma
+COPY server/prisma.config.js ./server/
 
-# Copy generated Prisma client
-COPY --from=builder /app/server/generated ./server/generated
+# Copy generated Prisma client from builder
+COPY --from=prisma-builder /app/server/generated ./server/generated
 
-# Copy built client
-COPY --from=builder /app/client/dist ./client/dist
+# Copy built client from builder
+COPY --from=client-builder /app/client/dist ./client/dist
 
-# Copy logo to public (already in client/dist via build)
-COPY --from=builder /app/client/public/logo.png ./client/dist/logo.png
-
-# Create directories for uploads and reports
+# Create directories
 RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/server/templates
 
 EXPOSE ${PORT:-3001}
