@@ -11,7 +11,7 @@ export const config = {
     }
     return 'dev-jwt-secret-change-in-production';
   })(),
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '24h').trim(),
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS || 12),
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   reportDir: process.env.REPORT_DIR || './reports',

@@ -48,9 +48,9 @@ echo "Running prisma db push to sync schema..."
 # from previous failed attempts. db push syncs the schema directly.
 npx prisma db push --accept-data-loss 2>/dev/null || npx prisma migrate deploy
 
-# Run seed
+# Run seed (don't fail if seed has issues — server can still start)
 echo "Running prisma db seed..."
-npx prisma db seed
+npx prisma db seed || echo "WARNING: Seed failed, continuing anyway..."
 
 # Start the server
 echo "Starting server..."
