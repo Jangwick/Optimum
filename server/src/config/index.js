@@ -3,7 +3,7 @@ import 'dotenv/config';
 export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3001),
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? '*' : 'http://localhost:5173'),
   databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET || (() => {
     if (process.env.NODE_ENV === 'production') {

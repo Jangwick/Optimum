@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/error.js';
@@ -29,6 +31,8 @@ import processStatusRoutes from './routes/process-status.routes.js';
 import importRoutes from './routes/import.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 
 app.use(helmet());
@@ -52,6 +56,9 @@ app.use(
   })
 );
 
+// Static file serving for uploads
+app.use('/uploads', express.static(path.resolve(config.uploadDir)));
+
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -74,6 +81,17 @@ app.use('/api/export', exportRoutes);
 app.use('/api/process-statuses', processStatusRoutes);
 app.use('/api/imports', importRoutes);
 app.use('/api/claims', activityRoutes);
+
+// Serve built client in production
+if (config.nodeEnv === 'production') {
+  const clientDist = path.resolve(__dirname, '../../client/dist');
+  app.use(express.static(clientDist));
+  // SPA fallback: serve index.html for non-API routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found' });

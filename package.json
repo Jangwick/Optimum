@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "concurrently -k -n 'SERVER,CLIENT' -c 'cyan,magenta' \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "build": "cd client && npm run build",
+    "build:full": "cd server && npx prisma generate && cd ../client && npm run build",
+    "start": "cd server && node src/server.js",
+    "start:prod": "cd server && npx prisma migrate deploy && npx prisma db seed && node src/server.js",
     "test": "cd server && npm test && cd ../client && npm test",
     "lint": "cd server && npm run lint && cd ../client && npm run lint",
     "format": "cd server && npm run format && cd ../client && npm run format"
