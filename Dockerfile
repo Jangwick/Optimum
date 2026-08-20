@@ -4,7 +4,7 @@ FROM node:22-slim AS client-builder
 WORKDIR /app/client
 
 COPY client/package.json client/package-lock.json* ./
-RUN rm -f package-lock.json && npm install --legacy-peer-deps --omit=optional
+RUN rm -f package-lock.json && npm install --legacy-peer-deps
 
 COPY client/ .
 RUN npm run build
