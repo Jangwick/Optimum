@@ -1555,8 +1555,9 @@ function ReportsTab({ claimId, onClaimChange }) {
       await generateReport(claimId, reportId);
       await load();
       onClaimChange?.();
-    } catch {
-      setError('Failed to generate report. Make sure Puppeteer is available.');
+    } catch (err) {
+      const serverMsg = err.response?.data?.error || err.message;
+      setError(`Failed to generate report: ${serverMsg}`);
     } finally {
       setGenerating(null);
     }
