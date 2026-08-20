@@ -14,9 +14,9 @@ RUN rm -f package-lock.json server/package-lock.json client/package-lock.json
 # Skip Puppeteer browser download (Chromium installed in production stage)
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
-RUN npm install
-RUN cd server && npm install
-RUN cd client && npm install
+RUN npm install --legacy-peer-deps
+RUN cd server && npm install --legacy-peer-deps
+RUN cd client && npm install --legacy-peer-deps
 
 # Copy source and build
 COPY . .
@@ -59,7 +59,7 @@ WORKDIR /app
 
 # Copy server package files and install production deps
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && rm -f package-lock.json && npm install --omit=dev
+RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps
 
 # Copy server source
 COPY server/src ./server/src
