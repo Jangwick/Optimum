@@ -214,12 +214,21 @@ async function main() {
   console.log('Seed complete.');
 }
 
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+// Export for use by server auto-seed
+export async function runSeed() {
+  await main();
+}
+
+// Run directly via `node prisma/seed.js` or `prisma db seed`
+const isMain = process.argv[1] && process.argv[1].endsWith('seed.js');
+if (isMain) {
+  main()
+    .then(async () => {
+      await prisma.$disconnect();
+    })
+    .catch(async (e) => {
+      console.error(e);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}
