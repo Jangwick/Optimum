@@ -57,7 +57,6 @@ RUN cd server && npm install --omit=dev --ignore-scripts
 # Copy server source
 COPY server/src ./server/src
 COPY server/prisma ./server/prisma
-COPY server/templates ./server/templates
 
 # Copy generated Prisma client
 COPY --from=builder /app/server/generated ./server/generated
@@ -69,7 +68,7 @@ COPY --from=builder /app/client/dist ./client/dist
 COPY --from=builder /app/client/public/logo.png ./client/dist/logo.png
 
 # Create directories for uploads and reports
-RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs
+RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/server/templates
 
 EXPOSE ${PORT:-3001}
 
