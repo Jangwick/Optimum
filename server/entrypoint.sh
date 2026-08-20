@@ -42,20 +42,6 @@ fi
 
 echo "DATABASE_URL is set (scheme: $(echo $DATABASE_URL | cut -d: -f1))"
 
-# Run migrations
-echo "Running prisma db push to sync schema..."
-# Use db push to sync schema directly — migration state is corrupted
-npx prisma db push --accept-data-loss || echo "WARNING: db push failed, trying migrate deploy..."
-npx prisma migrate deploy || echo "WARNING: migrate deploy failed, continuing..."
-
-# Run seed — retry up to 3 times
-echo "Running prisma db seed..."
-for i in 1 2 3; do
-  npx prisma db seed && break
-  echo "Seed attempt $i failed, retrying..."
-  sleep 2
-done || echo "WARNING: Seed failed after retries, continuing anyway..."
-
-# Start the server
+# Start the server — it handles schema sync and seeding itself
 echo "Starting server..."
 exec node src/server.js
