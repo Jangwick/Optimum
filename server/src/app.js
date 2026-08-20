@@ -36,6 +36,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
+// Trust proxy — Railway uses a reverse proxy
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(
   cors({
