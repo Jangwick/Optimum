@@ -17,15 +17,22 @@ export async function exportClaimsToExcel(filters, user) {
   if (filters.clientId) where.clientId = Number(filters.clientId);
 
   if (filters.view === 'active') {
-    where.isReadOnly = false;
-    where.isClosed = false;
+    where.AND = [
+      { isReadOnly: false },
+      { isClosed: false },
+      { isCancelled: false },
+      { status: { code: { not: 'CANCELLED' } } },
+    ];
   } else if (filters.view === 'closed') {
     where.OR = [
       { isReadOnly: true, isCancelled: false },
       { isClosed: true },
     ];
   } else if (filters.view === 'cancelled') {
-    where.isCancelled = true;
+    where.OR = [
+      { isCancelled: true },
+      { status: { code: 'CANCELLED' } },
+    ];
   }
 
   if (user.role === 'ENGINEER') where.engineerId = user.id;

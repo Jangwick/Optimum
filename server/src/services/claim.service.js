@@ -235,15 +235,22 @@ export async function getClaims(filters, user) {
 
   // View-based filtering: active, closed, cancelled
   if (view === 'active') {
-    where.isReadOnly = false;
-    where.isClosed = false;
+    where.AND = [
+      { isReadOnly: false },
+      { isClosed: false },
+      { isCancelled: false },
+      { status: { code: { not: 'CANCELLED' } } },
+    ];
   } else if (view === 'closed') {
     where.OR = [
       { isReadOnly: true, isCancelled: false },
       { isClosed: true },
     ];
   } else if (view === 'cancelled') {
-    where.isCancelled = true;
+    where.OR = [
+      { isCancelled: true },
+      { status: { code: 'CANCELLED' } },
+    ];
   }
 
   if (user.role === 'ENGINEER') where.engineerId = user.id;
