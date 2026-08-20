@@ -44,9 +44,9 @@ echo "DATABASE_URL is set (scheme: $(echo $DATABASE_URL | cut -d: -f1))"
 
 # Run migrations
 echo "Running prisma migrate deploy..."
-# Mark the problematic migration as applied — the tables already exist
-# from the first migration, so the second migration's CREATE TABLEs fail.
-npx prisma migrate resolve --applied 20260820000000_add_process_status_and_import_registry 2>/dev/null || true
+# Mark the previously failed migration as rolled-back so it retries
+# with the fixed IF NOT EXISTS SQL
+npx prisma migrate resolve --rolled-back 20260820000000_add_process_status_and_import_registry 2>/dev/null || true
 npx prisma migrate deploy
 
 # Run seed

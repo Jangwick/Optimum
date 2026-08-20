@@ -12,7 +12,7 @@
 -- New tables: registry entities
 -- ============================================================================
 
-CREATE TABLE `process_statuses` (
+CREATE TABLE IF NOT EXISTS `process_statuses` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   `code` varchar(50) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `process_statuses` (
   UNIQUE KEY `process_statuses_code_key` (`code`)
 );
 
-CREATE TABLE `brokers` (
+CREATE TABLE IF NOT EXISTS `brokers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `code` varchar(50) DEFAULT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE `brokers` (
   UNIQUE KEY `brokers_code_key` (`code`)
 );
 
-CREATE TABLE `insurance_company_aliases` (
+CREATE TABLE IF NOT EXISTS `insurance_company_aliases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `alias` varchar(255) NOT NULL,
   `normalizedAlias` varchar(255) NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE `insurance_company_aliases` (
   CONSTRAINT `insurance_company_aliases_insuranceCompanyId_fkey` FOREIGN KEY (`insuranceCompanyId`) REFERENCES `insurance_companies` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE `client_aliases` (
+CREATE TABLE IF NOT EXISTS `client_aliases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `alias` varchar(255) NOT NULL,
   `normalizedAlias` varchar(255) NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE `client_aliases` (
   CONSTRAINT `client_aliases_clientId_fkey` FOREIGN KEY (`clientId`) REFERENCES `clients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE `broker_aliases` (
+CREATE TABLE IF NOT EXISTS `broker_aliases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `alias` varchar(255) NOT NULL,
   `normalizedAlias` varchar(255) NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE `broker_aliases` (
   CONSTRAINT `broker_aliases_brokerId_fkey` FOREIGN KEY (`brokerId`) REFERENCES `brokers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE `adjuster_aliases` (
+CREATE TABLE IF NOT EXISTS `adjuster_aliases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `alias` varchar(100) NOT NULL,
   `normalizedAlias` varchar(100) NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE `adjuster_aliases` (
   CONSTRAINT `adjuster_aliases_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE `claim_type_aliases` (
+CREATE TABLE IF NOT EXISTS `claim_type_aliases` (
   `id` int NOT NULL AUTO_INCREMENT,
   `alias` varchar(255) NOT NULL,
   `normalizedAlias` varchar(255) NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE `claim_type_aliases` (
 -- because claim_activities references claim_import_rows)
 -- ============================================================================
 
-CREATE TABLE `claim_import_batches` (
+CREATE TABLE IF NOT EXISTS `claim_import_batches` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
   `fileName` varchar(255) NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE `claim_import_batches` (
   CONSTRAINT `claim_import_batches_importedById_fkey` FOREIGN KEY (`importedById`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE `claim_import_rows` (
+CREATE TABLE IF NOT EXISTS `claim_import_rows` (
   `id` int NOT NULL AUTO_INCREMENT,
   `importBatchId` int NOT NULL,
   `sourceSheet` varchar(100) NOT NULL,
@@ -166,7 +166,7 @@ CREATE TABLE `claim_import_rows` (
 -- New tables: dual status history, insurer panels, activities, correspondence
 -- ============================================================================
 
-CREATE TABLE `claim_process_status_history` (
+CREATE TABLE IF NOT EXISTS `claim_process_status_history` (
   `id` int NOT NULL AUTO_INCREMENT,
   `claimId` int NOT NULL,
   `processStatusId` int NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE `claim_process_status_history` (
   CONSTRAINT `claim_process_status_history_processStatusId_fkey` FOREIGN KEY (`processStatusId`) REFERENCES `process_statuses` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE `claim_insurers` (
+CREATE TABLE IF NOT EXISTS `claim_insurers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `claimId` int NOT NULL,
   `insuranceCompanyId` int NOT NULL,
@@ -209,7 +209,7 @@ CREATE TABLE `claim_insurers` (
   CONSTRAINT `claim_insurers_insuranceCompanyId_fkey` FOREIGN KEY (`insuranceCompanyId`) REFERENCES `insurance_companies` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE TABLE `claim_activities` (
+CREATE TABLE IF NOT EXISTS `claim_activities` (
   `id` int NOT NULL AUTO_INCREMENT,
   `claimId` int NOT NULL,
   `activityType` varchar(50) NOT NULL,
@@ -230,7 +230,7 @@ CREATE TABLE `claim_activities` (
   CONSTRAINT `claim_activities_importRowId_fkey` FOREIGN KEY (`importRowId`) REFERENCES `claim_import_rows` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE `claim_correspondence` (
+CREATE TABLE IF NOT EXISTS `claim_correspondence` (
   `id` int NOT NULL AUTO_INCREMENT,
   `claimId` int NOT NULL,
   `type` varchar(50) NOT NULL,
@@ -259,31 +259,31 @@ CREATE TABLE `claim_correspondence` (
 
 -- claims: new nullable columns for registry, dual status, import tracking
 ALTER TABLE `claims`
-  ADD COLUMN `insurerClaimNumber` varchar(150) DEFAULT NULL,
-  ADD COLUMN `brokerId` int DEFAULT NULL,
-  ADD COLUMN `brokerReference` varchar(150) DEFAULT NULL,
-  ADD COLUMN `processStatusId` int DEFAULT NULL,
-  ADD COLUMN `importBatchId` int DEFAULT NULL,
-  ADD COLUMN `importRowId` int DEFAULT NULL,
-  ADD COLUMN `assignedByName` varchar(150) DEFAULT NULL,
-  ADD COLUMN `natureOfLoss` text,
-  ADD COLUMN `locationOfLoss` text,
-  ADD COLUMN `policyPeriodText` text,
-  ADD COLUMN `policyCoverageText` text,
-  ADD COLUMN `claimedAmount` decimal(15,2) DEFAULT NULL,
-  ADD COLUMN `claimedAmountRaw` text,
-  ADD COLUMN `reserveRaw` text,
-  ADD COLUMN `proposedSettlement` decimal(15,2) DEFAULT NULL,
-  ADD COLUMN `proposedSettlementRaw` text,
-  ADD COLUMN `agreedSettlementRaw` text,
+  ADD COLUMN IF NOT EXISTS `insurerClaimNumber` varchar(150) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `brokerId` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `brokerReference` varchar(150) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `processStatusId` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `importBatchId` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `importRowId` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `assignedByName` varchar(150) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `natureOfLoss` text,
+  ADD COLUMN IF NOT EXISTS `locationOfLoss` text,
+  ADD COLUMN IF NOT EXISTS `policyPeriodText` text,
+  ADD COLUMN IF NOT EXISTS `policyCoverageText` text,
+  ADD COLUMN IF NOT EXISTS `claimedAmount` decimal(15,2) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `claimedAmountRaw` text,
+  ADD COLUMN IF NOT EXISTS `reserveRaw` text,
+  ADD COLUMN IF NOT EXISTS `proposedSettlement` decimal(15,2) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `proposedSettlementRaw` text,
+  ADD COLUMN IF NOT EXISTS `agreedSettlementRaw` text,
   ADD COLUMN IF NOT EXISTS `classification` varchar(50) DEFAULT NULL,
-  ADD COLUMN `remarksRaw` longtext,
-  ADD COLUMN `latestStatusRaw` longtext,
-  ADD COLUMN `letterFollowUpRaw` text,
-  ADD COLUMN `isIncomplete` tinyint(1) NOT NULL DEFAULT '0',
-  ADD COLUMN `incompleteReasons` json DEFAULT NULL,
-  ADD COLUMN `importedAt` datetime(3) DEFAULT NULL,
-  ADD COLUMN `lastUserModifiedAt` datetime(3) DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS `remarksRaw` longtext,
+  ADD COLUMN IF NOT EXISTS `latestStatusRaw` longtext,
+  ADD COLUMN IF NOT EXISTS `letterFollowUpRaw` text,
+  ADD COLUMN IF NOT EXISTS `isIncomplete` tinyint(1) NOT NULL DEFAULT '0',
+  ADD COLUMN IF NOT EXISTS `incompleteReasons` json DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `importedAt` datetime(3) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `lastUserModifiedAt` datetime(3) DEFAULT NULL;
 
 -- claims: new indexes and foreign keys
 ALTER TABLE `claims`
@@ -298,25 +298,25 @@ ALTER TABLE `claims`
 
 -- documents: new columns for historical/import provenance
 ALTER TABLE `documents`
-  ADD COLUMN `importBatchId` int DEFAULT NULL,
-  ADD COLUMN `isHistorical` tinyint(1) NOT NULL DEFAULT '0',
-  ADD COLUMN `source` varchar(20) NOT NULL DEFAULT 'USER',
-  ADD COLUMN `sourceRowNumber` int DEFAULT NULL,
-  ADD COLUMN `sourceText` text;
+  ADD COLUMN IF NOT EXISTS `importBatchId` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `isHistorical` tinyint(1) NOT NULL DEFAULT '0',
+  ADD COLUMN IF NOT EXISTS `source` varchar(20) NOT NULL DEFAULT 'USER',
+  ADD COLUMN IF NOT EXISTS `sourceRowNumber` int DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `sourceText` text;
 
 ALTER TABLE `documents`
   ADD KEY `documents_importBatchId_idx` (`importBatchId`);
 
 -- reports: new columns for historical/import provenance and milestones
 ALTER TABLE `reports`
-  ADD COLUMN `reportDate` datetime(3) DEFAULT NULL,
-  ADD COLUMN `clientResponseDate` datetime(3) DEFAULT NULL,
-  ADD COLUMN `submittedAt` datetime(3) DEFAULT NULL,
-  ADD COLUMN `revisedAt` datetime(3) DEFAULT NULL,
-  ADD COLUMN `isHistorical` tinyint(1) NOT NULL DEFAULT '0',
-  ADD COLUMN `sourceText` text,
-  ADD COLUMN `statusText` varchar(100) DEFAULT NULL,
-  ADD COLUMN `importBatchId` int DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS `reportDate` datetime(3) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `clientResponseDate` datetime(3) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `submittedAt` datetime(3) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `revisedAt` datetime(3) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `isHistorical` tinyint(1) NOT NULL DEFAULT '0',
+  ADD COLUMN IF NOT EXISTS `sourceText` text,
+  ADD COLUMN IF NOT EXISTS `statusText` varchar(100) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `importBatchId` int DEFAULT NULL;
 
 ALTER TABLE `reports`
   ADD KEY `reports_importBatchId_idx` (`importBatchId`);
