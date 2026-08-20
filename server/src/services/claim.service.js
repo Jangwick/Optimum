@@ -528,6 +528,8 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
 
   await logAction('STATUS_CHANGED', 'Claim', claimId, changedBy, { from: claim.status.code, to: statusCode, notes });
 
+  await recordActivity(claimId, 'STATUS_CHANGED', `Status changed from ${claim.status.code} to ${statusCode}${notes ? ` — ${notes}` : ''}`, changedBy);
+
   const notifyUsers = [updated.engineerId, updated.accountantId].filter(Boolean);
   for (const userId of notifyUsers) {
     await createNotification(userId, {
