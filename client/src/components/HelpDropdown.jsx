@@ -21,7 +21,7 @@ export function HelpDropdown() {
           className="p-2 text-primary hover:bg-surface-container-low rounded-full"
           aria-label="Help"
         >
-          <HelpCircle size={20} />
+          <HelpCircle size={22} />
         </MenuButton>
 
         <MenuItems className="absolute right-0 mt-2 w-64 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">

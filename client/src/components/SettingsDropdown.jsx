@@ -105,10 +105,10 @@ export function SettingsDropdown() {
     <>
       <Menu as="div" className="relative">
         <MenuButton className="flex items-center gap-2 p-1 rounded-full hover:bg-surface-container-low transition-colors">
-          <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-label-md font-semibold">
+          <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-body-sm font-semibold">
             {getInitials(user)}
           </div>
-          <ChevronDown size={14} className="text-outline" />
+          <ChevronDown size={16} className="text-outline" />
         </MenuButton>
 
         <MenuItems className="absolute right-0 mt-2 w-64 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">

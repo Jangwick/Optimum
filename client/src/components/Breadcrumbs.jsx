@@ -100,13 +100,13 @@ export function Breadcrumbs() {
   if (crumbs.length <= 1) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-body-sm min-w-0">
+    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-body-md min-w-0">
       {crumbs.map((crumb, idx) => {
         const isLast = idx === crumbs.length - 1;
         return (
-          <div key={crumb.path} className="flex items-center gap-1 min-w-0">
-            {idx === 0 && <Home size={14} className="text-outline shrink-0" />}
-            {idx > 0 && <ChevronRight size={14} className="text-outline shrink-0" />}
+          <div key={crumb.path} className="flex items-center gap-1.5 min-w-0">
+            {idx === 0 && <Home size={16} className="text-outline shrink-0" />}
+            {idx > 0 && <ChevronRight size={16} className="text-outline shrink-0" />}
             {isLast ? (
               <span className="text-on-surface font-medium truncate" aria-current="page">
                 {crumb.label}

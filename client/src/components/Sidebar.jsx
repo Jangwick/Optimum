@@ -28,10 +28,10 @@ export function Sidebar() {
     <nav className="fixed left-0 top-0 h-full w-[260px] bg-sidebar-bg text-white flex flex-col py-4 z-20">
       <div className="px-6 mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <img src="/logo.png" alt="Optimum Logo" className="w-8 h-8 object-contain" />
-          <h1 className="text-headline-sm font-semibold text-white">Optimum Claims</h1>
+          <img src="/logo.png" alt="Optimum Logo" className="w-10 h-10 object-contain" />
+          <h1 className="text-headline-md font-semibold text-white">Optimum Claims</h1>
         </div>
-        <p className="text-label-md text-on-primary/70 uppercase tracking-widest">Adjustment System</p>
+        <p className="text-body-sm text-on-primary/70 uppercase tracking-widest">Adjustment System</p>
       </div>
 
       <div className="flex-1 flex flex-col gap-1 px-4">
@@ -41,7 +41,7 @@ export function Sidebar() {
             to={item.href}
             end={item.href === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors relative ${
+              `flex items-center gap-3 px-4 py-3 rounded text-left text-body-md font-medium transition-colors relative ${
                 isActive
                   ? 'bg-primary-container/30 text-white'
                   : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
@@ -50,8 +50,8 @@ export function Sidebar() {
           >
             {({ isActive }) => (
               <>
-                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r" aria-hidden="true" />}
-                <item.icon size={20} strokeWidth={1.5} />
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-primary rounded-r" aria-hidden="true" />}
+                <item.icon size={22} strokeWidth={1.5} />
                 {item.label}
               </>
             )}
@@ -65,7 +65,7 @@ export function Sidebar() {
                 key={item.label}
                 to={item.href}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded text-left text-label-md transition-colors relative ${
+                  `flex items-center gap-3 px-4 py-3 rounded text-left text-body-md font-medium transition-colors relative ${
                     isActive
                       ? 'bg-primary-container/30 text-white'
                       : 'text-on-primary/70 hover:text-white hover:bg-primary-container/20'
@@ -74,8 +74,8 @@ export function Sidebar() {
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r" aria-hidden="true" />}
-                    <item.icon size={20} strokeWidth={1.5} />
+                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-primary rounded-r" aria-hidden="true" />}
+                    <item.icon size={22} strokeWidth={1.5} />
                     {item.label}
                   </>
                 )}

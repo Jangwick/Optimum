@@ -5,7 +5,7 @@ import { SettingsDropdown } from './SettingsDropdown.jsx';
 
 export function TopBar() {
   return (
-    <header className="h-14 bg-surface border-b border-surface-border flex items-center justify-between px-6 sticky top-0 z-10">
+    <header className="h-16 bg-surface border-b border-surface-border flex items-center justify-between px-6 sticky top-0 z-10">
       <div className="flex-1 min-w-0">
         <Breadcrumbs />
       </div>

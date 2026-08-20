@@ -70,7 +70,7 @@ export function NotificationsDropdown() {
             className="p-2 text-primary hover:bg-surface-container-low rounded-full relative"
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           >
-            <Bell size={20} />
+            <Bell size={22} />
             {unreadCount > 0 && (
               <span className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 bg-accent-orange rounded-full text-white text-[10px] font-semibold flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
