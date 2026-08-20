@@ -77,5 +77,6 @@ RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/serve
 EXPOSE ${PORT:-3001}
 
 # Run migrations, seed, then start
+# Construct DATABASE_URL from Railway MySQL variables if not already set
 WORKDIR /app/server
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node src/server.js"]
+CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQL_URL\" ]; then export DATABASE_URL=\"$MYSQL_URL\"; fi && if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQL_PRIVATE_URL\" ]; then export DATABASE_URL=\"$MYSQL_PRIVATE_URL\"; fi && if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQLHOST\" ]; then export DATABASE_URL=\"mysql://$MYSQLUSER:$MYSQLPASSWORD@$MYSQLHOST:$MYSQLPORT/$MYSQLDATABASE\"; fi && npx prisma migrate deploy && npx prisma db seed && node src/server.js"]
