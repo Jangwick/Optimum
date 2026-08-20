@@ -57,8 +57,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
       .finally(() => setLoading(false));
   }, [open, claim]);
 
-  const engineers = users.filter((u) => u.role === 'ENGINEER');
-  const accountants = users.filter((u) => u.role === 'ACCOUNTANT');
+  const employees = users.filter((u) => u.role === 'ENGINEER' || u.role === 'ACCOUNTANT');
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
@@ -230,24 +229,15 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
             </div>
           </div>
 
-          {/* Assignments */}
-          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Assignments</h3>
+          {/* Assignment */}
+          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Assignment</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-label-md text-outline uppercase mb-1.5">Engineer</label>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Assign Employee</label>
               <select value={form.engineerId} onChange={set('engineerId')} className={inputClass}>
                 <option value="">— None —</option>
-                {engineers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-label-md text-outline uppercase mb-1.5">Accountant</label>
-              <select value={form.accountantId} onChange={set('accountantId')} className={inputClass}>
-                <option value="">— None —</option>
-                {accountants.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
+                {employees.map((u) => (
+                  <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
                 ))}
               </select>
             </div>
