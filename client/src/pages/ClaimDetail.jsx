@@ -176,15 +176,6 @@ export function ClaimDetailContent({ claimId }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            {user?.role === 'ADMIN' && !claim.isReadOnly && (
-              <button
-                onClick={() => setShowEdit(true)}
-                className="inline-flex items-center gap-1.5 h-9 px-3 border border-outline text-on-surface-variant rounded-lg text-body-sm font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
-              >
-                <Pencil size={16} />
-                Edit Claim
-              </button>
-            )}
             {claim.processStatus && (
               <span
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-md font-medium"
@@ -271,7 +262,7 @@ export function ClaimDetailContent({ claimId }) {
             ))}
           </div>
 
-          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} />}
+          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} />}
           {activeTab === 'process' && <ProcessStatusTab claim={claim} processStatuses={processStatuses} selectedProcessStatus={selectedProcessStatus} setSelectedProcessStatus={setSelectedProcessStatus} processNote={processNote} setProcessNote={setProcessNote} overrideReason={overrideReason} setOverrideReason={setOverrideReason} onTransition={handleProcessTransition} closingGuards={closingGuards} isAdmin={user?.role === 'ADMIN'} />}
           {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
@@ -288,7 +279,7 @@ export function ClaimDetailContent({ claimId }) {
   );
 }
 
-function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition }) {
+function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition, onEditClaim, canEdit }) {
   const fin = claim.financials || {};
 
   // Build compact timeline from processHistory + activities + correspondence
@@ -329,9 +320,20 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Claim Summary</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <FileText size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Claim Summary</h3>
+            </div>
+            {canEdit && (
+              <button
+                onClick={onEditClaim}
+                className="inline-flex items-center gap-1.5 h-9 px-3 border border-outline text-on-surface-variant rounded-lg text-body-sm font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
+              >
+                <Pencil size={16} />
+                Edit Claim
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="OCS Ref #" value={claim.claimNumber} mono />
