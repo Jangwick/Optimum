@@ -79,8 +79,8 @@ export async function updateProfile(userId, data) {
 export function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: config.nodeEnv === 'production',
-    sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
+    secure: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24h
   });
 }

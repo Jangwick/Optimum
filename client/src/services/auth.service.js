@@ -7,6 +7,11 @@ export async function login(credentials) {
 
 export async function logout() {
   await api.post('/auth/logout');
+  try {
+    localStorage.removeItem('token');
+  } catch {
+    // ignore
+  }
 }
 
 export async function getMe() {

@@ -10,7 +10,7 @@ export async function loginHandler(req, res, next) {
     const { token, user } = await login(email, password);
     setAuthCookie(res, token);
 
-    res.json({ success: true, user });
+    res.json({ success: true, token, user });
   } catch (err) {
     next(err);
   }
