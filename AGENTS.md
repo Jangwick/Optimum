@@ -28,6 +28,6 @@
 ## Tech Stack (MVP)
 
 - React 18 + Vite 6 + Tailwind CSS 4
-- Node.js 22 + Express 4 (serverless on Vercel)
-- PostgreSQL (Supabase) + Prisma 7
-- JWT + bcrypt, Multer, docxtemplater, puppeteer (optional), exceljs
+- Node.js 22 + Express 4
+- MySQL 8 + Prisma 7
+- JWT + bcrypt, Multer, docxtemplater, puppeteer, exceljs

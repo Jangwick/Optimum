@@ -36,84 +36,62 @@ Copy `.env.example` files to `.env` and fill in real values before running in pr
 
 ## Production Deployment
 
-### Vercel + Supabase (recommended)
+### Railway (recommended)
 
-The project is configured for deployment on Vercel (frontend + serverless API) with Supabase (PostgreSQL database).
+The project includes a `Dockerfile` and `railway.json` for one-click Railway deployment.
 
-#### Prerequisites
+#### Steps
 
-1. A [Vercel](https://vercel.com) account
-2. A [Supabase](https://supabase.com) account
-3. The [Vercel CLI](https://vercel.com/docs/cli): `npm i -g vercel`
+1. **Push your code to GitHub** (Railway deploys from a Git repo).
 
-#### Step 1: Create a Supabase project
+2. **Create a new project on Railway**:
+   - Go to [railway.app](https://railway.app) and sign in.
+   - Click **New Project** → **Deploy from GitHub repo**.
+   - Select your repository.
 
-1. Go to [supabase.com](https://supabase.com) and create a new project.
-2. Wait for the database to provision.
-3. Go to **Project Settings → Database** and copy the **Connection string** (URI format).
-   It looks like: `postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres`
+3. **Add a MySQL database**:
+   - In the Railway project, click **Add** → **Database** → **Add MySQL**.
+   - Railway creates a MySQL instance and provides connection variables.
 
-#### Step 2: Deploy to Vercel
-
-1. Push your code to GitHub.
-
-2. Import the repo on Vercel:
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Select your GitHub repository
-   - Vercel auto-detects Vite from `vercel.json`
-
-3. Set environment variables (Settings → Environment Variables):
-   See `.env.vercel.example` for the full list:
+4. **Set environment variables** on the server service:
+   - Go to your service → **Variables** tab.
+   - Add the following (see `.env.railway.example` for reference):
 
    | Variable | Value |
    |----------|-------|
-   | `DATABASE_URL` | Supabase connection string from Step 1 |
+   | `NODE_ENV` | `production` |
+   | `PORT` | `3001` (Railway auto-detects, but set explicitly) |
+   | `DATABASE_URL` | Reference the MySQL addon's `MYSQL_URL` (Railway will suggest this) |
    | `JWT_SECRET` | Generate with `openssl rand -hex 32` |
    | `JWT_EXPIRES_IN` | `24h` |
    | `BCRYPT_ROUNDS` | `12` |
-   | `NODE_ENV` | `production` |
-   | `CLIENT_URL` | Your Vercel domain or `*` |
    | `UPLOAD_DIR` | `/tmp/uploads` |
    | `REPORT_DIR` | `/tmp/reports` |
+   | `CLIENT_URL` | Your Railway public URL (e.g. `https://your-app.up.railway.app`) or `*` |
 
-4. Deploy. Vercel will:
-   - Install server dependencies and generate the Prisma client
-   - Install client dependencies and build the Vite app
-   - Deploy the Express API as a serverless function at `/api/*`
-   - Serve the React client for all other routes
+5. **Set a custom start command** (if not auto-detected from `railway.json`):
+   ```
+   sh -c "npx prisma migrate deploy && npx prisma db seed && node src/server.js"
+   ```
 
-#### Step 3: Run database migrations
+6. **Deploy**:
+   - Railway will build the Docker image, run Prisma migrations, seed the database, and start the server.
+   - The Express server serves both the API (`/api/*`) and the built React client (all other routes).
 
-After the first deploy, run migrations against Supabase:
+7. **Generate a public domain**:
+   - Go to your service → **Settings** → **Networking** → **Generate Domain**.
+   - Update `CLIENT_URL` to match the generated domain.
 
-```bash
-# Set DATABASE_URL to your Supabase connection string
-cd server
-npx prisma migrate deploy
-npx prisma db seed
-```
-
-Or use the Vercel CLI:
-```bash
-vercel env pull .env.local
-cd server
-npx prisma migrate deploy
-npx prisma db seed
-```
-
-#### Step 4: Login
-
-- URL: `https://your-app.vercel.app`
-- Email: `admin@optimum.com`
-- Password: `ChangeMe123!`
-- **Change the password immediately after first login.**
+8. **Login** with the default admin:
+   - Email: `admin@optimum.com`
+   - Password: `ChangeMe123!`
+   - **Change the password immediately after first login.**
 
 #### Notes
 
-- **Database**: Supabase provides PostgreSQL. The Prisma schema uses `provider = "postgresql"`.
-- **Puppeteer**: PDF report generation is gracefully skipped on Vercel serverless (no Chrome). DOCX generation still works.
-- **File uploads**: Stored in `/tmp` (ephemeral). For persistent storage, configure Supabase Storage or S3 and update `server/src/middleware/upload.js`.
-- **API timeout**: Vercel Pro allows 60s serverless function timeout (set in `vercel.json`).
+- Puppeteer/Chromium is installed in the Docker image for PDF report generation.
+- File uploads are stored in `/tmp/uploads` (ephemeral). For persistent storage, configure an S3-compatible service and update `server/src/middleware/upload.js`.
+- Railway's free tier provides limited hours. See [Railway pricing](https://railway.app/pricing) for details.
 
 ### Manual / VPS Deployment
 

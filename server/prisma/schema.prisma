@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 model Role {
@@ -297,8 +297,8 @@ model Claim {
   depreciation            Decimal?  @db.Decimal(18,2)
   adjustedLoss            Decimal?  @db.Decimal(18,2)
   classification          String?   @db.VarChar(50)
-  remarksRaw              String?   @db.Text
-  latestStatusRaw         String?   @db.Text
+  remarksRaw              String?   @db.LongText
+  latestStatusRaw         String?   @db.LongText
   letterFollowUpRaw       String?   @db.Text
   handlingAdjuster        String?   @db.VarChar(100)
   dateInspected           DateTime?
