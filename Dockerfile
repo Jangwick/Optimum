@@ -11,6 +11,9 @@ COPY client/package.json client/package-lock.json* ./client/
 # Remove lockfiles to avoid npm edgesOut compatibility issues
 RUN rm -f package-lock.json server/package-lock.json client/package-lock.json
 
+# Skip Puppeteer browser download (Chromium installed in production stage)
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 RUN npm install
 RUN cd server && npm install
 RUN cd client && npm install
@@ -49,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
