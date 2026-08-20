@@ -119,6 +119,7 @@ export default function Claims() {
   } = useList();
 
   const [data, setData] = useState({ items: [], count: 0 });
+  const [globalCounts, setGlobalCounts] = useState({ total: 0, active: 0, closed: 0, cancelled: 0 });
   const [claimStatuses, setClaimStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -152,6 +153,24 @@ export default function Claims() {
       .finally(() => setLoading(false));
   }, [page, limit, search, filters, view, sortField, sortOrder, refresh]);
 
+  // Fetch global counts (not filtered by view) for metric cards
+  useEffect(() => {
+    Promise.all([
+      getClaims({ page: 1, limit: 1, view: 'active' }),
+      getClaims({ page: 1, limit: 1, view: 'closed' }),
+      getClaims({ page: 1, limit: 1, view: 'cancelled' }),
+    ])
+      .then(([active, closed, cancelled]) => {
+        setGlobalCounts({
+          active: active.count,
+          closed: closed.count,
+          cancelled: cancelled.count,
+          total: active.count + closed.count + cancelled.count,
+        });
+      })
+      .catch(() => {});
+  }, [refresh]);
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -173,15 +192,18 @@ export default function Claims() {
 
   const summaryStats = useMemo(() => {
     const items = data.items;
-    const active = items.filter((c) => !c.isReadOnly).length;
-    const readOnly = items.filter((c) => c.isReadOnly && !c.isCancelled).length;
-    const cancelled = items.filter((c) => c.isCancelled).length;
     const totalClaimed = items.reduce((sum, c) => {
       const amt = parseFloat(c.claimedAmount);
       return sum + (isNaN(amt) ? 0 : amt);
     }, 0);
-    return { active, readOnly, cancelled, totalClaimed, total: data.count };
-  }, [data]);
+    return {
+      active: globalCounts.active,
+      readOnly: globalCounts.closed,
+      cancelled: globalCounts.cancelled,
+      totalClaimed,
+      total: globalCounts.total,
+    };
+  }, [data, globalCounts]);
 
   const columns = [
     {
