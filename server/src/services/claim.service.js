@@ -236,9 +236,12 @@ export async function getClaims(filters, user) {
   // View-based filtering: active, closed, cancelled
   if (view === 'active') {
     where.isReadOnly = false;
+    where.isClosed = false;
   } else if (view === 'closed') {
-    where.isReadOnly = true;
-    where.isCancelled = false;
+    where.OR = [
+      { isReadOnly: true, isCancelled: false },
+      { isClosed: true },
+    ];
   } else if (view === 'cancelled') {
     where.isCancelled = true;
   }

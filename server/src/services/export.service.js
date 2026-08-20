@@ -18,9 +18,12 @@ export async function exportClaimsToExcel(filters, user) {
 
   if (filters.view === 'active') {
     where.isReadOnly = false;
+    where.isClosed = false;
   } else if (filters.view === 'closed') {
-    where.isReadOnly = true;
-    where.isCancelled = false;
+    where.OR = [
+      { isReadOnly: true, isCancelled: false },
+      { isClosed: true },
+    ];
   } else if (filters.view === 'cancelled') {
     where.isCancelled = true;
   }
