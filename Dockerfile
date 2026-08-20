@@ -57,8 +57,10 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 WORKDIR /app
 
 # Copy server package files and install production deps
+# Include prisma (devDep) for runtime migrations via prisma.config.js
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --omit=optional
+RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --omit=optional \
+    prisma@7.9.1
 
 # Copy server source
 COPY server/src ./server/src
