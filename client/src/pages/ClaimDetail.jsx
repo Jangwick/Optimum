@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
-import { getProcessStatuses, updateProcessStatus, getClosingGuards } from '../services/import.service.js';
 import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument } from '../services/document.service.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
@@ -41,12 +40,7 @@ export function ClaimDetailContent({ claimId }) {
   const navigate = useNavigate();
   const [claim, setClaim] = useState(null);
   const [statuses, setStatuses] = useState([]);
-  const [processStatuses, setProcessStatuses] = useState([]);
-  const [closingGuards, setClosingGuards] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [selectedProcessStatus, setSelectedProcessStatus] = useState('');
-  const [processNote, setProcessNote] = useState('');
-  const [overrideReason, setOverrideReason] = useState('');
   const [statusNote, setStatusNote] = useState('');
   const [activeTab, setActiveTab] = useState('summary');
   const [loading, setLoading] = useState(true);
@@ -67,16 +61,13 @@ export function ClaimDetailContent({ claimId }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [claimData, statusesData, processData] = await Promise.all([
+      const [claimData, statusesData] = await Promise.all([
         getClaim(claimId),
         getClaimStatuses(),
-        getProcessStatuses(),
       ]);
       setClaim(claimData.item);
       setStatuses(statusesData.items);
-      setProcessStatuses(processData.items || []);
       setSelectedStatus(claimData.item.status?.code || '');
-      setSelectedProcessStatus(claimData.item.processStatus?.code || '');
       setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
     } finally {
       setLoading(false);
@@ -87,17 +78,6 @@ export function ClaimDetailContent({ claimId }) {
     load(refresh > 0);
   }, [load, refresh]);
 
-  // Load closing guards when process status approaches CLAIM_CLOSED or CLAIM_SETTLED
-  useEffect(() => {
-    if (
-      selectedProcessStatus === 'CLAIM_CLOSED' ||
-      selectedProcessStatus === 'CLAIM_SETTLED' ||
-      claim?.processStatus?.code === 'ADJUSTMENT_COMPLETED'
-    ) {
-      getClosingGuards(claimId).then((res) => setClosingGuards(res.item)).catch(() => {});
-    }
-  }, [claimId, claim?.processStatus?.code, selectedProcessStatus]);
-
   const handleTransition = async (e) => {
     e.preventDefault();
     if (!selectedStatus || selectedStatus === claim.status?.code) return;
@@ -106,33 +86,8 @@ export function ClaimDetailContent({ claimId }) {
     setRefresh((r) => r + 1);
   };
 
-  const handleProcessTransition = async (e) => {
-    e.preventDefault();
-    if (!selectedProcessStatus || selectedProcessStatus === claim.processStatus?.code) return;
-    const payload = { statusCode: selectedProcessStatus, notes: processNote };
-    if ((selectedProcessStatus === 'CLAIM_CLOSED' || selectedProcessStatus === 'CLAIM_SETTLED') && overrideReason) {
-      payload.isOverride = true;
-      payload.overrideReason = overrideReason;
-    }
-    // Read-only records always require override
-    if (claim.isReadOnly && overrideReason) {
-      payload.isOverride = true;
-      payload.overrideReason = overrideReason;
-    }
-    try {
-      await updateProcessStatus(claimId, payload);
-      setProcessNote('');
-      setOverrideReason('');
-      setRefresh((r) => r + 1);
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Transition failed';
-      alert(msg);
-    }
-  };
-
   const tabs = [
     { key: 'summary', label: 'Summary', icon: FileText },
-    { key: 'process', label: 'Process Status', icon: GitBranch },
     { key: 'investigation', label: 'Investigation', icon: Search },
     { key: 'documents', label: 'Documents', icon: FolderOpen },
     { key: 'assessment', label: 'Assessment', icon: ClipboardCheck },
@@ -263,7 +218,6 @@ export function ClaimDetailContent({ claimId }) {
           </div>
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} />}
-          {activeTab === 'process' && <ProcessStatusTab claim={claim} processStatuses={processStatuses} selectedProcessStatus={selectedProcessStatus} setSelectedProcessStatus={setSelectedProcessStatus} processNote={processNote} setProcessNote={setProcessNote} overrideReason={overrideReason} setOverrideReason={setOverrideReason} onTransition={handleProcessTransition} closingGuards={closingGuards} isAdmin={user?.role === 'ADMIN'} />}
           {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={claimId} onClaimChange={onClaimChange} />}
@@ -2258,150 +2212,6 @@ function TasksTab({ claimId, onClaimChange }) {
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function ProcessStatusTab({ claim, processStatuses, selectedProcessStatus, setSelectedProcessStatus, processNote, setProcessNote, overrideReason, setOverrideReason, onTransition, closingGuards, isAdmin }) {
-  const needsOverride =
-    claim.isReadOnly ||
-    selectedProcessStatus === 'CLAIM_CLOSED' ||
-    selectedProcessStatus === 'CLAIM_SETTLED';
-  const guardsNotMet = needsOverride && closingGuards && !closingGuards.canClose;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <GitBranch size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">18-Stage Workflow Status</h3>
-          </div>
-          <div className="mb-4">
-            <p className="text-label-md text-outline uppercase mb-1.5">Current Process Status</p>
-            {claim.processStatus && (
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-md font-medium"
-                style={{ backgroundColor: `${claim.processStatus.color}1a`, color: claim.processStatus.color }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: claim.processStatus.color }} />
-                {claim.processStatus.name}
-              </span>
-            )}
-          </div>
-
-          {claim.isReadOnly && (
-            <div className="mb-4 bg-accent-orange/5 border border-accent-orange/30 rounded-lg p-3 text-accent-orange text-body-sm flex items-start gap-2">
-              <Lock size={16} className="mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium">This is a read-only historical record.</p>
-                <p className="mt-0.5 text-on-surface-variant">Any status change requires an Admin override with a reason.</p>
-              </div>
-            </div>
-          )}
-
-          {isAdmin && (
-            <form onSubmit={onTransition} className="space-y-4">
-              <div>
-                <label className="block text-label-md text-outline uppercase mb-1.5">New Status</label>
-                <select
-                  value={selectedProcessStatus}
-                  onChange={(e) => setSelectedProcessStatus(e.target.value)}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                >
-                  {processStatuses.map((s) => (
-                    <option key={s.code} value={s.code}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
-                <textarea
-                  value={processNote}
-                  onChange={(e) => setProcessNote(e.target.value)}
-                  rows={3}
-                  placeholder="Add transition notes..."
-                  className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
-                />
-              </div>
-              {guardsNotMet && (
-                <div className="bg-error-container/10 border border-error/30 rounded p-4 space-y-3">
-                  <p className="text-body-md font-medium text-error">Guards not met:</p>
-                  <ul className="text-body-sm text-on-surface list-disc list-inside">
-                    {closingGuards.reasons?.map((r, i) => <li key={i}>{r}</li>)}
-                  </ul>
-                </div>
-              )}
-              {needsOverride && (
-                <div>
-                  <label className="block text-label-md text-outline uppercase mb-1.5">
-                    Override reason {claim.isReadOnly ? '(required for read-only records)' : '(Admin only)'}
-                  </label>
-                  <input
-                    type="text"
-                    value={overrideReason}
-                    onChange={(e) => setOverrideReason(e.target.value)}
-                    placeholder="Provide a reason to override"
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                  />
-                </div>
-              )}
-              <button type="submit" className="w-full h-10 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors inline-flex items-center justify-center gap-2">
-                <GitBranch size={16} />
-                Update Process Status
-              </button>
-            </form>
-          )}
-
-          {!isAdmin && (
-            <p className="text-body-md text-on-surface-variant">Only Admins can change process status.</p>
-          )}
-        </section>
-      </div>
-
-      <div className="space-y-6">
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Process History</h3>
-          </div>
-          {claim.processHistory?.length ? (
-            <ul className="space-y-4 text-body-sm">
-              {claim.processHistory.map((h) => (
-                <li key={h.id} className="relative pl-6 pb-4 last:pb-0">
-                  <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-primary/20" />
-                  <span className="absolute left-[3.5px] top-4 bottom-0 w-px bg-surface-border" />
-                  <p className="font-medium text-on-surface">{h.status?.name || h.status?.code}</p>
-                  <p className="text-on-surface-variant mt-0.5">{h.notes || 'No notes'}</p>
-                  {h.isOverride && <p className="text-label-sm text-error mt-1">Override: {h.overrideReason}</p>}
-                  <p className="text-label-sm text-outline mt-1 font-mono">
-                    {h.changedBy} · {new Date(h.createdAt).toLocaleString()}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-on-surface-variant text-body-sm">No process history yet.</p>
-          )}
-        </section>
-
-        {closingGuards && (
-          <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle size={18} className="text-primary" />
-              <h3 className="text-headline-sm font-semibold text-primary">Closing Guards</h3>
-            </div>
-            <p className={`text-body-md font-medium ${closingGuards.canClose ? 'text-success' : 'text-error'}`}>
-              {closingGuards.canClose ? 'Ready to close' : 'Not ready to close'}
-            </p>
-            {closingGuards.reasons?.length > 0 && (
-              <ul className="mt-2 text-body-sm text-on-surface-variant list-disc list-inside">
-                {closingGuards.reasons.map((r, i) => <li key={i}>{r}</li>)}
-              </ul>
-            )}
-          </section>
-        )}
-      </div>
     </div>
   );
 }
