@@ -64,6 +64,7 @@ RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer
 COPY server/src ./server/src
 COPY server/prisma ./server/prisma
 COPY server/prisma.config.js ./server/
+COPY server/entrypoint.sh ./server/
 
 # Copy generated Prisma client from builder
 COPY --from=prisma-builder /app/server/generated ./server/generated
@@ -76,7 +77,7 @@ RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/serve
 
 EXPOSE ${PORT:-3001}
 
-# Run migrations, seed, then start
-# Construct DATABASE_URL from Railway MySQL variables if not already set
+# Run migrations, seed, then start via entrypoint script
 WORKDIR /app/server
-CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQL_URL\" ]; then export DATABASE_URL=\"$MYSQL_URL\"; fi && if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQL_PRIVATE_URL\" ]; then export DATABASE_URL=\"$MYSQL_PRIVATE_URL\"; fi && if [ -z \"$DATABASE_URL\" ] && [ -n \"$MYSQLHOST\" ]; then export DATABASE_URL=\"mysql://$MYSQLUSER:$MYSQLPASSWORD@$MYSQLHOST:$MYSQLPORT/$MYSQLDATABASE\"; fi && npx prisma migrate deploy && npx prisma db seed && node src/server.js"]
+RUN chmod +x entrypoint.sh
+CMD ["sh", "entrypoint.sh"]
