@@ -26,12 +26,17 @@ export function Sidebar() {
 
   return (
     <nav className="fixed left-0 top-0 h-full w-[260px] bg-sidebar-bg text-white flex flex-col py-4 z-20">
-      <div className="px-6 mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <img src="/logo.png" alt="Optimum Logo" className="w-10 h-10 object-contain" />
-          <h1 className="text-headline-md font-semibold text-white">Optimum Claims</h1>
+      <div className="px-5 mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0 ring-1 ring-white/15">
+            <img src="/logo.png" alt="Optimum Logo" className="w-7 h-7 object-contain" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-headline-sm font-bold text-white leading-tight">Optimum Claims</h1>
+            <p className="text-label-md text-on-primary/60 uppercase tracking-widest mt-0.5">Adjustment System</p>
+          </div>
         </div>
-        <p className="text-body-sm text-on-primary/70 uppercase tracking-widest">Adjustment System</p>
+        <div className="h-px bg-white/10" />
       </div>
 
       <div className="flex-1 flex flex-col gap-1 px-4">
