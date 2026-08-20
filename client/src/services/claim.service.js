@@ -15,6 +15,11 @@ export async function createClaim(payload) {
   return data;
 }
 
+export async function updateClaim(id, payload) {
+  const { data } = await api.patch(`/claims/${id}`, payload);
+  return data;
+}
+
 export async function updateClaimStatus(id, payload) {
   const { data } = await api.patch(`/claims/${id}/status`, payload);
   return data;

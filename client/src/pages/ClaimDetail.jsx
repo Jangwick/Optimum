@@ -15,10 +15,11 @@ import { formatCurrency } from '../utils/currency.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
+import { EditClaimModal } from '../components/EditClaimModal.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil } from 'lucide-react';
 
 export default function ClaimDetail() {
   const { id } = useParams();
@@ -50,6 +51,7 @@ export function ClaimDetailContent({ claimId }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
+  const [showEdit, setShowEdit] = useState(false);
 
   const onClaimChange = useCallback(() => setRefresh((r) => r + 1), []);
 
@@ -174,6 +176,15 @@ export function ClaimDetailContent({ claimId }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
+            {user?.role === 'ADMIN' && !claim.isReadOnly && (
+              <button
+                onClick={() => setShowEdit(true)}
+                className="inline-flex items-center gap-1.5 h-9 px-3 border border-outline text-on-surface-variant rounded-lg text-body-sm font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
+              >
+                <Pencil size={16} />
+                Edit Claim
+              </button>
+            )}
             {claim.processStatus && (
               <span
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-label-md font-medium"
@@ -271,6 +282,8 @@ export function ClaimDetailContent({ claimId }) {
           {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} onClaimChange={onClaimChange} />}
           {activeTab === 'timeline' && <TimelineTab claim={claim} />}
           {activeTab === 'tasks' && <TasksTab claimId={claimId} onClaimChange={onClaimChange} />}
+
+          <EditClaimModal open={showEdit} onClose={() => setShowEdit(false)} claim={claim} onSaved={() => setRefresh((r) => r + 1)} />
     </div>
   );
 }
