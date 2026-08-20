@@ -20,12 +20,7 @@ async function syncSchema() {
 
 async function autoSeed() {
   try {
-    const userCount = await prisma.user.count();
-    if (userCount > 0) {
-      logger.info(`Database has ${userCount} user(s), skipping auto-seed.`);
-      return;
-    }
-    logger.info('No users found — running auto-seed...');
+    logger.info('Running auto-seed (idempotent upserts)...');
 
     const { runSeed } = await import('../prisma/seed.js');
     if (typeof runSeed === 'function') {
