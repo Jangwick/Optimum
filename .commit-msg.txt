@@ -1,0 +1,15 @@
+fix: resolve duplicate column migration error on Railway
+
+The second migration (20260820000000_add_process_status_and_import_registry)
+tried to ADD COLUMN `classification` which already existed in the
+first migration (20260819174440_init), causing:
+  Error: P3018 - Duplicate column name 'classification'
+
+Fix:
+- Changed ADD COLUMN to ADD COLUMN IF NOT EXISTS for `classification`
+- Updated entrypoint.sh to mark the failed migration as rolled-back
+  before running migrate deploy, so Prisma can retry it
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
