@@ -5,12 +5,14 @@ import {
   Users,
   Building2,
   History,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: FileText, label: 'Claims', href: '/claims' },
+  { icon: BarChart3, label: 'Reports', href: '/reports' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
 ];
 
