@@ -553,6 +553,9 @@ export async function updateClaim(claimId, data, updatedBy) {
   if (data.brokerId !== undefined) updateData.brokerId = data.brokerId ? Number(data.brokerId) : null;
   if (data.brokerReference !== undefined) updateData.brokerReference = data.brokerReference;
   if (data.assignedByName !== undefined) updateData.assignedByName = data.assignedByName;
+  if (data.handlingAdjuster !== undefined) updateData.handlingAdjuster = data.handlingAdjuster || null;
+  if (data.policyNumber !== undefined) updateData.policyNumber = data.policyNumber || null;
+  if (data.policyType !== undefined) updateData.policyType = data.policyType || null;
 
   // Relations
   if (data.clientId !== undefined) updateData.clientId = data.clientId ? Number(data.clientId) : null;
@@ -570,6 +573,11 @@ export async function updateClaim(claimId, data, updatedBy) {
   if (data.dateOfLoss !== undefined) updateData.dateOfLoss = data.dateOfLoss ? new Date(data.dateOfLoss) : null;
   if (data.policyPeriodText !== undefined) updateData.policyPeriodText = data.policyPeriodText;
   if (data.policyCoverageText !== undefined) updateData.policyCoverageText = data.policyCoverageText;
+
+  // Key dates
+  if (data.dateInspected !== undefined) updateData.dateInspected = data.dateInspected ? new Date(data.dateInspected) : null;
+  if (data.letterRequestDate !== undefined) updateData.letterRequestDate = data.letterRequestDate ? new Date(data.letterRequestDate) : null;
+  if (data.denialLetterDate !== undefined) updateData.denialLetterDate = data.denialLetterDate ? new Date(data.denialLetterDate) : null;
 
   // Financial
   if (data.estimatedLoss !== undefined) updateData.estimatedLoss = data.estimatedLoss ? Number(data.estimatedLoss) : 0;

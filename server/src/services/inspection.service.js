@@ -30,6 +30,12 @@ export async function createInspection(claimId, data, userId) {
     include: { photos: true },
   });
   await recordActivity(claimId, 'INSPECTION_CREATED', `Inspection scheduled${data.location ? ` at ${data.location}` : ''}`, userId);
+
+  // Sync claim.dateInspected when an inspection has a conductedAt date
+  if (data.conductedAt) {
+    await prisma.claim.update({ where: { id: Number(claimId) }, data: { dateInspected: new Date(data.conductedAt) } });
+  }
+
   return inspection;
 }
 
@@ -51,6 +57,18 @@ export async function updateInspection(id, data, userId) {
   } else {
     await recordActivity(inspection.claimId, 'INSPECTION_UPDATED', 'Inspection updated', userId);
   }
+
+  // Sync claim.dateInspected to the latest inspection's conductedAt
+  if (data.conductedAt) {
+    const latest = await prisma.inspection.findFirst({
+      where: { claimId: inspection.claimId, conductedAt: { not: null } },
+      orderBy: { conductedAt: 'desc' },
+    });
+    if (latest?.conductedAt) {
+      await prisma.claim.update({ where: { id: inspection.claimId }, data: { dateInspected: latest.conductedAt } });
+    }
+  }
+
   return updated;
 }
 

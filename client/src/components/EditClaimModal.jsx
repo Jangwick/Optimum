@@ -31,10 +31,15 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
       brokerReference: claim.brokerReference || '',
       assignedByName: claim.assignedByName || '',
       handlingAdjuster: claim.handlingAdjuster || '',
+      policyNumber: claim.policyNumber || '',
+      policyType: claim.policyType || '',
       natureOfLoss: claim.natureOfLoss || '',
       locationOfLoss: claim.locationOfLoss || '',
       description: claim.description || '',
       dateOfLoss: claim.dateOfLoss ? new Date(claim.dateOfLoss).toISOString().slice(0, 10) : '',
+      dateInspected: claim.dateInspected ? new Date(claim.dateInspected).toISOString().slice(0, 10) : '',
+      letterRequestDate: claim.letterRequestDate ? new Date(claim.letterRequestDate).toISOString().slice(0, 10) : '',
+      denialLetterDate: claim.denialLetterDate ? new Date(claim.denialLetterDate).toISOString().slice(0, 10) : '',
       policyPeriodText: claim.policyPeriodText || '',
       policyCoverageText: claim.policyCoverageText || '',
       engineerId: claim.engineerId || '',
@@ -123,6 +128,27 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
             </div>
           </div>
 
+          {/* Policy text fields */}
+          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Policy Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Policy No. (free text)</label>
+              <input type="text" value={form.policyNumber} onChange={set('policyNumber')} className={inputClass} placeholder="Used when no policy is linked" />
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Type of Policy</label>
+              <input type="text" value={form.policyType} onChange={set('policyType')} className={inputClass} placeholder="e.g. Fire, Marine, Motor" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-label-md text-outline uppercase mb-1.5">Policy Period</label>
+              <input type="text" value={form.policyPeriodText} onChange={set('policyPeriodText')} className={inputClass} placeholder="e.g. January 1, 2024 - January 1, 2025" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-label-md text-outline uppercase mb-1.5">Policy Coverage / Sum Insured</label>
+              <input type="text" value={form.policyCoverageText} onChange={set('policyCoverageText')} className={inputClass} />
+            </div>
+          </div>
+
           {/* Parties */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Insured &amp; Insurance</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -166,19 +192,6 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
             </div>
           </div>
 
-          {/* Policy text fields */}
-          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Policy Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-label-md text-outline uppercase mb-1.5">Policy Period</label>
-              <input type="text" value={form.policyPeriodText} onChange={set('policyPeriodText')} className={inputClass} placeholder="e.g. January 1, 2024 - January 1, 2025" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-label-md text-outline uppercase mb-1.5">Policy Coverage / Sum Insured</label>
-              <input type="text" value={form.policyCoverageText} onChange={set('policyCoverageText')} className={inputClass} />
-            </div>
-          </div>
-
           {/* Loss info */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Loss Information</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -197,6 +210,23 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
             <div className="col-span-2">
               <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
               <textarea value={form.description} onChange={set('description')} rows={3} className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" />
+            </div>
+          </div>
+
+          {/* Key Dates */}
+          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Key Dates</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Date Inspected</label>
+              <input type="date" value={form.dateInspected} onChange={set('dateInspected')} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Letter Request</label>
+              <input type="date" value={form.letterRequestDate} onChange={set('letterRequestDate')} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Denial Letter</label>
+              <input type="date" value={form.denialLetterDate} onChange={set('denialLetterDate')} className={inputClass} />
             </div>
           </div>
 
