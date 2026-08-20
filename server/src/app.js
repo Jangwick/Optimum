@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { config } from './config/index.js';
@@ -82,9 +83,9 @@ app.use('/api/export', exportRoutes);
 app.use('/api/process-statuses', processStatusRoutes);
 app.use('/api/claims', activityRoutes);
 
-// Serve built client in production
-if (config.nodeEnv === 'production') {
-  const clientDist = path.resolve(__dirname, '../../client/dist');
+// Serve built client (works in production and when client/dist exists)
+const clientDist = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
   // SPA fallback: serve index.html for non-API routes
   app.get('*', (req, res, next) => {
