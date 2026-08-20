@@ -8,9 +8,12 @@ COPY package.json package-lock.json* ./
 COPY server/package.json server/package-lock.json* ./server/
 COPY client/package.json client/package-lock.json* ./client/
 
-RUN npm install --ignore-scripts
-RUN cd server && npm install --ignore-scripts
-RUN cd client && npm install --ignore-scripts
+# Remove lockfiles to avoid npm edgesOut compatibility issues
+RUN rm -f package-lock.json server/package-lock.json client/package-lock.json
+
+RUN npm install
+RUN cd server && npm install
+RUN cd client && npm install
 
 # Copy source and build
 COPY . .
@@ -52,7 +55,7 @@ WORKDIR /app
 
 # Copy server package files and install production deps
 COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && npm install --omit=dev --ignore-scripts
+RUN cd server && rm -f package-lock.json && npm install --omit=dev
 
 # Copy server source
 COPY server/src ./server/src
