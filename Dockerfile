@@ -13,6 +13,8 @@ RUN rm -f package-lock.json server/package-lock.json client/package-lock.json
 
 # Skip Puppeteer browser download (Chromium installed in production stage)
 ENV PUPPETEER_SKIP_DOWNLOAD=true
+# Dummy DATABASE_URL for prisma generate (not used at build time)
+ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 
 RUN npm install --legacy-peer-deps
 RUN cd server && npm install --legacy-peer-deps
