@@ -610,6 +610,19 @@ export async function updateClaim(claimId, data, updatedBy) {
   });
 
   await logAction('CLAIM_UPDATED', 'Claim', claimId, updatedBy, { fields: Object.keys(updateData) });
+
+  // Record activity for assignment changes
+  const assignmentChanges = [];
+  if (data.engineerId !== undefined) {
+    assignmentChanges.push(`Engineer: ${updated.engineer ? updated.engineer.firstName + ' ' + updated.engineer.lastName : 'Unassigned'}`);
+  }
+  if (data.accountantId !== undefined) {
+    assignmentChanges.push(`Accountant: ${updated.accountant ? updated.accountant.firstName + ' ' + updated.accountant.lastName : 'Unassigned'}`);
+  }
+  if (assignmentChanges.length > 0) {
+    await recordActivity(claimId, 'ASSIGNMENT_UPDATED', `Assignment updated — ${assignmentChanges.join(', ')}`, updatedBy);
+  }
+
   return formatClaim(updated);
 }
 
