@@ -62,24 +62,27 @@ export function ClaimDetailContent({ claimId }) {
     }
   }, [activeTab]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [claimData, statusesData, processData] = await Promise.all([
-      getClaim(claimId),
-      getClaimStatuses(),
-      getProcessStatuses(),
-    ]);
-    setClaim(claimData.item);
-    setStatuses(statusesData.items);
-    setProcessStatuses(processData.items || []);
-    setSelectedStatus(claimData.item.status?.code || '');
-    setSelectedProcessStatus(claimData.item.processStatus?.code || '');
-    setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
-    setLoading(false);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [claimData, statusesData, processData] = await Promise.all([
+        getClaim(claimId),
+        getClaimStatuses(),
+        getProcessStatuses(),
+      ]);
+      setClaim(claimData.item);
+      setStatuses(statusesData.items);
+      setProcessStatuses(processData.items || []);
+      setSelectedStatus(claimData.item.status?.code || '');
+      setSelectedProcessStatus(claimData.item.processStatus?.code || '');
+      setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
+    } finally {
+      setLoading(false);
+    }
   }, [claimId]);
 
   useEffect(() => {
-    load();
+    load(refresh > 0);
   }, [load, refresh]);
 
   // Load closing guards when process status approaches CLAIM_CLOSED or CLAIM_SETTLED
