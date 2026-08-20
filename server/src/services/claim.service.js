@@ -560,10 +560,11 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
   const newStatus = await prisma.claimStatus.findFirst({ where: { code: statusCode } });
   if (!newStatus) throw new AppError('Invalid status', 400);
 
-  // Forward-only: allow advancing to any later status, never backward
+  // Forward-only: allow advancing to any later status, never backward.
+  // CANCELLED is a terminal state allowed from any status.
   const currentIdx = STATUS_ORDER.indexOf(claim.status.code);
   const targetIdx = STATUS_ORDER.indexOf(statusCode);
-  if (targetIdx < currentIdx) {
+  if (statusCode !== 'CANCELLED' && targetIdx < currentIdx) {
     throw new AppError(`Cannot move status backward from ${claim.status.code} to ${statusCode}`, 400);
   }
   if (targetIdx === currentIdx) {
@@ -577,6 +578,7 @@ export async function updateStatus(claimId, { statusCode, notes = '' }, changedB
       isClosed: statusCode === 'CLOSED',
       closedAt: statusCode === 'CLOSED' ? new Date() : null,
       closedById: statusCode === 'CLOSED' ? changedBy : null,
+      isCancelled: statusCode === 'CANCELLED',
     },
     include: {
       policy: { include: { client: true, insuranceCompany: true } },

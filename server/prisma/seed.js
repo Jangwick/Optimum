@@ -20,6 +20,7 @@ const statuses = [
   { name: 'Fee Invoiced', code: 'FEE_INVOICED', color: '#2b3a8c', isTerminal: false, sortOrder: 160 },
   { name: 'Payment Received', code: 'PAYMENT_RECEIVED', color: '#28a745', isTerminal: false, sortOrder: 170 },
   { name: 'Closed', code: 'CLOSED', color: '#28a745', isTerminal: true, sortOrder: 180 },
+  { name: 'Cancelled', code: 'CANCELLED', color: '#bc0100', isTerminal: true, sortOrder: 190 },
 ];
 
 // 18-stage primary workflow status — the primary status dimension for

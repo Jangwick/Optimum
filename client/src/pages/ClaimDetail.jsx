@@ -39,6 +39,7 @@ const STATUS_ORDER = [
   'FEE_INVOICED',
   'PAYMENT_RECEIVED',
   'CLOSED',
+  'CANCELLED',
 ];
 
 export default function ClaimDetail() {
@@ -452,7 +453,8 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                 {statuses.map((s) => {
                   const currentIdx = STATUS_ORDER.indexOf(claim.status?.code);
                   const optionIdx = STATUS_ORDER.indexOf(s.code);
-                  const isBackward = optionIdx < currentIdx;
+                  const isCancelled = s.code === 'CANCELLED';
+                  const isBackward = !isCancelled && optionIdx < currentIdx;
                   const isCurrent = optionIdx === currentIdx;
                   return (
                     <option key={s.id} value={s.code} disabled={isBackward}>

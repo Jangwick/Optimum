@@ -49,6 +49,7 @@ const STATUS_COLORS = {
   FEE_INVOICED: { bg: 'bg-primary-container/15', text: 'text-primary-container', dot: 'bg-primary-container' },
   PAYMENT_RECEIVED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
   CLOSED: { bg: 'bg-success-green/10', text: 'text-success-green', dot: 'bg-success-green' },
+  CANCELLED: { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
 };
 
 function StatusPill({ code, name }) {
