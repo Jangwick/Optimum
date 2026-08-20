@@ -9,7 +9,6 @@ import { getReports, createReport, generateReport, askClarification, getDownload
 import { getTasks, createTask, updateTask, deleteTask } from '../services/task.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
-import { api } from '../services/api.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
@@ -1482,10 +1481,8 @@ function SettlementTab({ claimId, onClaimChange }) {
 
 function ReportsTab({ claimId, onClaimChange }) {
   const [reports, setReports] = useState([]);
-  const [templates, setTemplates] = useState([]);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [reportTemplateId, setReportTemplateId] = useState('');
   const [clarification, setClarification] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1496,12 +1493,8 @@ function ReportsTab({ claimId, onClaimChange }) {
     setLoading(true);
     setError(null);
     try {
-      const [{ items }, { data: tData }] = await Promise.all([
-        getReports(claimId),
-        api.get('/report-templates'),
-      ]);
+      const { items } = await getReports(claimId);
       setReports(items || []);
-      setTemplates(tData.items || []);
     } catch {
       setError('Failed to load reports');
     } finally {
@@ -1520,11 +1513,9 @@ function ReportsTab({ claimId, onClaimChange }) {
     setError(null);
     try {
       const payload = { title, notes };
-      if (reportTemplateId) payload.reportTemplateId = reportTemplateId;
       await createReport(claimId, payload);
       setTitle('');
       setNotes('');
-      setReportTemplateId('');
       await load();
       onClaimChange?.();
     } catch {
@@ -1648,19 +1639,6 @@ function ReportsTab({ claimId, onClaimChange }) {
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               required
             />
-          </div>
-          <div>
-            <label className="block text-label-md text-outline uppercase mb-1.5">Template</label>
-            <select
-              value={reportTemplateId}
-              onChange={(e) => setReportTemplateId(e.target.value)}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-            >
-              <option value="">Default HTML template</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-              ))}
-            </select>
           </div>
         </div>
         <div>

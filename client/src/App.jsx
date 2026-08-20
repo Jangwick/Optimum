@@ -8,7 +8,6 @@ import ClaimDetail from './pages/ClaimDetail.jsx';
 import NewClaim from './pages/NewClaim.jsx';
 import MasterData from './pages/MasterData.jsx';
 import AuditLogs from './pages/AuditLogs.jsx';
-import Templates from './pages/Templates.jsx';
 import Employees from './pages/Employees.jsx';
 import ImportWizard from './pages/ImportWizard.jsx';
 
@@ -88,16 +87,6 @@ export default function App() {
           <ProtectedRoute roles={['ADMIN']}>
             <ErrorBoundary>
               <AuditLogs />
-            </ErrorBoundary>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/templates"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <ErrorBoundary>
-              <Templates />
             </ErrorBoundary>
           </ProtectedRoute>
         }

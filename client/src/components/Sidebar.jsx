@@ -4,7 +4,6 @@ import {
   FileText,
   Users,
   Building2,
-  FileSpreadsheet,
   History,
   LogOut,
   Upload,
@@ -16,7 +15,6 @@ const navItems = [
   { icon: FileText, label: 'Claims', href: '/claims' },
   { icon: Users, label: 'Employees', href: '/employees' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
-  { icon: FileSpreadsheet, label: 'Templates', href: '/templates' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },
 ];
 

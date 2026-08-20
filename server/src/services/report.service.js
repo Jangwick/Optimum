@@ -44,7 +44,7 @@ async function defaultTemplateId() {
 }
 
 export async function createReportDraft(claimId, data, userId) {
-  const templateId = data.reportTemplateId ? Number(data.reportTemplateId) : await defaultTemplateId();
+  const templateId = await defaultTemplateId();
   const report = await prisma.report.create({
     data: {
       claimId: Number(claimId),

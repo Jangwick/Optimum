@@ -8,7 +8,6 @@ const SEGMENT_LABELS = {
   new: 'New Claim',
   employees: 'Employees',
   'master-data': 'Master Data',
-  templates: 'Templates',
   'audit-logs': 'Audit Logs',
   imports: 'Import Wizard',
 };

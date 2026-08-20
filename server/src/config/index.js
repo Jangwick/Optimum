@@ -15,6 +15,5 @@ export const config = {
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS || 12),
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   reportDir: process.env.REPORT_DIR || './reports',
-  templateDir: process.env.TEMPLATE_DIR || './templates',
   maxFileSize: Number(process.env.MAX_FILE_SIZE || 20 * 1024 * 1024),
 };
