@@ -1,11 +1,10 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileText,
   Users,
   Building2,
   History,
-  LogOut,
   Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -23,17 +22,7 @@ const adminNavItems = [
 ];
 
 export function Sidebar() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
-
-  const initials = user
-    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
-    : '?';
+  const { user } = useAuth();
 
   return (
     <nav className="fixed left-0 top-0 h-full w-[260px] bg-sidebar-bg text-white flex flex-col py-4 z-20">
@@ -94,25 +83,6 @@ export function Sidebar() {
             ))}
           </>
         )}
-      </div>
-
-      <div className="px-4 mt-auto flex flex-col gap-1">
-        <div className="px-4 py-3 flex items-center gap-3 text-on-primary/70 border-t border-white/10 mb-2">
-          <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-label-md font-semibold">
-            {initials}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-body-sm text-white truncate">{user?.fullName}</p>
-            <p className="text-label-sm text-on-primary/70 truncate">{user?.role}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded text-left text-on-primary/70 hover:text-white hover:bg-primary-container/20 transition-colors text-label-md"
-        >
-          <LogOut size={20} strokeWidth={1.5} />
-          Logout
-        </button>
       </div>
     </nav>
   );
