@@ -12,12 +12,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: FileText, label: 'Claims', href: '/claims' },
-  { icon: Users, label: 'Employees', href: '/employees' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
-  { icon: History, label: 'Audit Logs', href: '/audit-logs' },
 ];
 
 const adminNavItems = [
+  { icon: Users, label: 'Employees', href: '/employees' },
+  { icon: History, label: 'Audit Logs', href: '/audit-logs' },
   { icon: Upload, label: 'Import Wizard', href: '/imports' },
 ];
 

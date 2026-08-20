@@ -94,7 +94,7 @@ export default function App() {
       <Route
         path="/employees"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['ADMIN']}>
             <ErrorBoundary>
               <Employees />
             </ErrorBoundary>
