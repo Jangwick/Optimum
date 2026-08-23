@@ -760,6 +760,7 @@ export function DocumentPreview({ claimId, documents = [] }) {
 
 export function InspectionSummary({ claimId, inspections = [] }) {
   const [open, setOpen] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(null);
   if (inspections.length === 0) return null;
 
   const inspection = inspections[0];
@@ -855,11 +856,18 @@ export function InspectionSummary({ claimId, inspections = [] }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {photos.map((photo) => (
                   <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden">
-                    <img
-                      src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
-                      alt={photo.originalName}
-                      className="w-full h-48 object-cover bg-surface-container-high"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setViewingPhoto(photo)}
+                      className="w-full block cursor-zoom-in"
+                      title="Click to view full size"
+                    >
+                      <img
+                        src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
+                        alt={photo.originalName}
+                        className="w-full h-48 object-cover bg-surface-container-high"
+                      />
+                    </button>
                     <figcaption className="p-3 text-body-sm">
                       <p className="font-medium text-on-surface break-words">{photo.originalName}</p>
                       {photo.caption && <p className="text-on-surface-variant mt-1">{photo.caption}</p>}
@@ -871,6 +879,51 @@ export function InspectionSummary({ claimId, inspections = [] }) {
           )}
         </div>
       </Modal>
+
+      {viewingPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setViewingPhoto(null)}
+        >
+          <div
+            className="bg-surface rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-surface-border">
+              <div className="min-w-0">
+                <p className="text-body-md font-semibold text-on-surface truncate">{viewingPhoto.originalName}</p>
+                {viewingPhoto.caption && (
+                  <p className="text-body-sm text-on-surface-variant truncate">{viewingPhoto.caption}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
+                  download={viewingPhoto.originalName}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  title="Download"
+                >
+                  <Download size={18} />
+                </a>
+                <button
+                  onClick={() => setViewingPhoto(null)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
+              <img
+                src={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
+                alt={viewingPhoto.originalName}
+                className="max-w-full max-h-[65vh] rounded-lg object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
