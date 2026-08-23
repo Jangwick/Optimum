@@ -3,15 +3,14 @@ import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
-import path from 'path';
 import fs from 'fs';
-import { resolveFilePath, toRelativePath } from '../utils/file-path.js';
+import { resolveFilePath } from '../utils/file-path.js';
 
 export async function listInspections(claimId) {
   return prisma.inspection.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { scheduledAt: 'desc' },
-    include: { photos: true, inspector: { select: { id: true, firstName: true, lastName: true } } },
+    include: { photos: { select: { id: true, fileName: true, originalName: true, mimeType: true, size: true, caption: true, createdAt: true, updatedAt: true } }, inspector: { select: { id: true, firstName: true, lastName: true } } },
   });
 }
 
@@ -93,14 +92,16 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
   const photo = await prisma.inspectionPhoto.create({
     data: {
       inspectionId,
-      fileName: path.basename(file.filename),
+      fileName: file.originalname,
       originalName: file.originalname,
       mimeType: file.mimetype,
-      path: toRelativePath(file.path),
+      path: '',
+      data: file.buffer,
       size: file.size,
       caption: caption || null,
       uploadedById: userId,
     },
+    select: { id: true, inspectionId: true, fileName: true, originalName: true, mimeType: true, size: true, caption: true, uploadedById: true, createdAt: true, updatedAt: true },
   });
 
   await logAction('INSPECTION_PHOTO_UPLOADED', 'InspectionPhoto', photo.id, userId, { inspectionId });
@@ -111,9 +112,16 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
 export async function getPhoto(photoId) {
   const photo = await prisma.inspectionPhoto.findUnique({ where: { id: Number(photoId) } });
   if (!photo) throw new AppError('Photo not found', 404);
+
+  // Prefer BLOB data stored in the database (persistent across deploys)
+  if (photo.data) {
+    return { ...photo, buffer: Buffer.from(photo.data) };
+  }
+
+  // Fall back to disk for legacy records
   const resolved = resolveFilePath(photo.path);
   if (!fs.existsSync(resolved)) throw new AppError('Photo file not found', 404);
-  return { ...photo, path: resolved };
+  return { ...photo, buffer: fs.readFileSync(resolved) };
 }
 
 export async function deletePhoto(photoId, userId) {
@@ -123,8 +131,10 @@ export async function deletePhoto(photoId, userId) {
   });
   if (!photo) throw new AppError('Photo not found', 404);
   const claimId = photo.inspection.claimId;
-  // Delete file from disk
-  try { fs.unlinkSync(resolveFilePath(photo.path)); } catch { /* file may already be gone */ }
+  // Clean up legacy disk file if it exists
+  if (photo.path) {
+    try { fs.unlinkSync(resolveFilePath(photo.path)); } catch { /* file may already be gone */ }
+  }
   await prisma.inspectionPhoto.delete({ where: { id: Number(photoId) } });
   await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', photoId, userId, { claimId });
   await recordActivity(claimId, 'INSPECTION_PHOTO_DELETED', `Inspection photo deleted: ${photo.originalName}`, userId);

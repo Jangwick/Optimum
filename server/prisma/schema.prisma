@@ -540,6 +540,7 @@ model InspectionPhoto {
   originalName String     @db.VarChar(255)
   mimeType     String     @db.VarChar(100)
   path         String     @db.VarChar(500)
+  data         Bytes?     @db.LongBlob
   size         Int
   caption      String?    @db.VarChar(255)
   uploadedById Int
@@ -585,6 +586,7 @@ model Document {
   originalName       String            @db.VarChar(255)
   mimeType           String            @db.VarChar(100)
   path               String            @db.VarChar(500)
+  data               Bytes?            @db.LongBlob
   size               Int
   description        String?           @db.Text
   uploadedById       Int

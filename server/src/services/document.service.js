@@ -4,8 +4,7 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 import fs from 'fs';
-import path from 'path';
-import { resolveFilePath, toRelativePath } from '../utils/file-path.js';
+import { resolveFilePath } from '../utils/file-path.js';
 
 export async function getDocumentChecklist(claimId) {
   const claim = await prisma.claim.findUnique({
@@ -18,6 +17,7 @@ export async function getDocumentChecklist(claimId) {
     where: { claimId: Number(claimId) },
     include: { documentCategory: true, uploadedBy: { select: { firstName: true, lastName: true } } },
     orderBy: { createdAt: 'desc' },
+    omit: { data: true },
   });
 
   const requirements = claim.claimType?.requirements || [];
@@ -85,7 +85,6 @@ export async function getDocumentChecklist(claimId) {
 export async function uploadDocument(claimId, file, data, userId) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) {
-    fs.unlinkSync(file.path);
     throw new AppError('Claim not found', 404);
   }
 
@@ -93,10 +92,11 @@ export async function uploadDocument(claimId, file, data, userId) {
     data: {
       claimId: Number(claimId),
       documentCategoryId: data.documentCategoryId ? Number(data.documentCategoryId) : null,
-      fileName: path.basename(file.filename),
+      fileName: file.originalname,
       originalName: file.originalname,
       mimeType: file.mimetype,
-      path: toRelativePath(file.path),
+      path: '',
+      data: file.buffer,
       size: file.size,
       description: data.description,
       uploadedById: userId,
@@ -104,6 +104,7 @@ export async function uploadDocument(claimId, file, data, userId) {
       receivedAt: data.isReceived ? new Date() : null,
     },
     include: { documentCategory: true },
+    omit: { data: true },
   });
 
   await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, userId, { originalName: doc.originalName, claimId });
@@ -127,10 +128,28 @@ export async function markDocumentReceived(id, userId) {
 export async function deleteDocument(id, userId) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) throw new AppError('Document not found', 404);
-  if (fs.existsSync(resolveFilePath(doc.path))) {
-    fs.unlinkSync(resolveFilePath(doc.path));
+  // Clean up legacy disk file if it exists
+  if (doc.path) {
+    try { fs.unlinkSync(resolveFilePath(doc.path)); } catch { /* file may already be gone */ }
   }
   await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
   await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, userId);
   await prisma.document.delete({ where: { id } });
+}
+
+export async function getDocumentFile(id, claimId) {
+  const doc = await prisma.document.findFirst({
+    where: { id, claimId: Number(claimId) },
+  });
+  if (!doc) throw new AppError('Document not found', 404);
+
+  // Prefer BLOB data stored in the database (persistent across deploys)
+  if (doc.data) {
+    return { ...doc, buffer: Buffer.from(doc.data) };
+  }
+
+  // Fall back to disk for legacy records
+  const resolved = resolveFilePath(doc.path);
+  if (!fs.existsSync(resolved)) throw new AppError('File not found', 404);
+  return { ...doc, buffer: fs.readFileSync(resolved) };
 }

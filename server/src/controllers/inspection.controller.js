@@ -63,8 +63,7 @@ export async function getInspectionPhoto(req, res, next) {
     const photo = await inspectionService.getPhoto(req.params.photoId);
     res.setHeader('Content-Type', photo.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${photo.originalName}"`);
-    const { createReadStream } = await import('fs');
-    createReadStream(photo.path).pipe(res);
+    res.send(photo.buffer);
   } catch (err) {
     next(err);
   }

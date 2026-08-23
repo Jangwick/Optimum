@@ -1,8 +1,5 @@
 import * as documentService from '../services/document.service.js';
-import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
-import fs from 'fs';
-import { resolveFilePath } from '../utils/file-path.js';
 
 function idParam(req) {
   const id = Number(req.params.id);
@@ -41,19 +38,14 @@ export async function markReceived(req, res, next) {
 async function sendDocumentFile(req, res, next, disposition) {
   try {
     const id = idParam(req);
-    const doc = await prisma.document.findFirst({
-      where: { id, claimId: Number(req.params.claimId) },
-    });
-    if (!doc) throw new AppError('Document not found', 404);
-    const resolved = resolveFilePath(doc.path);
-    if (!fs.existsSync(resolved)) throw new AppError('File not found on disk', 404);
+    const doc = await documentService.getDocumentFile(id, req.params.claimId);
 
     res.setHeader(
       'Content-Disposition',
       `${disposition}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.sendFile(resolved);
+    res.send(doc.buffer);
   } catch (err) {
     next(err);
   }
