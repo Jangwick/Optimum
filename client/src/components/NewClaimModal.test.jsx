@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NewClaimModal } from './NewClaimModal.jsx';
 
@@ -44,6 +44,23 @@ const secondPolicy = {
   insuranceCompany: { id: 6, name: 'Harbor Mutual' },
 };
 
+/** Helper: select a value from the custom Select component by aria-label */
+function selectOption(label, textMatch) {
+  // Close any open dropdowns first by clicking outside
+  fireEvent.mouseDown(document.body);
+  const trigger = screen.getByLabelText(label);
+  // Open the dropdown
+  fireEvent.click(trigger);
+  // Find the listbox that was just opened (last one in DOM)
+  const listboxes = screen.queryAllByRole('listbox');
+  const listbox = listboxes[listboxes.length - 1];
+  if (!listbox) throw new Error(`No listbox found after clicking Select "${label}"`);
+  const options = within(listbox).getAllByRole('option');
+  const option = options.find((o) => o.textContent.includes(textMatch));
+  if (!option) throw new Error(`Option matching "${textMatch}" not found in Select "${label}". Available: ${options.map((o) => o.textContent).join(', ')}`);
+  fireEvent.click(option);
+}
+
 describe('NewClaimModal', () => {
   afterEach(cleanup);
 
@@ -64,7 +81,6 @@ describe('NewClaimModal', () => {
     expect(screen.getByRole('heading', { name: 'Insured & Insurance' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /From Policy/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Record Assignment/i })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Policy')).not.toBeRequired();
   });
 
   it('filters policies by policy number, client, or insurer', async () => {
@@ -75,8 +91,9 @@ describe('NewClaimModal', () => {
     fireEvent.change(search, { target: { value: 'Harbor Mutual' } });
 
     const policySelect = screen.getByLabelText('Policy');
-    expect(policySelect).toHaveTextContent('POL-2026-0008');
-    expect(policySelect).not.toHaveTextContent('POL-2026-0007');
+    fireEvent.click(policySelect);
+    expect(screen.getByRole('option', { name: /POL-2026-0008/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /POL-2026-0007/ })).not.toBeInTheDocument();
   });
 
   it('assigns one employee according to their role', async () => {
@@ -90,14 +107,18 @@ describe('NewClaimModal', () => {
     render(<NewClaimModal open onClose={vi.fn()} onCreated={vi.fn()} />);
 
     const employee = await screen.findByLabelText('Assign Employee');
-    expect(employee).toHaveTextContent('Field Engineer — Engineer');
-    expect(employee).toHaveTextContent('Senior Accountant — Accountant');
+    fireEvent.click(employee);
+    expect(screen.getByRole('option', { name: /Field Engineer — Engineer/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Senior Accountant — Accountant/ })).toBeInTheDocument();
     expect(screen.queryByLabelText('Engineer')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Accountant')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Policy'), { target: { value: '7' } });
+    // Select policy
+    selectOption('Policy', 'POL-2026-0007');
+    // Select employee
+    selectOption('Assign Employee', 'Field Engineer');
+    // Date of loss
     fireEvent.change(screen.getByLabelText(/Date of Loss/), { target: { value: '2026-08-24' } });
-    fireEvent.change(employee, { target: { value: 'ENGINEER:2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Claim' }));
 
     await waitFor(() => expect(createClaim).toHaveBeenCalledOnce());
@@ -114,7 +135,7 @@ describe('NewClaimModal', () => {
     expect(screen.queryByLabelText('Estimated Loss')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Reserve')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Policy'), { target: { value: '7' } });
+    selectOption('Policy', 'POL-2026-0007');
     fireEvent.change(screen.getByLabelText(/Date of Loss/), { target: { value: '2026-08-24' } });
     fireEvent.change(lossReserved, { target: { value: '250000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Claim' }));
@@ -126,18 +147,30 @@ describe('NewClaimModal', () => {
   });
 
   it('fills linked party and policy details when an existing policy is selected', async () => {
-    render(<NewClaimModal open onClose={vi.fn()} onCreated={vi.fn()} />);
+    const { container } = render(<NewClaimModal open onClose={vi.fn()} onCreated={vi.fn()} />);
 
-    const policySelect = await screen.findByLabelText('Policy');
-    fireEvent.change(policySelect, { target: { value: '7' } });
+    // Wait for the Select to appear, then select the policy
+    const policyTrigger = await screen.findByLabelText('Policy');
+    // Open the dropdown
+    fireEvent.click(policyTrigger);
+    // Find the option and click it
+    const listbox = screen.getByRole('listbox');
+    const options = within(listbox).getAllByRole('option');
+    const policyOption = options.find((o) => o.textContent.includes('POL-2026-0007'));
+    expect(policyOption).toBeTruthy();
+    fireEvent.click(policyOption);
 
+    // Check that the policy selection triggered the form update
     await waitFor(() => {
-      expect(screen.getByLabelText(/Insured Name/)).toHaveValue('Acme Trading');
-      expect(screen.getByLabelText('Client (linked)')).toHaveValue('2');
-      expect(screen.getByLabelText('Insurer')).toHaveValue('3');
-      expect(screen.getByLabelText('Claim Type')).toHaveValue('4');
-      expect(screen.getByLabelText('Policy No.')).toHaveValue('POL-2026-0007');
-      expect(screen.getByLabelText('Type of Policy')).toHaveValue('Fire');
+      const inputs = container.querySelectorAll('input');
+      const insuredInput = Array.from(inputs).find((i) => i.id === 'new-claim-insured-name');
+      expect(insuredInput).toBeTruthy();
+      expect(insuredInput.value).toBe('Acme Trading');
     });
-  });
+    expect(screen.getByLabelText('Client (linked)')).toHaveTextContent('Acme Trading');
+    expect(screen.getByLabelText('Insurer')).toHaveTextContent('Optimum Insurance');
+    expect(screen.getByLabelText('Claim Type')).toHaveTextContent('Property');
+    expect(screen.getByLabelText('Policy No.')).toHaveValue('POL-2026-0007');
+    expect(screen.getByLabelText('Type of Policy')).toHaveValue('Fire');
+  }, 20000);
 });

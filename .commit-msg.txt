@@ -1,0 +1,19 @@
+feat: make all dropdown menus open downwards
+
+Replace all native <select> elements with a custom Select component
+that always opens its dropdown below the trigger. Native browser
+selects cannot reliably be forced to open downward, so a custom
+component was created with consistent styling, keyboard navigation,
+and downward positioning.
+
+The Headless UI menus (Settings, Help, Notifications) already open
+downward via top-full positioning and are unchanged.
+
+Files changed:
+- New: client/src/components/Select.jsx - reusable dropdown component
+- Updated all pages/components with native <select> elements to use Select
+- Updated tests to interact with the custom Select component
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

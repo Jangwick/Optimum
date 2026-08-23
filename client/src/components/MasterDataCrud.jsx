@@ -6,6 +6,7 @@ import { DataTable } from './DataTable.jsx';
 import { Pagination } from './Pagination.jsx';
 import { Modal } from './Modal.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
+import { Select } from './Select.jsx';
 import { useList } from '../hooks/useList.js';
 import { Plus, Pencil, Trash2, Search, Database, X } from 'lucide-react';
 
@@ -46,6 +47,8 @@ export function MasterDataCrud({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(schema), defaultValues });
 
@@ -217,17 +220,15 @@ export function MasterDataCrud({
                     {f.required && <span className="text-error ml-0.5">*</span>}
                   </label>
                   {f.type === 'select' ? (
-                    <select
-                      {...register(f.key)}
-                      className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                    >
-                      <option value="">— Select —</option>
-                      {f.options.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      value={watch(f.key) || ''}
+                      onChange={(v) => setValue(f.key, v, { shouldValidate: true })}
+                      options={[
+                        { value: '', label: '— Select —' },
+                        ...f.options.map((o) => ({ value: o.value, label: o.label })),
+                      ]}
+                      placeholder="— Select —"
+                    />
                   ) : (
                     <input
                       type={f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : 'text'}

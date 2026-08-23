@@ -3,6 +3,7 @@ import { updateClaim } from '../services/claim.service.js';
 import { getPolicies, getClaimTypes, getInsuranceCompanies, getClients } from '../services/master-data.service.js';
 import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
+import { Select } from './Select.jsx';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 export function EditClaimModal({ open, onClose, claim, onSaved }) {
@@ -160,41 +161,54 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Insured (Client)</label>
-              <select value={form.clientId} onChange={set('clientId')} className={inputClass}>
-                <option value="">— None —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <Select
+                value={form.clientId}
+                onChange={(v) => setForm({ ...form, clientId: v })}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...clients.map((c) => ({ value: c.id, label: c.name })),
+                ]}
+                placeholder="— None —"
+              />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Insurer</label>
-              <select value={form.insuranceCompanyId} onChange={set('insuranceCompanyId')} className={inputClass}>
-                <option value="">— None —</option>
-                {insurers.map((i) => (
-                  <option key={i.id} value={i.id}>{i.name}</option>
-                ))}
-              </select>
+              <Select
+                value={form.insuranceCompanyId}
+                onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...insurers.map((i) => ({ value: i.id, label: i.name })),
+                ]}
+                placeholder="— None —"
+              />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Claim Type</label>
-              <select value={form.claimTypeId} onChange={set('claimTypeId')} className={inputClass}>
-                <option value="">— None —</option>
-                {claimTypes.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              <Select
+                value={form.claimTypeId}
+                onChange={(v) => setForm({ ...form, claimTypeId: v })}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...claimTypes.map((t) => ({ value: t.id, label: t.name })),
+                ]}
+                placeholder="— None —"
+              />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Policy</label>
-              <select value={form.policyId} onChange={set('policyId')} className={inputClass}>
-                <option value="">— None —</option>
-                {policies.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.policyNumber} · {p.client?.name} · {p.insuranceCompany?.name}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={form.policyId}
+                onChange={(v) => setForm({ ...form, policyId: v })}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...policies.map((p) => ({
+                    value: p.id,
+                    label: `${p.policyNumber} · ${p.client?.name} · ${p.insuranceCompany?.name}`,
+                  })),
+                ]}
+                placeholder="— None —"
+              />
             </div>
           </div>
 
@@ -267,12 +281,15 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Assign Employee</label>
-              <select value={form.engineerId} onChange={set('engineerId')} className={inputClass}>
-                <option value="">— None —</option>
-                {employees.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
-                ))}
-              </select>
+              <Select
+                value={form.engineerId}
+                onChange={(v) => setForm({ ...form, engineerId: v })}
+                options={[
+                  { value: '', label: '— None —' },
+                  ...employees.map((u) => ({ value: u.id, label: `${u.fullName} (${u.role})` })),
+                ]}
+                placeholder="— None —"
+              />
             </div>
           </div>
 

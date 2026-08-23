@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Select } from './Select.jsx';
 
 export function Pagination({ page, limit, total, onPageChange, onLimitChange }) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -9,17 +10,14 @@ export function Pagination({ page, limit, total, onPageChange, onLimitChange }) 
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2 text-body-sm text-on-surface-variant">
         <span>Rows per page:</span>
-        <select
-          value={limit}
-          onChange={(e) => onLimitChange(Number(e.target.value))}
-          className="h-8 px-2 rounded border border-outline bg-surface text-body-sm"
-        >
-          {[10, 25, 50, 100].map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
+        <div className="w-20">
+          <Select
+            value={limit}
+            onChange={(v) => onLimitChange(Number(v))}
+            options={[10, 25, 50, 100].map((n) => ({ value: n, label: String(n) }))}
+            className="h-8 text-body-sm"
+          />
+        </div>
         <span>
           {start}-{end} of {total}
         </span>

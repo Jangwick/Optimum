@@ -8,6 +8,7 @@ import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { NewClaimModal } from '../components/NewClaimModal.jsx';
+import { Select } from '../components/Select.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import {
@@ -500,19 +501,17 @@ export default function Claims() {
                     aria-label="Search claims"
                   />
                 </div>
-                <select
+                <Select
                   value={filters.status || ''}
-                  onChange={(e) => setFilter('status', e.target.value)}
-                  className="h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer min-w-[160px]"
-                  aria-label="Filter by status"
-                >
-                  <option value="">All Statuses</option>
-                  {claimStatuses.map((s) => (
-                    <option key={s.id} value={s.code}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setFilter('status', v)}
+                  options={[
+                    { value: '', label: 'All Statuses' },
+                    ...claimStatuses.map((s) => ({ value: s.code, label: s.name })),
+                  ]}
+                  placeholder="All Statuses"
+                  ariaLabel="Filter by status"
+                  className="min-w-[160px]"
+                />
                 <button
                   onClick={() => setShowAdvancedFilters((v) => !v)}
                   className={`h-10 px-3 rounded border text-body-md font-medium transition-colors flex items-center gap-2 cursor-pointer ${
@@ -582,78 +581,63 @@ export default function Claims() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-label-md text-outline uppercase mb-1.5">Process Status</label>
-                      <select
+                      <Select
                         value={filters.processStatus || ''}
-                        onChange={(e) => setFilter('processStatus', e.target.value)}
-                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
-                      >
-                        <option value="">All Process Statuses</option>
-                        {claimStatuses.map((s) => (
-                          <option key={s.id} value={s.code}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setFilter('processStatus', v)}
+                        options={[
+                          { value: '', label: 'All Process Statuses' },
+                          ...claimStatuses.map((s) => ({ value: s.code, label: s.name })),
+                        ]}
+                        placeholder="All Process Statuses"
+                      />
                     </div>
                     <div>
                       <label className="block text-label-md text-outline uppercase mb-1.5">Claim Type</label>
-                      <select
+                      <Select
                         value={filters.claimType || ''}
-                        onChange={(e) => setFilter('claimType', e.target.value)}
-                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
-                      >
-                        <option value="">All Types</option>
-                        {claimTypes.map((t) => (
-                          <option key={t.id} value={t.code}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setFilter('claimType', v)}
+                        options={[
+                          { value: '', label: 'All Types' },
+                          ...claimTypes.map((t) => ({ value: t.code, label: t.name })),
+                        ]}
+                        placeholder="All Types"
+                      />
                     </div>
                     <div>
                       <label className="block text-label-md text-outline uppercase mb-1.5">Insured (Client)</label>
-                      <select
+                      <Select
                         value={filters.clientId || ''}
-                        onChange={(e) => setFilter('clientId', e.target.value)}
-                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
-                      >
-                        <option value="">All Clients</option>
-                        {clients.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setFilter('clientId', v)}
+                        options={[
+                          { value: '', label: 'All Clients' },
+                          ...clients.map((c) => ({ value: c.id, label: c.name })),
+                        ]}
+                        placeholder="All Clients"
+                      />
                     </div>
                     <div>
                       <label className="block text-label-md text-outline uppercase mb-1.5">Insurer</label>
-                      <select
+                      <Select
                         value={filters.insurerId || ''}
-                        onChange={(e) => setFilter('insurerId', e.target.value)}
-                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
-                      >
-                        <option value="">All Insurers</option>
-                        {insurers.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setFilter('insurerId', v)}
+                        options={[
+                          { value: '', label: 'All Insurers' },
+                          ...insurers.map((i) => ({ value: i.id, label: i.name })),
+                        ]}
+                        placeholder="All Insurers"
+                      />
                     </div>
                     <div>
                       <label className="block text-label-md text-outline uppercase mb-1.5">Adjuster</label>
-                      <select
+                      <Select
                         value={filters.engineerId || ''}
-                        onChange={(e) => setFilter('engineerId', e.target.value)}
-                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
-                      >
-                        <option value="">All Adjusters</option>
-                        {engineers.map((e) => (
-                          <option key={e.id} value={e.id}>
-                            {e.fullName} ({e.role})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setFilter('engineerId', v)}
+                        options={[
+                          { value: '', label: 'All Adjusters' },
+                          ...engineers.map((e) => ({ value: e.id, label: `${e.fullName} (${e.role})` })),
+                        ]}
+                        placeholder="All Adjusters"
+                      />
                     </div>
                   </div>
                 </div>

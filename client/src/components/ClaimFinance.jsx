@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getFees, createFee, getInvoices, createInvoice, recordPayment } from '../services/fee.service.js';
 import { getUsers } from '../services/user.service.js';
 import { formatCurrency } from '../utils/currency.js';
+import { Select } from './Select.jsx';
 import { Wallet, FileText, Plus, CheckCircle, DollarSign, AlertTriangle, Receipt } from 'lucide-react';
 
 const FEE_TYPES = ['INSPECTION', 'INVESTIGATION', 'ASSESSMENT', 'REPORT', 'TRAVEL', 'CONSULTATION', 'OTHER'];
@@ -200,16 +201,11 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Fee Type</label>
-                <select
+                <Select
                   value={feeForm.feeType}
-                  onChange={(e) => setFeeForm({ ...feeForm, feeType: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                  required
-                >
-                  {FEE_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setFeeForm({ ...feeForm, feeType: v })}
+                  options={FEE_TYPES.map((t) => ({ value: t, label: t }))}
+                />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Amount</label>
@@ -237,18 +233,16 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Linked User</label>
-              <select
+              <Select
                 value={feeForm.userId}
-                onChange={(e) => setFeeForm({ ...feeForm, userId: e.target.value })}
-                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                required
+                onChange={(v) => setFeeForm({ ...feeForm, userId: v })}
+                options={[
+                  { value: '', label: users.length === 0 ? 'No users available' : 'Select user' },
+                  ...users.map((u) => ({ value: u.id, label: u.fullName })),
+                ]}
+                placeholder={users.length === 0 ? 'No users available' : 'Select user'}
                 disabled={users.length === 0}
-              >
-                <option value="">{users.length === 0 ? 'No users available' : 'Select user'}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.fullName}</option>
-                ))}
-              </select>
+              />
             </div>
             <button
               type="submit"

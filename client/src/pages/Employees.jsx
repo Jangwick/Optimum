@@ -9,6 +9,7 @@ import { Modal } from '../components/Modal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { Select } from '../components/Select.jsx';
 import { useList } from '../hooks/useList.js';
 import {
   Pencil,
@@ -81,6 +82,7 @@ export default function Employees() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(userSchema) });
 
@@ -331,20 +333,22 @@ export default function Employees() {
               />
             </div>
             <div className="relative">
-              <select
+              <Select
                 value={roleFilter}
-                onChange={(e) => {
-                  setRoleFilter(e.target.value);
+                onChange={(v) => {
+                  setRoleFilter(v);
                   setPage(1);
                 }}
-                className="h-10 pl-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors appearance-none cursor-pointer min-w-[140px]"
-                aria-label="Filter by role"
-              >
-                <option value="">All Roles</option>
-                <option value="ADMIN">Admin</option>
-                <option value="ENGINEER">Engineer</option>
-                <option value="ACCOUNTANT">Accountant</option>
-              </select>
+                options={[
+                  { value: '', label: 'All Roles' },
+                  { value: 'ADMIN', label: 'Admin' },
+                  { value: 'ENGINEER', label: 'Engineer' },
+                  { value: 'ACCOUNTANT', label: 'Accountant' },
+                ]}
+                placeholder="All Roles"
+                ariaLabel="Filter by role"
+                className="min-w-[140px]"
+              />
             </div>
           </div>
 
@@ -414,14 +418,15 @@ export default function Employees() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-body-sm font-semibold mb-1.5">Role</label>
-                  <select
-                    {...register('role')}
-                    className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                  >
-                    <option value="ADMIN">Admin</option>
-                    <option value="ENGINEER">Engineer</option>
-                    <option value="ACCOUNTANT">Accountant</option>
-                  </select>
+                  <Select
+                    value={watch('role')}
+                    onChange={(v) => setValue('role', v, { shouldValidate: true })}
+                    options={[
+                      { value: 'ADMIN', label: 'Admin' },
+                      { value: 'ENGINEER', label: 'Engineer' },
+                      { value: 'ACCOUNTANT', label: 'Accountant' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-body-sm font-semibold mb-1.5">Employee #</label>

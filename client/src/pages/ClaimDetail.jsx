@@ -14,6 +14,7 @@ import InitialInvestigation from '../components/InitialInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { EditClaimModal } from '../components/EditClaimModal.jsx';
 import { Modal } from '../components/Modal.jsx';
+import { Select } from '../components/Select.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
@@ -536,24 +537,21 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           <form onSubmit={onTransition} className="space-y-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Status</label>
-              <select
+              <Select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-              >
-                {statuses.map((s) => {
+                onChange={setSelectedStatus}
+                options={statuses.map((s) => {
                   const currentIdx = STATUS_ORDER.indexOf(claim.status?.code);
                   const optionIdx = STATUS_ORDER.indexOf(s.code);
                   const isCancelled = s.code === 'CANCELLED';
                   const isBackward = !isCancelled && optionIdx < currentIdx;
                   const isCurrent = optionIdx === currentIdx;
-                  return (
-                    <option key={s.id} value={s.code} disabled={isBackward}>
-                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' — past' : ''}
-                    </option>
-                  );
+                  return {
+                    value: s.code,
+                    label: `${s.name}${isCurrent ? ' (current)' : isBackward ? ' — past' : ''}`,
+                  };
                 })}
-              </select>
+              />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
@@ -693,18 +691,15 @@ export function DocumentPreview({ claimId, documents = [] }) {
                 >
                   Preview document
                 </label>
-                <select
-                  id="summary-document-preview"
+                <Select
                   value={String(selectedDocument.id)}
-                  onChange={(event) => setSelectedId(event.target.value)}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                >
-                  {documents.map((document) => (
-                    <option key={document.id} value={document.id}>
-                      {document.originalName} — {document.category}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setSelectedId(v)}
+                  options={documents.map((document) => ({
+                    value: String(document.id),
+                    label: `${document.originalName} — ${document.category}`,
+                  }))}
+                  ariaLabel="Preview document"
+                />
               </div>
               <a
                 href={`/api/claims/${claimId}/documents/${selectedDocument.id}/download`}
@@ -1120,17 +1115,15 @@ function DocumentsTab({ claimId, onClaimChange }) {
           </div>
           <div>
             <label className="block text-label-md text-outline uppercase mb-1.5">Category</label>
-            <select
+            <Select
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-              required
-            >
-              <option value="">Select category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              onChange={setCategoryId}
+              options={[
+                { value: '', label: 'Select category' },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              placeholder="Select category"
+            />
           </div>
           <div className="sm:col-span-2">
             <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
@@ -1705,15 +1698,15 @@ function SettlementTab({ claimId, onClaimChange }) {
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Status</label>
-                <select
+                <Select
                   value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                >
-                  <option value="PENDING">Pending</option>
-                  <option value="AGREED">Agreed</option>
-                  <option value="REJECTED">Rejected</option>
-                </select>
+                  onChange={(v) => setForm({ ...form, status: v })}
+                  options={[
+                    { value: 'PENDING', label: 'Pending' },
+                    { value: 'AGREED', label: 'Agreed' },
+                    { value: 'REJECTED', label: 'Rejected' },
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
@@ -1839,16 +1832,17 @@ function SettlementTab({ claimId, onClaimChange }) {
                       <div className="pt-2 border-t border-surface-border space-y-2">
                         <span className="text-label-md text-outline uppercase font-medium">Respond to Offer</span>
                         <div className="grid grid-cols-2 gap-2">
-                          <select
+                          <Select
                             value={response[o.id]?.status || ''}
-                            onChange={(e) => setResponse({ ...response, [o.id]: { ...response[o.id], status: e.target.value } })}
-                            className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                          >
-                            <option value="">Select response</option>
-                            <option value="ACCEPTED">Accept</option>
-                            <option value="REJECTED">Reject</option>
-                            <option value="COUNTERED">Counter</option>
-                          </select>
+                            onChange={(v) => setResponse({ ...response, [o.id]: { ...response[o.id], status: v } })}
+                            options={[
+                              { value: '', label: 'Select response' },
+                              { value: 'ACCEPTED', label: 'Accept' },
+                              { value: 'REJECTED', label: 'Reject' },
+                              { value: 'COUNTERED', label: 'Counter' },
+                            ]}
+                            placeholder="Select response"
+                          />
                           <input
                             type="text"
                             value={response[o.id]?.notes || ''}
@@ -2465,18 +2459,16 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Insurance Company</label>
-                <select
+                <Select
                   value={form.insuranceCompanyId}
-                  onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                  required
+                  onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+                  options={[
+                    { value: '', label: 'Select insurer' },
+                    ...insurers.map((ic) => ({ value: ic.id, label: ic.name })),
+                  ]}
+                  placeholder="Select insurer"
                   disabled={!!editingId}
-                >
-                  <option value="">Select insurer</option>
-                  {insurers.map((ic) => (
-                    <option key={ic.id} value={ic.id}>{ic.name}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Participation %</label>
@@ -2539,30 +2531,32 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Offer Status</label>
-                <select
+                <Select
                   value={form.offerStatus}
-                  onChange={(e) => setForm({ ...form, offerStatus: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                >
-                  <option value="">None</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="ACCEPTED">Accepted</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="COUNTERED">Countered</option>
-                </select>
+                  onChange={(v) => setForm({ ...form, offerStatus: v })}
+                  options={[
+                    { value: '', label: 'None' },
+                    { value: 'PENDING', label: 'Pending' },
+                    { value: 'ACCEPTED', label: 'Accepted' },
+                    { value: 'REJECTED', label: 'Rejected' },
+                    { value: 'COUNTERED', label: 'Countered' },
+                  ]}
+                  placeholder="None"
+                />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Payment Status</label>
-                <select
+                <Select
                   value={form.paymentStatus}
-                  onChange={(e) => setForm({ ...form, paymentStatus: e.target.value })}
-                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-                >
-                  <option value="">None</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="PARTIAL">Partial</option>
-                  <option value="PAID">Paid</option>
-                </select>
+                  onChange={(v) => setForm({ ...form, paymentStatus: v })}
+                  options={[
+                    { value: '', label: 'None' },
+                    { value: 'PENDING', label: 'Pending' },
+                    { value: 'PARTIAL', label: 'Partial' },
+                    { value: 'PAID', label: 'Paid' },
+                  ]}
+                  placeholder="None"
+                />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Lead Insurer</label>

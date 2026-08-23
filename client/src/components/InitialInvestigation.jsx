@@ -28,6 +28,7 @@ import {
   uploadInspectionPhoto,
   deleteInspectionPhoto,
 } from '../services/investigation.service.js';
+import { Select } from './Select.jsx';
 
 const PARTY_TYPES = [
   { value: 'INSURED', label: 'Insured', icon: User },
@@ -166,15 +167,11 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-label-md text-outline uppercase mb-1.5">Party Type</label>
-            <select
+            <Select
               value={form.partyType}
-              onChange={(e) => setForm({ ...form, partyType: e.target.value })}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-            >
-              {PARTY_TYPES.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
+              onChange={(v) => setForm({ ...form, partyType: v })}
+              options={PARTY_TYPES.map((p) => ({ value: p.value, label: p.label }))}
+            />
           </div>
           <div>
             <label className="block text-label-md text-outline uppercase mb-1.5">Party Name</label>

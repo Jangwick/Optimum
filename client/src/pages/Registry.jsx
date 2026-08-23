@@ -7,6 +7,7 @@ import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { Select } from '../components/Select.jsx';
 import { toast } from 'sonner';
 
 export default function Registry() {
@@ -91,16 +92,16 @@ export default function Registry() {
                 className="w-full pl-10 pr-4 py-2 rounded border border-outline-variant bg-surface text-body-md text-on-surface focus:outline-none focus:border-primary"
               />
             </div>
-            <select
+            <Select
               value={processStatus}
-              onChange={(e) => setProcessStatus(e.target.value)}
-              className="px-3 py-2 rounded border border-outline-variant bg-surface text-body-md text-on-surface focus:outline-none focus:border-primary"
-            >
-              <option value="">All Statuses</option>
-              {processStatuses.map((s) => (
-                <option key={s.code} value={s.code}>{s.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setProcessStatus(v)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                ...processStatuses.map((s) => ({ value: s.code, label: s.name })),
+              ]}
+              placeholder="All Statuses"
+              className="min-w-[180px]"
+            />
             <button type="submit" className="px-4 py-2 rounded bg-surface-variant/20 text-on-surface text-label-md hover:bg-surface-variant/30 transition-colors">
               Search
             </button>

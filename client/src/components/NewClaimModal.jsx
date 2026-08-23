@@ -8,6 +8,7 @@ import {
 } from '../services/master-data.service.js';
 import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
+import { Select } from './Select.jsx';
 import { AlertTriangle, CheckCircle, Search } from 'lucide-react';
 
 const EMPTY_FORM = {
@@ -77,45 +78,6 @@ export function NewClaimModal({ open, onClose, onCreated }) {
   });
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
-
-  const setAssignedEmployee = (e) => {
-    const [role, id = ''] = e.target.value.split(':');
-    setForm((current) => ({
-      ...current,
-      engineerId: role === 'ENGINEER' ? id : '',
-      accountantId: role === 'ACCOUNTANT' ? id : '',
-    }));
-  };
-
-  const setPolicy = (e) => {
-    const policyId = e.target.value;
-    const policy = policies.find((item) => String(item.id) === policyId);
-
-    setForm((current) => {
-      if (!policy) return { ...current, policyId };
-
-      const policyPeriod = [policy.startDate, policy.endDate]
-        .filter(Boolean)
-        .map((date) =>
-          new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(date))
-        )
-        .join(' – ');
-
-      return {
-        ...current,
-        policyId,
-        insuredName: policy.client?.name || '',
-        clientId: policy.client?.id ? String(policy.client.id) : '',
-        insuranceCompanyId: policy.insuranceCompany?.id ? String(policy.insuranceCompany.id) : '',
-        claimTypeId: policy.claimType?.id ? String(policy.claimType.id) : '',
-        policyNumber: policy.policyNumber || '',
-        policyType: policy.policyType || '',
-        policyPeriodText: policyPeriod,
-        policyCoverageText:
-          policy.coverageDetails || (policy.sumInsured ? String(policy.sumInsured) : ''),
-      };
-    });
-  };
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
@@ -206,19 +168,45 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                   placeholder="Search by policy number, client, or insurer"
                 />
               </div>
-              <select
-                id="new-claim-policy"
+              <Select
                 value={form.policyId}
-                onChange={setPolicy}
-                className={inputClass}
-              >
-                <option value="">No linked policy / enter details manually</option>
-                {filteredPolicies.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.policyNumber} · {p.client?.name} · {p.insuranceCompany?.name}
-                  </option>
-                ))}
-              </select>
+                id="new-claim-policy"
+                ariaLabel="Policy"
+                onChange={(v) => {
+                  const policyId = String(v);
+                  const policy = policies.find((item) => String(item.id) === policyId);
+                  setForm((current) => {
+                    if (!policy) return { ...current, policyId };
+                    const policyPeriod = [policy.startDate, policy.endDate]
+                      .filter(Boolean)
+                      .map((date) =>
+                        new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(date))
+                      )
+                      .join(' – ');
+                    return {
+                      ...current,
+                      policyId,
+                      insuredName: policy.client?.name || '',
+                      clientId: policy.client?.id ? String(policy.client.id) : '',
+                      insuranceCompanyId: policy.insuranceCompany?.id ? String(policy.insuranceCompany.id) : '',
+                      claimTypeId: policy.claimType?.id ? String(policy.claimType.id) : '',
+                      policyNumber: policy.policyNumber || '',
+                      policyType: policy.policyType || '',
+                      policyPeriodText: policyPeriod,
+                      policyCoverageText:
+                        policy.coverageDetails || (policy.sumInsured ? String(policy.sumInsured) : ''),
+                    };
+                  });
+                }}
+                options={[
+                  { value: '', label: 'No linked policy / enter details manually' },
+                  ...filteredPolicies.map((p) => ({
+                    value: p.id,
+                    label: `${p.policyNumber} · ${p.client?.name} · ${p.insuranceCompany?.name}`,
+                  })),
+                ]}
+                placeholder="No linked policy / enter details manually"
+              />
               {policySearchTerm && filteredPolicies.length === 0 && (
                 <p className="mt-1.5 text-body-sm text-on-surface-variant" role="status">
                   No policies match your search.
@@ -306,19 +294,17 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 >
                   Client (linked)
                 </label>
-                <select
-                  id="new-claim-client"
+                <Select
                   value={form.clientId}
-                  onChange={set('clientId')}
-                  className={inputClass}
-                >
-                  <option value="">— Unresolved —</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  id="new-claim-client"
+                  ariaLabel="Client (linked)"
+                  onChange={(v) => setForm({ ...form, clientId: v })}
+                  options={[
+                    { value: '', label: '— Unresolved —' },
+                    ...clients.map((c) => ({ value: c.id, label: c.name })),
+                  ]}
+                  placeholder="— Unresolved —"
+                />
               </div>
               <div>
                 <label
@@ -327,19 +313,17 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 >
                   Insurer
                 </label>
-                <select
-                  id="new-claim-insurer"
+                <Select
                   value={form.insuranceCompanyId}
-                  onChange={set('insuranceCompanyId')}
-                  className={inputClass}
-                >
-                  <option value="">— Unresolved —</option>
-                  {insurers.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-                </select>
+                  id="new-claim-insurer"
+                  ariaLabel="Insurer"
+                  onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+                  options={[
+                    { value: '', label: '— Unresolved —' },
+                    ...insurers.map((i) => ({ value: i.id, label: i.name })),
+                  ]}
+                  placeholder="— Unresolved —"
+                />
               </div>
               <div>
                 <label
@@ -348,19 +332,17 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 >
                   Claim Type
                 </label>
-                <select
-                  id="new-claim-type"
+                <Select
                   value={form.claimTypeId}
-                  onChange={set('claimTypeId')}
-                  className={inputClass}
-                >
-                  <option value="">— Unresolved —</option>
-                  {claimTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  id="new-claim-type"
+                  ariaLabel="Claim Type"
+                  onChange={(v) => setForm({ ...form, claimTypeId: v })}
+                  options={[
+                    { value: '', label: '— Unresolved —' },
+                    ...claimTypes.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                  placeholder="— Unresolved —"
+                />
               </div>
             </div>
 
@@ -519,19 +501,27 @@ export function NewClaimModal({ open, onClose, onCreated }) {
               >
                 Assign Employee
               </label>
-              <select
-                id="new-claim-employee"
+              <Select
                 value={assignedEmployee}
-                onChange={setAssignedEmployee}
-                className={inputClass}
-              >
-                <option value="">Select employee</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={`${employee.role}:${employee.id}`}>
-                    {employee.fullName} — {employee.role === 'ENGINEER' ? 'Engineer' : 'Accountant'}
-                  </option>
-                ))}
-              </select>
+                id="new-claim-employee"
+                ariaLabel="Assign Employee"
+                onChange={(v) => {
+                  const [role, id = ''] = v.split(':');
+                  setForm((current) => ({
+                    ...current,
+                    engineerId: role === 'ENGINEER' ? id : current.engineerId,
+                    accountantId: role === 'ACCOUNTANT' ? id : current.accountantId,
+                  }));
+                }}
+                options={[
+                  { value: '', label: 'Select employee' },
+                  ...employees.map((employee) => ({
+                    value: `${employee.role}:${employee.id}`,
+                    label: `${employee.fullName} — ${employee.role === 'ENGINEER' ? 'Engineer' : 'Accountant'}`,
+                  })),
+                ]}
+                placeholder="Select employee"
+              />
             </div>
 
             <div className="flex gap-3 pt-2">

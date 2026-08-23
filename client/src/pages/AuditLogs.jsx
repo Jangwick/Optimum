@@ -5,6 +5,7 @@ import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
+import { Select } from '../components/Select.jsx';
 import { useList } from '../hooks/useList.js';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -72,18 +73,15 @@ export default function AuditLogs() {
               placeholder="Table"
               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             />
-            <select
+            <Select
               value={filters.userId || ''}
-              onChange={(e) => applyFilters({ ...filters, userId: e.target.value })}
-              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
-            >
-              <option value="">All users</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => applyFilters({ ...filters, userId: v })}
+              options={[
+                { value: '', label: 'All users' },
+                ...users.map((u) => ({ value: u.id, label: u.fullName })),
+              ]}
+              placeholder="All users"
+            />
             <input
               type="date"
               value={filters.from || ''}

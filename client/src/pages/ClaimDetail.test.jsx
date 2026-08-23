@@ -48,13 +48,16 @@ describe('DocumentPreview', () => {
     fireEvent.click(screen.getByRole('button', { name: '2 Documents' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Document Preview' });
-    const selector = within(dialog).getByLabelText('Preview document');
     expect(within(dialog).getByTitle('Document preview')).toHaveAttribute(
       'src',
       '/api/claims/3/documents/11/preview'
     );
 
-    fireEvent.change(selector, { target: { value: '12' } });
+    // Switch to the second document using the custom Select
+    const trigger = within(dialog).getByLabelText('Preview document');
+    fireEvent.click(trigger);
+    const option = within(dialog).getByRole('option', { name: /photos.pdf/ });
+    fireEvent.click(option);
     expect(within(dialog).getByTitle('Document preview')).toHaveAttribute(
       'src',
       '/api/claims/3/documents/12/preview'

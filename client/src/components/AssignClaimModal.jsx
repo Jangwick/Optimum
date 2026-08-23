@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { updateClaim } from '../services/claim.service.js';
 import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
+import { Select } from './Select.jsx';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
 
 export function AssignClaimModal({ open, onClose, claim, onSaved }) {
@@ -73,22 +74,28 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }) {
 
         <div>
           <label className="block text-label-md text-outline uppercase mb-1.5">Engineer</label>
-          <select value={form.engineerId} onChange={set('engineerId')} className={inputClass}>
-            <option value="">— None —</option>
-            {engineers.map((u) => (
-              <option key={u.id} value={u.id}>{u.fullName}</option>
-            ))}
-          </select>
+          <Select
+            value={form.engineerId}
+            onChange={(v) => setForm({ ...form, engineerId: v })}
+            options={[
+              { value: '', label: '— None —' },
+              ...engineers.map((u) => ({ value: u.id, label: u.fullName })),
+            ]}
+            placeholder="— None —"
+          />
         </div>
 
         <div>
           <label className="block text-label-md text-outline uppercase mb-1.5">Accountant</label>
-          <select value={form.accountantId} onChange={set('accountantId')} className={inputClass}>
-            <option value="">— None —</option>
-            {accountants.map((u) => (
-              <option key={u.id} value={u.id}>{u.fullName}</option>
-            ))}
-          </select>
+          <Select
+            value={form.accountantId}
+            onChange={(v) => setForm({ ...form, accountantId: v })}
+            options={[
+              { value: '', label: '— None —' },
+              ...accountants.map((u) => ({ value: u.id, label: u.fullName })),
+            ]}
+            placeholder="— None —"
+          />
         </div>
 
         <div>
