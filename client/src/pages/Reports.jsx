@@ -40,7 +40,7 @@ function MetricCard({ icon: Icon, label, value, subtitle, tint }) {
         </div>
       </div>
       <p className="text-body-sm text-on-surface-variant font-medium">{label}</p>
-      <p className="text-headline-sm sm:text-headline-md font-bold text-on-surface tabular-nums mt-1 break-all leading-tight">{value}</p>
+      <p className="text-headline-sm sm:text-headline-md font-bold text-on-surface tabular-nums mt-1 leading-tight">{value}</p>
       {subtitle && <p className="text-body-sm text-outline mt-0.5">{subtitle}</p>}
     </div>
   );
@@ -61,7 +61,7 @@ function ChartCard({ title, subtitle, icon: Icon, children, action }) {
         </div>
         {action}
       </div>
-      <div className="flex-1 p-5">{children}</div>
+      <div className="flex-1 p-4 sm:p-5">{children}</div>
     </section>
   );
 }
@@ -127,7 +127,7 @@ export default function Reports() {
 
           <div className="space-y-6">
             {/* Summary Metric Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard
                 icon={FileText}
                 label="Total Claims"
@@ -159,7 +159,7 @@ export default function Reports() {
             </div>
 
             {/* Secondary Financial Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard
                 icon={DollarSign}
                 label="Claimed Amount"
@@ -193,8 +193,9 @@ export default function Reports() {
               subtitle="Claims received and estimated loss over the last 12 months"
               icon={Activity}
             >
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.monthlyTrend}>
+              <div className="h-64 sm:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data.monthlyTrend} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e2e5" />
                   <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#7a7a7a' }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#7a7a7a' }} />
@@ -226,6 +227,7 @@ export default function Reports() {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             </ChartCard>
 
             {/* Status Breakdown + Claim Types */}
@@ -243,15 +245,16 @@ export default function Reports() {
                   </button>
                 }
               >
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={data.statusBreakdown} layout="vertical" margin={{ left: 40 }}>
+                <div className="h-72 sm:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.statusBreakdown} layout="vertical" margin={{ left: 20, right: 10, top: 5, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e2e5" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 12, fill: '#7a7a7a' }} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: '#7a7a7a' }} />
                     <YAxis
                       type="category"
                       dataKey="name"
-                      tick={{ fontSize: 11, fill: '#5a5a5a' }}
-                      width={130}
+                      tick={{ fontSize: 10, fill: '#5a5a5a' }}
+                      width={100}
                     />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="count" name="Claims" radius={[0, 4, 4, 0]}>
@@ -261,6 +264,7 @@ export default function Reports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               </ChartCard>
 
               <ChartCard
@@ -269,7 +273,8 @@ export default function Reports() {
                 icon={FileText}
               >
                 {data.typeBreakdown.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={320}>
+                  <div className="h-64 sm:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={data.typeBreakdown}
@@ -277,11 +282,11 @@ export default function Reports() {
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        outerRadius={110}
+                        outerRadius={80}
                         label={({ name, percent }) =>
-                          `${name.length > 15 ? name.slice(0, 12) + '…' : name} ${(percent * 100).toFixed(0)}%`
+                          `${name.length > 12 ? name.slice(0, 10) + '…' : name} ${(percent * 100).toFixed(0)}%`
                         }
-                        labelLine={{ fontSize: 11 }}
+                        labelLine={{ fontSize: 10 }}
                       >
                         {data.typeBreakdown.map((_, idx) => (
                           <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
@@ -290,6 +295,7 @@ export default function Reports() {
                       <Tooltip contentStyle={tooltipStyle} />
                     </PieChart>
                   </ResponsiveContainer>
+                  </div>
                 ) : (
                   <div className="h-64 sm:h-80 flex items-center justify-center text-on-surface-variant text-body-md">
                     No claim type data available.
@@ -306,15 +312,17 @@ export default function Reports() {
                 icon={Users}
               >
                 {data.engineerWorkload.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={data.engineerWorkload}>
+                  <div className="h-56 sm:h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.engineerWorkload} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e2e5" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7a7a7a' }} />
-                      <YAxis tick={{ fontSize: 12, fill: '#7a7a7a' }} allowDecimals={false} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#7a7a7a' }} />
+                      <YAxis tick={{ fontSize: 10, fill: '#7a7a7a' }} allowDecimals={false} />
                       <Tooltip contentStyle={tooltipStyle} />
                       <Bar dataKey="count" name="Claims" fill="#1a3a5c" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
+                  </div>
                 ) : (
                   <div className="h-56 sm:h-72 flex items-center justify-center text-on-surface-variant text-body-md">
                     No engineer assignments.
@@ -327,11 +335,12 @@ export default function Reports() {
                 subtitle="Open claims by age since received"
                 icon={Clock}
               >
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={data.agingBuckets}>
+                <div className="h-56 sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.agingBuckets} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e2e5" />
-                    <XAxis dataKey="label" tick={{ fontSize: 13, fill: '#7a7a7a' }} />
-                    <YAxis tick={{ fontSize: 12, fill: '#7a7a7a' }} allowDecimals={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#7a7a7a' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#7a7a7a' }} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="count" name="Claims" radius={[4, 4, 0, 0]}>
                       {data.agingBuckets.map((entry, idx) => {
@@ -341,6 +350,7 @@ export default function Reports() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               </ChartCard>
             </div>
 
@@ -352,13 +362,13 @@ export default function Reports() {
             >
               {data.topClients.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left min-w-[400px]">
                     <thead className="bg-surface-container-high text-on-surface-variant text-body-sm uppercase">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Rank</th>
-                        <th className="px-4 py-3 font-medium">Client</th>
-                        <th className="px-4 py-3 font-medium text-right">Claims</th>
-                        <th className="px-4 py-3 font-medium">Share</th>
+                        <th className="px-3 py-2 sm:px-4 sm:py-3 font-medium">Rank</th>
+                        <th className="px-3 py-2 sm:px-4 sm:py-3 font-medium">Client</th>
+                        <th className="px-3 py-2 sm:px-4 sm:py-3 font-medium text-right">Claims</th>
+                        <th className="px-3 py-2 sm:px-4 sm:py-3 font-medium">Share</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-border text-body-md">
@@ -370,10 +380,10 @@ export default function Reports() {
                             onClick={() => navigate(`/claims?search=${encodeURIComponent(c.name)}`)}
                             className="hover:bg-surface-container-low transition-colors cursor-pointer"
                           >
-                            <td className="px-4 py-3 text-on-surface-variant font-mono">#{idx + 1}</td>
-                            <td className="px-4 py-3 font-medium text-on-surface">{c.name}</td>
-                            <td className="px-4 py-3 text-right tabular-nums text-on-surface">{c.count}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-2 sm:px-4 sm:py-3 text-on-surface-variant font-mono">#{idx + 1}</td>
+                            <td className="px-3 py-2 sm:px-4 sm:py-3 font-medium text-on-surface">{c.name}</td>
+                            <td className="px-3 py-2 sm:px-4 sm:py-3 text-right tabular-nums text-on-surface">{c.count}</td>
+                            <td className="px-3 py-2 sm:px-4 sm:py-3">
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 h-2 bg-surface-container-high rounded-full overflow-hidden max-w-[120px]">
                                   <div
