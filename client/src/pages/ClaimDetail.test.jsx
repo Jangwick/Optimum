@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CLAIM_DETAIL_TABS, DocumentPreview, InspectionSummary } from './ClaimDetail.jsx';
+import { CLAIM_DETAIL_TABS, DocumentPreview, InspectionSummary, WorkflowProgress } from './ClaimDetail.jsx';
 
 vi.mock('../components/Modal.jsx', () => ({
   Modal: ({ open, title, children }) =>
@@ -13,6 +13,19 @@ vi.mock('../components/Modal.jsx', () => ({
 }));
 
 afterEach(cleanup);
+
+describe('WorkflowProgress', () => {
+  it('renders workflow progress without errors', () => {
+    render(<WorkflowProgress currentStatus="INVESTIGATION" isCancelled={false} />);
+    expect(screen.getByText('Investigation')).toBeInTheDocument();
+    expect(screen.getByText('Documents')).toBeInTheDocument();
+  });
+
+  it('renders cancelled workflow progress', () => {
+    render(<WorkflowProgress currentStatus="CANCELLED" isCancelled />);
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+  });
+});
 
 describe('ClaimDetail tabs', () => {
   it('does not include Timeline or Tasks', () => {

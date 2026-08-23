@@ -52,7 +52,7 @@ const WORKFLOW_PHASES = [
   { key: 'closed', label: 'Closed', statuses: ['CLOSED'], icon: CheckCircle },
 ];
 
-function WorkflowProgress({ currentStatus, isCancelled }) {
+export function WorkflowProgress({ currentStatus, isCancelled }) {
   if (isCancelled) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-error/10 text-error text-body-sm font-medium">
@@ -389,7 +389,9 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
       id: `a-${a.id}`,
       type: 'activity',
       date: a.occurredAt,
-      title: a.activityType?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      title: a.activityType
+        ? a.activityType.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+        : 'Activity',
       desc: a.description,
       actor: a.actor,
     })),
