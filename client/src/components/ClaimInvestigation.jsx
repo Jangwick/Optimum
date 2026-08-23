@@ -11,7 +11,6 @@ import {
   updateInspection,
   deleteInspection,
   uploadInspectionPhoto,
-  ensureInspection,
   deleteInspectionPhoto,
 } from '../services/investigation.service.js';
 import {
@@ -154,11 +153,33 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
   const fileInputRefs = useRef({});
 
   const handleFileSelect = async (inspectionId, e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await uploadInspectionPhoto(claimId, inspectionId, file, 'Inspection photo');
-    e.target.value = '';
-    triggerRefresh();
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        await uploadInspectionPhoto(claimId, inspectionId, file, '');
+      }
+      e.target.value = '';
+      triggerRefresh();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleInspectionDrop = async (inspectionId, e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        await uploadInspectionPhoto(claimId, inspectionId, file, '');
+      }
+      triggerRefresh();
+    } finally {
+      setUploading(false);
+    }
   };
 
   const triggerFileInput = (inspectionId) => {
@@ -216,33 +237,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     }
   };
 
-  // ─── Photos step (all photos across inspections) ───
   const [uploading, setUploading] = useState(false);
-  const photosFileRef = useRef(null);
-
-  const allPhotos = inspections.flatMap((insp) =>
-    (insp.photos || []).map((photo) => ({ ...photo, inspectionId: insp.id }))
-  );
-
-  const handlePhotosUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      const inspection = await ensureInspection(claimId);
-      for (const file of files) {
-        await uploadInspectionPhoto(claimId, inspection.id, file, '');
-      }
-      triggerRefresh();
-    } finally {
-      setUploading(false);
-      if (photosFileRef.current) photosFileRef.current.value = '';
-    }
-  };
-
-  const handlePhotosDrop = (e) => {
-    e.preventDefault();
-    handlePhotosUpload(e.dataTransfer.files);
-  };
 
   const removePhoto = async (photo) => {
     if (!confirm('Delete this photo?')) return;
@@ -777,33 +772,80 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                             rows={2}
                           />
                         </div>
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <button
-                            onClick={() => completeInspection(i.id)}
-                            className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
-                          >
-                            <CheckCircle size={16} />
-                            Complete Inspection
-                          </button>
-                          <div className="flex items-center gap-2 pl-2 border-l border-surface-border">
-                            <input
-                              ref={(el) => (fileInputRefs.current[i.id] = el)}
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleFileSelect(i.id, e)}
-                              className="hidden"
-                            />
-                            <button
-                              onClick={() => triggerFileInput(i.id)}
-                              className="h-10 px-4 bg-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
-                            >
-                              <Camera size={16} />
-                              Upload Photo
-                            </button>
-                          </div>
-                        </div>
+                        <button
+                          onClick={() => completeInspection(i.id)}
+                          className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+                        >
+                          <CheckCircle size={16} />
+                          Complete Inspection
+                        </button>
                       </div>
                     )}
+
+                    {/* Drag & drop photo upload for this inspection */}
+                    <div className="mt-3 pt-3 border-t border-surface-border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Camera size={16} className="text-on-surface-variant shrink-0" />
+                        <span className="text-label-md text-outline uppercase">Photos {i.photos?.length > 0 ? `(${i.photos.length})` : ''}</span>
+                      </div>
+                      <div
+                        onDrop={(e) => handleInspectionDrop(i.id, e)}
+                        onDragOver={(e) => e.preventDefault()}
+                        className="border-2 border-dashed border-outline rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer"
+                        onClick={() => triggerFileInput(i.id)}
+                      >
+                        <input
+                          ref={(el) => (fileInputRefs.current[i.id] = el)}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => handleFileSelect(i.id, e)}
+                          className="hidden"
+                        />
+                        <Upload size={24} className="mx-auto text-outline mb-2" />
+                        <p className="text-body-sm text-on-surface-variant">
+                          {uploading ? 'Uploading...' : 'Click or drag photos here'}
+                        </p>
+                      </div>
+                      {i.photos?.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {i.photos.map((p) => (
+                            <div
+                              key={p.id}
+                              className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all group"
+                            >
+                              <div className="relative w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingPhoto(p)}
+                                  className="w-full h-full block cursor-zoom-in"
+                                  title={`View ${p.originalName}`}
+                                >
+                                  <img
+                                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id}`)}
+                                    alt={p.originalName}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    loading="lazy"
+                                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                  />
+                                  <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
+                                    <Camera size={24} className="text-on-surface-variant" />
+                                  </div>
+                                </button>
+                                <button
+                                  onClick={() => removePhoto(p)}
+                                  className="absolute top-1 right-1 w-7 h-7 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Delete photo"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                              <p className="text-label-sm truncate" title={p.originalName}>{p.originalName}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -814,79 +856,6 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 <p className="text-body-md text-on-surface-variant">No inspections scheduled yet.</p>
                 <p className="text-body-sm text-outline mt-1">Use the form above to schedule one.</p>
               </div>
-            )}
-          </div>
-
-          {/* Drag & drop photo upload — adds photos to the latest inspection */}
-          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-4">
-            <div className="flex items-center gap-2">
-              <Camera size={18} className="text-primary" />
-              <h3 className="text-headline-sm font-semibold text-primary">Inspection Photos</h3>
-            </div>
-            <div
-              onDrop={handlePhotosDrop}
-              onDragOver={(e) => e.preventDefault()}
-              className="border-2 border-dashed border-outline rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
-              onClick={() => photosFileRef.current?.click()}
-            >
-              <input
-                ref={photosFileRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handlePhotosUpload(e.target.files)}
-                className="hidden"
-              />
-              <Upload size={32} className="mx-auto text-outline mb-3" />
-              <p className="text-body-md text-on-surface-variant">
-                {uploading ? 'Uploading...' : 'Click or drag photos here to upload'}
-              </p>
-              <p className="text-body-sm text-outline mt-1">Site, document, and evidence photos</p>
-            </div>
-
-            {allPhotos.length > 0 && (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {allPhotos.map((photo) => (
-                    <div
-                      key={photo.id}
-                      className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all group"
-                    >
-                      <div className="relative w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setViewingPhoto(photo)}
-                          className="w-full h-full block cursor-zoom-in"
-                          title={`View ${photo.originalName}`}
-                        >
-                          <img
-                            src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
-                            alt={photo.originalName}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            loading="lazy"
-                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                          />
-                          <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
-                            <Camera size={24} className="text-on-surface-variant" />
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => removePhoto(photo)}
-                          className="absolute top-1 right-1 w-7 h-7 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Delete photo"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      <p className="text-label-sm truncate" title={photo.originalName}>{photo.originalName}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 text-body-sm text-success-green font-medium pt-2 border-t border-surface-border">
-                  <CheckCircle size={16} />
-                  {allPhotos.length} {allPhotos.length === 1 ? 'photo' : 'photos'} uploaded
-                </div>
-              </>
             )}
           </div>
         </div>
