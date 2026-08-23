@@ -54,9 +54,10 @@ describe('DocumentPreview', () => {
     );
 
     // Switch to the second document using the custom Select
+    // The listbox is rendered in a portal at document.body, so use screen
     const trigger = within(dialog).getByLabelText('Preview document');
     fireEvent.click(trigger);
-    const option = within(dialog).getByRole('option', { name: /photos.pdf/ });
+    const option = screen.getByRole('option', { name: /photos.pdf/ });
     fireEvent.click(option);
     expect(within(dialog).getByTitle('Document preview')).toHaveAttribute(
       'src',

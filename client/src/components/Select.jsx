@@ -1,9 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
 /**
  * Custom Select component that always opens downwards.
  * Drop-in replacement for native <select> with consistent styling.
+ *
+ * The listbox is rendered via a React portal at the document body level,
+ * so it escapes any ancestor overflow-hidden / overflow-auto containers
+ * and is never clipped or overlapped by surrounding content.
  *
  * Props:
  *   value: string | number          — current selected value
@@ -29,12 +34,41 @@ export function Select({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef(null);
   const listRef = useRef(null);
+  const [listboxPos, setListboxPos] = useState(null);
+
+  // Compute listbox position relative to the trigger button
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setListboxPos({
+      left: rect.left,
+      top: rect.bottom + 4, // 4px gap below trigger
+      width: rect.width,
+    });
+  }, [open]);
+
+  // Track scroll/resize to keep the listbox aligned while open
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      setListboxPos({ left: rect.left, top: rect.bottom + 4, width: rect.width });
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (containerRef.current && !containerRef.current.contains(e.target) &&
+          listRef.current && !listRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
@@ -122,11 +156,12 @@ export function Select({
         />
       </button>
 
-      {open && (
+      {open && listboxPos && createPortal(
         <ul
           ref={listRef}
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1 z-50 bg-surface border border-surface-border rounded-lg shadow-lg max-h-60 overflow-y-auto py-1"
+          style={{ position: 'fixed', left: listboxPos.left, top: listboxPos.top, width: listboxPos.width, zIndex: 9999 }}
+          className="bg-surface border border-surface-border rounded-lg shadow-lg max-h-60 overflow-y-auto py-1"
         >
           {options.length === 0 ? (
             <li className="px-3 py-2 text-body-sm text-on-surface-variant text-center">No options</li>
@@ -154,7 +189,8 @@ export function Select({
               );
             })
           )}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );
