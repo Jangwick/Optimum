@@ -7,6 +7,7 @@ import { getAssessments, createAssessment, deleteAssessment } from '../services/
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
 import { getTasks, createTask, updateTask, deleteTask } from '../services/task.service.js';
+import { getInspections } from '../services/investigation.service.js';
 import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
@@ -15,10 +16,11 @@ import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { EditClaimModal } from '../components/EditClaimModal.jsx';
 import { AssignClaimModal } from '../components/AssignClaimModal.jsx';
+import { Modal } from '../components/Modal.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
 
 const STATUS_ORDER = [
   'NEW',
@@ -95,11 +97,12 @@ export function ClaimDetailContent({ claimId }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [claimData, statusesData] = await Promise.all([
+      const [claimData, statusesData, inspectionsData] = await Promise.all([
         getClaim(claimId),
         getClaimStatuses(),
+        getInspections(claimId),
       ]);
-      setClaim(claimData.item);
+      setClaim({ ...claimData.item, inspections: inspectionsData.items || [] });
       setStatuses(statusesData.items);
       setSelectedStatus(claimData.item.status?.code || '');
       setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
@@ -363,6 +366,8 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           </div>
         </section>
 
+        <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
+
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <Wallet size={18} className="text-primary" />
@@ -511,6 +516,123 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         </section>
       </div>
     </div>
+  );
+}
+
+export function InspectionSummary({ claimId, inspections = [] }) {
+  const [open, setOpen] = useState(false);
+  if (inspections.length === 0) return null;
+
+  const inspection = inspections[0];
+  const completed = Boolean(inspection.conductedAt);
+  const inspectionDate = inspection.conductedAt || inspection.scheduledAt;
+  const inspector = inspection.inspector
+    ? `${inspection.inspector.firstName} ${inspection.inspector.lastName}`
+    : null;
+  const photos = inspection.photos || [];
+
+  return (
+    <>
+      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Latest Inspection</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-3 border border-outline text-on-surface-variant rounded-lg text-body-sm font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
+          >
+            <Eye size={16} />
+            View Inspection
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+          <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
+          <Info
+            label={completed ? 'Conducted' : 'Scheduled For'}
+            value={inspectionDate ? new Date(inspectionDate).toLocaleString() : '—'}
+          />
+          <Info label="Location" value={inspection.location} />
+          <Info label="Inspector" value={inspector} />
+        </div>
+        {inspection.findings && (
+          <div className="mt-4 pt-4 border-t border-surface-border">
+            <span className="text-label-md text-outline uppercase">Findings</span>
+            <p className="text-body-md mt-1 line-clamp-2">{inspection.findings}</p>
+          </div>
+        )}
+        {photos.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-surface-border">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-body-sm font-medium">
+              <Camera size={14} />
+              {photos.length} {photos.length === 1 ? 'Photo' : 'Photos'}
+            </span>
+          </div>
+        )}
+      </section>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Inspection Details" size="lg">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+            <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
+            <Info
+              label="Scheduled For"
+              value={inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleString() : '—'}
+            />
+            <Info
+              label="Conducted"
+              value={inspection.conductedAt ? new Date(inspection.conductedAt).toLocaleString() : '—'}
+            />
+            <Info label="Location" value={inspection.location} />
+            <Info label="Inspector" value={inspector} />
+            <Info label="Inspection ID" value={inspection.id} mono />
+          </div>
+          {inspection.scope && (
+            <div className="pt-4 border-t border-surface-border">
+              <span className="text-label-md text-outline uppercase">Scope</span>
+              <p className="text-body-md mt-1 whitespace-pre-wrap">{inspection.scope}</p>
+            </div>
+          )}
+          {inspection.findings && (
+            <div className="pt-4 border-t border-surface-border">
+              <span className="text-label-md text-outline uppercase">Findings</span>
+              <p className="text-body-md mt-1 whitespace-pre-wrap">{inspection.findings}</p>
+            </div>
+          )}
+          {inspection.notes && (
+            <div className="pt-4 border-t border-surface-border">
+              <span className="text-label-md text-outline uppercase">Notes</span>
+              <p className="text-body-md mt-1 whitespace-pre-wrap">{inspection.notes}</p>
+            </div>
+          )}
+          {photos.length > 0 && (
+            <div className="pt-4 border-t border-surface-border">
+              <div className="flex items-center gap-2 mb-3">
+                <Camera size={16} className="text-primary" />
+                <span className="text-label-md text-outline uppercase">Photos ({photos.length})</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {photos.map((photo) => (
+                  <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden">
+                    <img
+                      src={`/api/claims/${claimId}/inspections/photos/${photo.id}`}
+                      alt={photo.originalName}
+                      className="w-full h-48 object-cover bg-surface-container-high"
+                    />
+                    <figcaption className="p-3 text-body-sm">
+                      <p className="font-medium text-on-surface break-words">{photo.originalName}</p>
+                      {photo.caption && <p className="text-on-surface-variant mt-1">{photo.caption}</p>}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+    </>
   );
 }
 

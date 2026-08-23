@@ -8,7 +8,7 @@ import {
 } from '../services/master-data.service.js';
 import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Search } from 'lucide-react';
 
 const EMPTY_FORM = {
   description: '',
@@ -36,6 +36,7 @@ const EMPTY_FORM = {
 
 export function NewClaimModal({ open, onClose, onCreated }) {
   const [policies, setPolicies] = useState([]);
+  const [policySearch, setPolicySearch] = useState('');
   const [users, setUsers] = useState([]);
   const [claimTypes, setClaimTypes] = useState([]);
   const [insurers, setInsurers] = useState([]);
@@ -61,10 +62,30 @@ export function NewClaimModal({ open, onClose, onCreated }) {
       .finally(() => setLoading(false));
   }, [open]);
 
-  const engineers = users.filter((u) => u.role === 'ENGINEER');
-  const accountants = users.filter((u) => u.role === 'ACCOUNTANT');
+  const employees = users.filter((u) => u.role === 'ENGINEER' || u.role === 'ACCOUNTANT');
+  const assignedEmployee = form.engineerId
+    ? `ENGINEER:${form.engineerId}`
+    : form.accountantId
+      ? `ACCOUNTANT:${form.accountantId}`
+      : '';
+  const policySearchTerm = policySearch.trim().toLowerCase();
+  const filteredPolicies = policies.filter((policy) => {
+    if (!policySearchTerm || String(policy.id) === String(form.policyId)) return true;
+    return [policy.policyNumber, policy.client?.name, policy.insuranceCompany?.name].some((value) =>
+      String(value || '').toLowerCase().includes(policySearchTerm)
+    );
+  });
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  const setAssignedEmployee = (e) => {
+    const [role, id = ''] = e.target.value.split(':');
+    setForm((current) => ({
+      ...current,
+      engineerId: role === 'ENGINEER' ? id : '',
+      accountantId: role === 'ACCOUNTANT' ? id : '',
+    }));
+  };
 
   const setPolicy = (e) => {
     const policyId = e.target.value;
@@ -98,6 +119,7 @@ export function NewClaimModal({ open, onClose, onCreated }) {
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
+    setPolicySearch('');
     setError(null);
     onClose();
   };
@@ -123,6 +145,7 @@ export function NewClaimModal({ open, onClose, onCreated }) {
     try {
       const res = await createClaim(payload);
       setForm(EMPTY_FORM);
+      setPolicySearch('');
       onCreated?.(res.item);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create claim');
@@ -165,6 +188,24 @@ export function NewClaimModal({ open, onClose, onCreated }) {
               >
                 Policy
               </label>
+              <div className="relative mb-2">
+                <label htmlFor="new-claim-policy-search" className="sr-only">
+                  Search policies
+                </label>
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  id="new-claim-policy-search"
+                  type="search"
+                  value={policySearch}
+                  onChange={(e) => setPolicySearch(e.target.value)}
+                  className={`${inputClass} pl-9`}
+                  placeholder="Search by policy number, client, or insurer"
+                />
+              </div>
               <select
                 id="new-claim-policy"
                 value={form.policyId}
@@ -172,12 +213,17 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 className={inputClass}
               >
                 <option value="">No linked policy / enter details manually</option>
-                {policies.map((p) => (
+                {filteredPolicies.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.policyNumber} · {p.client?.name} · {p.insuranceCompany?.name}
                   </option>
                 ))}
               </select>
+              {policySearchTerm && filteredPolicies.length === 0 && (
+                <p className="mt-1.5 text-body-sm text-on-surface-variant" role="status">
+                  No policies match your search.
+                </p>
+              )}
             </div>
 
             <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">
@@ -466,37 +512,26 @@ export function NewClaimModal({ open, onClose, onCreated }) {
             <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">
               Assignments
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-label-md text-outline uppercase mb-1.5">
-                  Engineer
-                </label>
-                <select value={form.engineerId} onChange={set('engineerId')} className={inputClass}>
-                  <option value="">Select engineer</option>
-                  {engineers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-label-md text-outline uppercase mb-1.5">
-                  Accountant
-                </label>
-                <select
-                  value={form.accountantId}
-                  onChange={set('accountantId')}
-                  className={inputClass}
-                >
-                  <option value="">Select accountant</option>
-                  {accountants.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label
+                htmlFor="new-claim-employee"
+                className="block text-label-md text-outline uppercase mb-1.5"
+              >
+                Assign Employee
+              </label>
+              <select
+                id="new-claim-employee"
+                value={assignedEmployee}
+                onChange={setAssignedEmployee}
+                className={inputClass}
+              >
+                <option value="">Select employee</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={`${employee.role}:${employee.id}`}>
+                    {employee.fullName} — {employee.role === 'ENGINEER' ? 'Engineer' : 'Accountant'}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex gap-3 pt-2">
