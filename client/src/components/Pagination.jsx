@@ -7,7 +7,7 @@ export function Pagination({ page, limit, total, onPageChange, onLimitChange }) 
   const end = Math.min(page * limit, total);
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-2">
       <div className="flex items-center gap-2 text-body-sm text-on-surface-variant">
         <span>Rows per page:</span>
         <div className="w-20">

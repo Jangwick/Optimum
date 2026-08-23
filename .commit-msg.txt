@@ -1,0 +1,27 @@
+feat: make the entire application responsive across all devices
+
+- Create AppLayout component with responsive sidebar (fixed on desktop,
+  slide-in drawer on mobile with overlay, auto-closes on navigation)
+- Add hamburger menu to TopBar (visible on mobile, hidden on lg+)
+- Migrate all 9 pages to use AppLayout, removing duplicated layout shells
+- Make DataTable horizontally scrollable with overflow-x-auto and min-width
+- Make all Modal sizes responsive (max-w-[95vw] on mobile, sm: breakpoints)
+- Fix form grids to stack on mobile (grid-cols-1 sm:grid-cols-2)
+- Make TopBar search responsive (w-32 on mobile, w-64 on desktop)
+- Hide breadcrumbs on very small screens (< 640px)
+- Responsive padding (p-4 sm:p-6 md:p-8) via AppLayout
+- Responsive Pagination (stacks vertically on mobile)
+- Responsive Reports chart heights (shorter on mobile)
+- Compact DataTable cell padding on mobile (px-3 py-2 sm:px-4 sm:py-3)
+
+Verified at 375px (mobile), 1440px (desktop):
+- Sidebar hidden on mobile, visible on desktop
+- Hamburger opens drawer with nav links and close button
+- Tables scroll horizontally without breaking layout
+- Modals fit within 95vw on mobile
+- Forms stack to single column on mobile
+- No console errors
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

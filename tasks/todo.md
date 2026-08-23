@@ -1,101 +1,291 @@
-# Implementation Todo — Claims Solutions
+# Responsive Design Task List
 
-## Phase 1 — Foundation
+## Phase 1: Foundation — Shared Layout & Mobile Sidebar
 
-- [x] 1.1 Initialize monorepo, root package, ESLint/Prettier, `.gitignore`, README.
-- [x] 1.2 Set up MySQL 8 with `docker-compose.yml`, Prisma init, schema base, first migration.
-- [x] 1.3 Express bootstrap with env config, pino, helmet, CORS, rate limit, error handler, health endpoint.
-- [x] 1.4 React Vite client with Tailwind v4, design tokens from `design.md`, Hanken Grotesk + JetBrains Mono fonts, `lucide-react` 20px icons, `logo.png` in sidebar/login, and dev proxy.
+### Task 1: Create AppLayout component with responsive sidebar
+- [ ] Create `client/src/components/AppLayout.jsx`
+- [ ] Extract the shared shell: `flex h-screen overflow-hidden` + Sidebar + content area + TopBar + main
+- [ ] Sidebar: `hidden lg:flex` on mobile (hidden), `fixed w-[260px]` on desktop
+- [ ] Content area: `lg:ml-[260px]` (no margin on mobile, 260px on desktop)
+- [ ] Add mobile drawer state: when open, show sidebar as `fixed inset-y-0 left-0 w-[260px] z-40` with overlay
+- [ ] Drawer overlay: `fixed inset-0 bg-black/50 z-30` (click to close)
+- [ ] Auto-close drawer on route change (use `useLocation`)
 
-**Checkpoint 1**: `npm run lint`, `npm run build`, `npm run dev` succeed; `/api/health` and login page load.
+**Acceptance criteria:**
+- AppLayout renders sidebar + topbar + children
+- Sidebar is hidden on screens < 1024px
+- Sidebar is visible on screens >= 1024px
+- Drawer opens/closes via a prop callback
+- Clicking overlay closes the drawer
 
-## Phase 2 — Authentication & RBAC
+**Verification:**
+- Lint passes
+- Existing tests still pass
+- Browser: sidebar hidden at 375px, visible at 1440px
 
-- [x] 2.1 `Role` and `User` Prisma models, seed roles + initial admin, bcrypt.
-- [x] 2.2 Login/logout/me endpoints with JWT in HTTP-only cookie, auth and RBAC middleware.
-- [x] 2.3 Login page, `AuthContext`, role-based redirect, protected routes, role layouts.
-- [~] 2.4 Users CRUD (admin) + profile (backend complete; frontend read-only list).
+**Dependencies:** None
+**Files:** `client/src/components/AppLayout.jsx` (new)
+**Estimated scope:** Small (1 file)
 
-**Checkpoint 2**: Login works for all three roles; RBAC blocks cross-role API calls.
+---
 
-## Phase 3 — Master Data
+### Task 2: Add mobile hamburger menu and sidebar drawer to TopBar
+- [ ] Add hamburger button (Menu icon from lucide-react) visible only on mobile: `lg:hidden`
+- [ ] Wire hamburger click to call `onMenuClick` prop (passed from AppLayout)
+- [ ] Make global search responsive: `w-32 sm:w-64` (narrow on mobile, full on sm+)
+- [ ] Make search dropdown responsive: `min-w-[280px] sm:min-w-[320px] max-w-[400px]` and `right-0` so it doesn't overflow left
+- [ ] Hide breadcrumb text on very small screens: `hidden sm:flex` for breadcrumb nav
+- [ ] Add `onMenuClick` prop to TopBar component
 
-- [x] 3.1 Insurance companies, clients, policies CRUD backend.
-- [x] 3.1b Insurance companies, clients, policies API available for UI.
-- [x] 3.2 Claim types and document categories CRUD + seed.
-- [x] 3.3 18 claim statuses seed data and lookup endpoint.
+**Acceptance criteria:**
+- Hamburger menu visible only on screens < 1024px
+- Clicking hamburger opens the sidebar drawer
+- Search dropdown doesn't overflow viewport on mobile
+- Breadcrumbs hidden on very small screens
 
-**Checkpoint 3**: Master data forms submit and persist; status dropdown has 18 values.
+**Verification:**
+- Lint passes
+- Browser: hamburger visible at 375px, hidden at 1440px
+- Browser: search dropdown fits within viewport at 375px
 
-## Phase 4 — Claim Management
+**Dependencies:** Task 1
+**Files:** `client/src/components/TopBar.jsx`
+**Estimated scope:** Small (1 file)
 
-- [x] 4.1 Claim creation with auto-generated claim/assignment numbers; assignment.
-- [x] 4.2 Claim list with filters, pagination, search, role scoping.
-- [x] 4.3 Claim detail page with summary, status actions, assignment, timeline.
-- [x] 4.4 Excel export of claim register.
+---
 
-**Checkpoint 4**: A claim can be created, assigned, and status changed; register is searchable and exportable.
+### Task 3: Migrate all pages to use AppLayout
+- [ ] Replace the duplicated layout shell in each page with `<AppLayout>...</AppLayout>`
+- [ ] Pages to migrate: Dashboard, Claims, ClaimDetail, Reports, MasterData, Employees, AuditLogs, NewClaim
+- [ ] Remove the `flex h-screen overflow-hidden` + `Sidebar` + `ml-[260px]` + `TopBar` + `main` wrapper from each page
+- [ ] Keep page-specific content inside `<AppLayout>` as children
+- [ ] Remove unused Sidebar/TopBar imports from pages
 
-## Phase 5 — Investigation & Inspection
+**Acceptance criteria:**
+- All 8 pages use AppLayout
+- No page has a hardcoded `ml-[260px]` or `w-[260px]`
+- No page directly imports Sidebar or TopBar
+- Layout is consistent across all pages
 
-- [x] 5.1 Investigation record and contact records under claim.
-- [x] 5.2 Inspection scheduling, completion, findings.
-- [x] 5.3 Photo upload, grid preview, caption, delete.
+**Verification:**
+- Lint passes
+- All tests pass
+- Browser: every page renders correctly at 375px and 1440px
+- No console errors
 
-**Checkpoint 5**: Engineer can investigate, schedule inspection, upload photos, and view them.
+**Dependencies:** Task 1, Task 2
+**Files:** `Dashboard.jsx`, `Claims.jsx`, `ClaimDetail.jsx`, `Reports.jsx`, `MasterData.jsx`, `Employees.jsx`, `AuditLogs.jsx`, `NewClaim.jsx`
+**Estimated scope:** Medium (8 files, mechanical changes)
 
-## Phase 6 — Document Management
+---
 
-- [x] 6.1 Document category requirements per claim type; document checklist.
-- [x] 6.2 Document upload, download, preview, delete.
-- [x] 6.3 Document history and audit for uploads/deletes.
+### Checkpoint: Foundation
+- [ ] Sidebar shows as drawer on mobile, fixed on desktop
+- [ ] All pages render without layout errors
+- [ ] `npm run lint` passes
+- [ ] `npm test` passes (18/18)
 
-**Checkpoint 6**: Document checklist auto-generates; required docs can be uploaded, marked received, and downloaded.
+---
 
-## Phase 7 — Assessment
+## Phase 2: Core Components — Tables, Modals, Forms
 
-- [x] 7.1 Loss assessment header + line items with auto-calculated totals.
-- [x] 7.2 Loss estimate / reserve.
-- [x] 7.3 Assessment summary in claim detail.
+### Task 4: Make DataTable horizontally scrollable on mobile
+- [ ] Wrap the `<table>` in a `<div className="overflow-x-auto">` container
+- [ ] Add `min-w-[600px]` to the table element so it has a minimum width before scrolling
+- [ ] Add `-webkit-overflow-scrolling: touch` for iOS smooth scrolling (via inline style or Tailwind)
+- [ ] Reduce cell padding on mobile: `px-3 py-2 sm:px-4 sm:py-3`
 
-**Checkpoint 7**: Assessment totals calculate correctly; reserve visible on claim detail.
+**Acceptance criteria:**
+- Tables with many columns scroll horizontally on mobile
+- Table doesn't shrink columns to unusable widths
+- Cell padding is compact on mobile, normal on desktop
 
-## Phase 8 — Reports & Templates
+**Verification:**
+- Lint passes
+- Browser: Claims table scrolls horizontally at 375px
+- Browser: table columns are readable at 375px
 
-- [x] 8.1 Report template model and admin template upload (DOCX).
-- [x] 8.2 Collect client templates / build generic placeholder templates.
-- [x] 8.3 Report draft, version, DOCX generation with `docxtemplater`.
-- [x] 8.4 PDF generation with `puppeteer` from HTML template.
-- [x] 8.5 Client review / clarification workflow.
+**Dependencies:** Task 3
+**Files:** `client/src/components/DataTable.jsx`
+**Estimated scope:** Small (1 file)
 
-**Checkpoint 8**: A report can be generated as DOCX and PDF, submitted, and clarified.
+---
 
-## Phase 9 — Settlement & Fees
+### Task 5: Make Modal responsive across all sizes
+- [ ] Change all modal size classes to include mobile fallback:
+  - `sm`: `max-w-[95vw] sm:max-w-md`
+  - `md`: `max-w-[95vw] sm:max-w-lg`
+  - `lg`: `max-w-[95vw] sm:max-w-2xl`
+  - `xl`: `max-w-[95vw] sm:max-w-4xl`
+  - `full`: `max-w-[95vw]` (already done)
+- [ ] Ensure all modals have `max-h-[90vh] overflow-y-auto` for vertical scrolling on mobile
+- [ ] Add `mx-4` horizontal margin so modal doesn't touch screen edges on mobile
 
-- [x] 9.1 Settlement and offer record CRUD.
-- [x] 9.2 Fee entry (linked to user).
-- [x] 9.3 Invoice generation from fees, payment recording.
+**Acceptance criteria:**
+- All modal sizes fit within 95vw on mobile
+- Modals scroll vertically if content is too tall
+- Modal has 16px margin from screen edges on mobile
 
-**Checkpoint 9**: A claim can be settled, an offer recorded, fees invoiced, and payment recorded.
+**Verification:**
+- Lint passes
+- Browser: NewClaimModal fits at 375px
+- Browser: EditClaimModal fits at 375px
+- Browser: ConfirmDialog fits at 375px
 
-## Phase 10 — Dashboard, Tasks, Notifications, Audit
+**Dependencies:** None (independent of layout)
+**Files:** `client/src/components/Modal.jsx`
+**Estimated scope:** Small (1 file)
 
-- [x] 10.1 Role dashboards with KPIs and charts.
-- [x] 10.2 Task creation/assignment and notification generation.
-- [x] 10.3 Audit log viewer for Admin.
+---
 
-**Checkpoint 10**: Dashboards render real data; tasks and notifications work; admin can view audit logs.
+### Task 6: Fix form grids in NewClaim, EditClaimModal, ClaimFinance, Employees
+- [ ] `NewClaim.jsx`: Change all `grid-cols-2` to `grid-cols-1 sm:grid-cols-2`
+- [ ] `EditClaimModal.jsx`: Change all `grid-cols-2` to `grid-cols-1 sm:grid-cols-2`
+- [ ] `ClaimFinance.jsx`: Change `grid-cols-3` to `grid-cols-1 md:grid-cols-3` (summary cards)
+- [ ] `Employees.jsx`: Change `grid-cols-2` (form sections) to `grid-cols-1 sm:grid-cols-2`
+- [ ] `InitialInvestigation.jsx`: Change `grid-cols-2` (line 201) to `grid-cols-1 sm:grid-cols-2`
 
-## Phase 11 — Testing & Quality
+**Acceptance criteria:**
+- All form grids stack to single column on mobile (< 640px)
+- Forms are readable and usable on mobile
+- No layout overflow
 
-- [x] 11.1 Backend integration tests (Jest + Supertest + dedicated MySQL test DB).
-- [x] 11.2 Frontend Vitest sanity test.
-- [x] 11.3 End-to-end manual QA checklist.
+**Verification:**
+- Lint passes
+- Browser: NewClaim form stacks at 375px
+- Browser: EditClaimModal form stacks at 375px
+- Browser: ClaimFinance summary cards stack at 375px
 
-## Phase 12 — Deployment
+**Dependencies:** Task 5 (for modals to be responsive first)
+**Files:** `NewClaim.jsx`, `EditClaimModal.jsx`, `ClaimFinance.jsx`, `Employees.jsx`, `InitialInvestigation.jsx`
+**Estimated scope:** Medium (5 files, class changes only)
 
-- [x] 12.1 Build scripts, environment validation, production `build` + `start`.
-- [x] 12.2 Nginx reverse proxy, SSL, PM2 process config, MySQL backup script.
-- [x] 12.3 Runbook and README updates.
+---
 
-**Final Checkpoint**: Full MVP works in staging; all tests pass; deployment runbook is complete.
+### Task 7: Make TopBar search responsive
+- [ ] Global search input: `w-32 sm:w-48 lg:w-64` (narrow on mobile, wider on desktop)
+- [ ] Search results dropdown: `w-[280px] sm:w-[320px] max-w-[calc(100vw-2rem)]` (fits any screen)
+- [ ] Position dropdown with `right-0` so it grows leftward from the search button
+- [ ] Hide global search on very small screens (< 640px), show a search icon button that expands it
+
+**Acceptance criteria:**
+- Search input doesn't overflow on mobile
+- Search dropdown fits within viewport on all screen sizes
+- Search is usable on mobile (either visible or expandable)
+
+**Verification:**
+- Lint passes
+- Browser: search fits at 375px
+- Browser: search dropdown doesn't overflow at 375px
+
+**Dependencies:** Task 2
+**Files:** `client/src/components/TopBar.jsx`
+**Estimated scope:** Small (1 file)
+
+---
+
+### Checkpoint: Core Components
+- [ ] Tables scroll horizontally on mobile
+- [ ] Modals fit mobile screens
+- [ ] Forms stack to single column on mobile
+- [ ] Search doesn't overflow on mobile
+- [ ] `npm run lint` passes
+- [ ] `npm test` passes
+
+---
+
+## Phase 3: Page-Level Polish
+
+### Task 8: Responsive padding and spacing across all pages
+- [ ] Change bare `p-6` to `p-4 sm:p-6 md:p-8` in: ClaimDetail, AuditLogs, NewClaim
+- [ ] Ensure all pages use consistent responsive padding
+- [ ] Reduce gap values on mobile where `gap-6` is used: `gap-4 sm:gap-6`
+
+**Acceptance criteria:**
+- All pages have comfortable padding on mobile (16px) and desktop (32px)
+- No content touches screen edges
+- Spacing is consistent across pages
+
+**Verification:**
+- Lint passes
+- Browser: pages have 16px padding at 375px
+
+**Dependencies:** Task 3
+**Files:** `ClaimDetail.jsx`, `AuditLogs.jsx`, `NewClaim.jsx`, `Dashboard.jsx`, `Claims.jsx`, `Reports.jsx`
+**Estimated scope:** Small (6 files, class changes only)
+
+---
+
+### Task 9: Responsive Claim Detail tabs and summary grid
+- [ ] Tab bar: already has `overflow-x-auto` — verify it works well on mobile
+- [ ] Summary grid: `grid-cols-1 lg:grid-cols-3` — already responsive, verify
+- [ ] Workflow progress bar: make it scrollable or wrap on mobile
+- [ ] Financial summary: ensure it stacks on mobile
+- [ ] Status update form: ensure it's usable on mobile
+
+**Acceptance criteria:**
+- Claim Detail is fully usable on mobile
+- Tabs are scrollable horizontally
+- All summary sections stack vertically on mobile
+- Workflow progress doesn't overflow
+
+**Verification:**
+- Lint passes
+- Browser: Claim Detail usable at 375px
+
+**Dependencies:** Task 3, Task 8
+**Files:** `client/src/pages/ClaimDetail.jsx`
+**Estimated scope:** Small (1 file)
+
+---
+
+### Task 10: Responsive Pagination component
+- [ ] Change layout to `flex flex-col sm:flex-row items-center sm:justify-between gap-2`
+- [ ] Stack rows-per-page and page navigation vertically on mobile
+- [ ] Reduce spacing on mobile
+
+**Acceptance criteria:**
+- Pagination stacks vertically on mobile
+- All controls are accessible on mobile
+- No overflow
+
+**Verification:**
+- Lint passes
+- Browser: pagination stacks at 375px
+
+**Dependencies:** None
+**Files:** `client/src/components/Pagination.jsx`
+**Estimated scope:** Small (1 file)
+
+---
+
+### Task 11: Responsive Reports charts and grids
+- [ ] Verify charts use `ResponsiveContainer` (already done per audit)
+- [ ] Ensure chart heights are reasonable on mobile: `h-64 sm:h-80` (shorter on mobile)
+- [ ] Verify metric cards grid: `grid-cols-1 md:grid-cols-4` — already responsive
+- [ ] Verify chart cards grid: `grid-cols-1 lg:grid-cols-2` — already responsive
+- [ ] Ensure report tables have `overflow-x-auto`
+
+**Acceptance criteria:**
+- Charts render at readable height on mobile
+- All grids stack on mobile
+- Tables scroll horizontally
+
+**Verification:**
+- Lint passes
+- Browser: Reports page usable at 375px
+
+**Dependencies:** Task 3, Task 8
+**Files:** `client/src/pages/Reports.jsx`
+**Estimated scope:** Small (1 file)
+
+---
+
+### Checkpoint: Complete
+- [ ] All acceptance criteria met
+- [ ] Tested on mobile (375px), tablet (768px), desktop (1440px)
+- [ ] `npm run lint` passes
+- [ ] `npm test` passes (18/18)
+- [ ] `npm run build` succeeds
+- [ ] No console errors in browser
+- [ ] Ready for review

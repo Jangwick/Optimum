@@ -108,7 +108,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Registry */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Registry</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">OCS Ref. No.</label>
               <input type="text" value={form.claimNumber} onChange={set('claimNumber')} className={inputClass} />
@@ -137,7 +137,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
 
           {/* Policy text fields */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Policy Details</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Policy No. (free text)</label>
               <input type="text" value={form.policyNumber} onChange={set('policyNumber')} className={inputClass} placeholder="Used when no policy is linked" />
@@ -158,7 +158,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
 
           {/* Parties */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Insured &amp; Insurance</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Insured (Client)</label>
               <Select
@@ -214,7 +214,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
 
           {/* Loss info */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Loss Information</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Date of Loss</label>
               <input type="date" value={form.dateOfLoss} onChange={set('dateOfLoss')} className={inputClass} />
@@ -231,7 +231,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
 
           {/* Financial */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Financial</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Loss Reserved</label>
               <input
@@ -278,7 +278,7 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
 
           {/* Assignment */}
           <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Assignment</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Assign Employee</label>
               <Select

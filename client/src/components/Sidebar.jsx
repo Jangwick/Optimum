@@ -25,7 +25,7 @@ export function Sidebar() {
   const { user } = useAuth();
 
   return (
-    <nav className="fixed left-0 top-0 h-full w-[260px] bg-sidebar-bg text-white flex flex-col py-4 z-20">
+    <nav className="fixed left-0 top-0 h-full w-[260px] bg-sidebar-bg text-white flex flex-col py-4 z-30">
       <div className="px-5 mb-6">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0 ring-1 ring-white/15">

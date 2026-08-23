@@ -342,7 +342,7 @@ function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
         </div>
 
         {/* Current values */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-surface-container-low rounded-lg p-4">
             <span className="text-label-md text-outline uppercase">Current Estimated Loss</span>
             <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss)}</p>

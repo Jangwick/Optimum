@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { NewClaimModal } from '../components/NewClaimModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api } from '../services/api.js';
@@ -90,11 +89,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
+    <>
+    <AppLayout>
           {/* Page Header */}
           <div className="mb-8 flex justify-between items-end">
             <div>
@@ -279,16 +275,15 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-      <NewClaimModal
-        open={showNewClaim}
-        onClose={() => setShowNewClaim(false)}
-        onCreated={(claim) => {
-          setShowNewClaim(false);
-          navigate(`/claims/${claim.id}`);
-        }}
-      />
-    </div>
+    </AppLayout>
+    <NewClaimModal
+      open={showNewClaim}
+      onClose={() => setShowNewClaim(false)}
+      onCreated={(claim) => {
+        setShowNewClaim(false);
+        navigate(`/claims/${claim.id}`);
+      }}
+    />
+    </>
   );
 }

@@ -25,8 +25,7 @@ import {
   Download,
   Activity,
 } from 'lucide-react';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { getAnalytics } from '../services/analytics.service.js';
 import { formatCurrency } from '../utils/currency.js';
 
@@ -88,11 +87,7 @@ export default function Reports() {
 
   if (loading || !data) {
     return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        <Sidebar />
-        <div className="flex-1 flex flex-col ml-[260px]">
-          <TopBar />
-          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+      <AppLayout>
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -105,20 +100,14 @@ export default function Reports() {
                 ))}
               </div>
             </div>
-          </main>
-        </div>
-      </div>
+      </AppLayout>
     );
   }
 
   const s = data.summary;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-background">
+    <AppLayout>
           {/* Page Header */}
           <div className="mb-8 flex justify-between items-end">
             <div>
@@ -302,7 +291,7 @@ export default function Reports() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-80 flex items-center justify-center text-on-surface-variant text-body-md">
+                  <div className="h-64 sm:h-80 flex items-center justify-center text-on-surface-variant text-body-md">
                     No claim type data available.
                   </div>
                 )}
@@ -327,7 +316,7 @@ export default function Reports() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-72 flex items-center justify-center text-on-surface-variant text-body-md">
+                  <div className="h-56 sm:h-72 flex items-center justify-center text-on-surface-variant text-body-md">
                     No engineer assignments.
                   </div>
                 )}
@@ -402,14 +391,12 @@ export default function Reports() {
                   </table>
                 </div>
               ) : (
-                <div className="h-40 flex items-center justify-center text-on-surface-variant text-body-md">
+                <div className="h-32 sm:h-40 flex items-center justify-center text-on-surface-variant text-body-md">
                   No client data available.
                 </div>
               )}
             </ChartCard>
           </div>
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

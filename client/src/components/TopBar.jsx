@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText } from 'lucide-react';
+import { Search, FileText, Menu } from 'lucide-react';
 import { Breadcrumbs } from './Breadcrumbs.jsx';
 import { NotificationsDropdown } from './NotificationsDropdown.jsx';
 import { HelpDropdown } from './HelpDropdown.jsx';
@@ -54,7 +54,7 @@ function GlobalSearch() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-64">
+    <div ref={containerRef} className="relative w-32 sm:w-48 lg:w-64">
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
         <input
@@ -62,13 +62,13 @@ function GlobalSearch() {
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          placeholder="Search claims..."
+          placeholder="Search..."
           className="w-full h-9 pl-9 pr-3 rounded-lg border border-surface-border bg-surface-container-low text-body-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
           aria-label="Global search"
         />
       </div>
       {open && (query.trim().length > 0) && (
-        <div className="absolute right-0 top-11 z-50 bg-surface border border-surface-border rounded-lg shadow-lg min-w-[320px] max-w-[400px]">
+        <div className="absolute right-0 top-11 z-50 bg-surface border border-surface-border rounded-lg shadow-lg w-[280px] sm:w-[320px] max-w-[calc(100vw-2rem)]">
           {loading ? (
             <div className="p-4 text-body-sm text-on-surface-variant text-center">Searching...</div>
           ) : results.length > 0 ? (
@@ -103,18 +103,29 @@ function GlobalSearch() {
   );
 }
 
-export function TopBar() {
+export function TopBar({ onMenuClick }) {
   return (
-    <header className="h-16 bg-surface border-b border-surface-border flex items-center justify-between px-6 sticky top-0 z-10">
-      <div className="flex-1 min-w-0">
-        <Breadcrumbs />
+    <header className="h-16 bg-surface border-b border-surface-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-2 -ml-1 text-on-surface hover:bg-surface-container-low rounded-lg shrink-0"
+            aria-label="Open menu"
+          >
+            <Menu size={22} />
+          </button>
+        )}
+        <div className="hidden sm:block min-w-0">
+          <Breadcrumbs />
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <GlobalSearch />
         <NotificationsDropdown />
         <HelpDropdown />
-        <div className="h-8 w-px bg-surface-border mx-2" />
+        <div className="h-8 w-px bg-surface-border mx-1 sm:mx-2" />
         <SettingsDropdown />
       </div>
     </header>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { MasterDataCrud } from '../components/MasterDataCrud.jsx';
 import {
   getInsuranceCompanies,
@@ -209,11 +208,7 @@ export default function MasterData() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+    <AppLayout>
           {/* Page Header */}
           <div className="mb-6">
             <h2 className="text-headline-lg font-semibold text-primary">Master Data</h2>
@@ -246,8 +241,6 @@ export default function MasterData() {
           </div>
 
           {renderSection()}
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

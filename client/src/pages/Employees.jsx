@@ -7,8 +7,7 @@ import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { Select } from '../components/Select.jsx';
 import { useList } from '../hooks/useList.js';
 import {
@@ -272,11 +271,7 @@ export default function Employees() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+    <AppLayout>
           {/* Page Header */}
           <div className="mb-6 flex justify-between items-end">
             <div>
@@ -388,7 +383,7 @@ export default function Employees() {
           {/* Create/Edit Modal */}
           <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Employee' : 'New Employee'}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-body-sm font-semibold mb-1.5">First Name</label>
                   <input
@@ -415,7 +410,7 @@ export default function Employees() {
                 />
                 {errors.email && <p className="text-body-sm text-error mt-1">{errors.email.message}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-body-sm font-semibold mb-1.5">Role</label>
                   <Select
@@ -436,7 +431,7 @@ export default function Employees() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-body-sm font-semibold mb-1.5">Department</label>
                   <input
@@ -513,8 +508,6 @@ export default function Employees() {
               confirmText="Close"
             />
           )}
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

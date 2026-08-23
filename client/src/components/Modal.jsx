@@ -3,10 +3,10 @@ import { X } from 'lucide-react';
 
 export function Modal({ open, onClose, title, children, size = 'md' }) {
   const sizeConfig = {
-    sm: { panel: 'max-w-md', padding: 'p-6', scroll: true },
-    md: { panel: 'max-w-lg', padding: 'p-6', scroll: true },
-    lg: { panel: 'max-w-2xl', padding: 'p-6', scroll: true },
-    xl: { panel: 'max-w-4xl', padding: 'p-6', scroll: true },
+    sm: { panel: 'max-w-[95vw] sm:max-w-md', padding: 'p-6', scroll: true },
+    md: { panel: 'max-w-[95vw] sm:max-w-lg', padding: 'p-6', scroll: true },
+    lg: { panel: 'max-w-[95vw] sm:max-w-2xl', padding: 'p-6', scroll: true },
+    xl: { panel: 'max-w-[95vw] sm:max-w-4xl', padding: 'p-6', scroll: true },
     full: { panel: 'max-w-[95vw] max-h-[92vh]', padding: 'p-0', scroll: false },
   }[size];
 
@@ -16,7 +16,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel
           className={`w-full ${sizeConfig.panel} bg-surface rounded-lg shadow-xl border border-surface-border ${sizeConfig.padding} ${
-            sizeConfig.scroll ? 'max-h-[85vh] overflow-y-auto' : 'flex flex-col max-h-[92vh]'
+            sizeConfig.scroll ? 'max-h-[90vh] overflow-y-auto' : 'flex flex-col max-h-[92vh]'
           }`}
         >
           {title && (

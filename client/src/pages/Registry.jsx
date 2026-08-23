@@ -5,9 +5,8 @@ import { getProcessStatuses } from '../services/process-status.service.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
 import { Select } from '../components/Select.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { toast } from 'sonner';
 
 export default function Registry() {
@@ -60,11 +59,7 @@ export default function Registry() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+    <AppLayout>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-headline-md font-semibold text-on-surface">Claims Registry</h1>
@@ -115,8 +110,6 @@ export default function Registry() {
             total={count}
             onPageChange={setPage}
           />
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -9,8 +9,7 @@ import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
 import { NewClaimModal } from '../components/NewClaimModal.jsx';
 import { Select } from '../components/Select.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import {
   Download,
   Lock,
@@ -384,11 +383,7 @@ export default function Claims() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+    <AppLayout>
           {/* Page Header */}
           <div className="mb-6 flex justify-between items-end">
             <div>
@@ -708,8 +703,6 @@ export default function Claims() {
               navigate(`/claims/${claim.id}`);
             }}
           />
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

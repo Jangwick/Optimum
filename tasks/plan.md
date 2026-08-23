@@ -1,91 +1,86 @@
-# Implementation Plan: Claims Solutions Insurance Adjustment Management System
-
-**Full plan**: `C:\Users\Administrator\.devin\plans\plan-87f3885396a41ad7.md`
+# Implementation Plan: Responsive Design Across All Devices
 
 ## Overview
 
-Build a greenfield **React 18 + Node.js 22 + MySQL 8** web app for Claims Solutions to manage claims from assignment through investigation, inspection, documents, assessment, reporting, settlement, fees, and closure. Three roles: Admin, Engineer, Accountant. Replaces Excel as the primary tracking system.
+Make the Optimum Claims system fully responsive from mobile phones (< 768px) through tablets (768-1024px) to desktop (1024px+). The current system is desktop-only: a fixed 260px sidebar, fixed-width search dropdowns, non-scrollable tables, and form grids that don't collapse on small screens.
 
 ## Architecture Decisions
 
-- **Monorepo**: `client/` (React + Vite) and `server/` (Express + Prisma) under one repo with a root `package.json`.
-- **Database ORM**: Prisma 7.9.1 for migrations and MySQL queries.
-- **Auth**: JWT in `HttpOnly`, `Secure`, `SameSite=Strict` cookies, bcrypt password hashing.
-- **RBAC**: Middleware on every API route; role-scoped claim queries.
-- **State**: TanStack Query for server state; React Hook Form + Zod for forms.
-- **Styling**: Tailwind CSS v4 with Headless UI for accessible components; design tokens sourced from `design.md`.
-- **Fonts/Icons**: Hanken Grotesk + JetBrains Mono; `lucide-react` 20px line-style icons.
-- **Brand**: `logo.png` used in sidebar, login, favicon, and reports.
-- **Reports**: `docxtemplater` for DOCX, `puppeteer` for PDF, `exceljs` for Excel export.
-- **Files**: Local `uploads/` and `reports/` for MVP; S3-compatible migration path documented.
-- **Tests**: Jest + Supertest (backend); Vitest + React Testing Library (frontend).
+1. **Mobile-first sidebar pattern**: Hide the fixed sidebar on mobile (< 1024px) and show it as a slide-in drawer triggered by a hamburger menu in the TopBar. On desktop (>= 1024px), keep the current fixed sidebar. This is the most common and reliable pattern for admin dashboards.
 
-## Tech Stack (Pinned)
+2. **Shared layout component**: Extract the repeated `flex h-screen overflow-hidden bg-background` + `Sidebar` + `ml-[260px]` + `TopBar` + `main` shell into a single `AppLayout` component. Every page currently duplicates this structure. A shared component ensures responsive behavior is applied consistently and reduces duplication across 9+ pages.
 
-| Layer | Package | Version |
-|-------|---------|---------|
-| React | `react` / `react-dom` | 18.3.1 |
-| Build | `vite` / `@vitejs/plugin-react` | 6.4.3 / 6.0.5 |
-| Router | `react-router-dom` | 6.30.0 |
-| CSS | `tailwindcss` / `@tailwindcss/vite` | 4.3.3 |
-| Fonts | `@fontsource/hanken-grotesk` / `@fontsource/jetbrains-mono` | 5.3.0 |
-| State | `@tanstack/react-query` | 5.101.4 |
-| Forms | `react-hook-form` / `@hookform/resolvers` / `zod` | 7.84.0 / 5.7.0 / 4.4.3 |
-| UI | `@headlessui/react` / `lucide-react` / `sonner` / `recharts` | 2.2.10 / 1.31.0 / 2.0.8 / 3.10.1 |
-| Server | `express` | 4.22.2 |
-| ORM | `prisma` / `@prisma/client` | 7.9.1 |
-| DB | `mysql2` | 3.23.2 |
-| Auth | `bcrypt` / `jsonwebtoken` / `cookie-parser` | 6.0.0 / 9.0.3 / 1.4.7 |
-| Security | `helmet` / `cors` / `express-rate-limit` | 8.3.0 / 2.8.6 / 8.6.2 |
-| Upload | `multer` | 2.2.0 |
-| Docs | `docxtemplater` / `puppeteer` / `pdfkit` / `exceljs` | 3.69.3 / 25.5.0 / 0.19.1 / 4.4.0 |
-| Logs | `pino` / `pino-pretty` | 10.3.1 / 13.1.3 |
-| Test BE | `jest` / `supertest` | 30.4.2 / 7.2.2 |
-| Test FE | `vitest` / `@testing-library/react` / `jsdom` / `msw` | 4.1.10 / 16.3.2 / 30.0.1 / 2.15.0 |
+3. **Tailwind v4 breakpoints (default)**: Use Tailwind's built-in breakpoints (`sm: 640px`, `md: 768px`, `lg: 1024px`, `xl: 1280px`). No custom breakpoints needed. The sidebar collapses at `lg` (1024px) since tablet users still benefit from a drawer.
 
-## Database Summary
+4. **DataTable horizontal scroll**: Wrap tables in `overflow-x-auto` so wide tables scroll horizontally on mobile rather than breaking layout. This is simpler than column-hiding and preserves all data.
 
-Prisma schema with 25+ tables: `users`, `roles`, `insurance_companies`, `clients`, `policies`, `claim_types`, `claim_statuses`, `claims`, `claim_assignments`, `claim_status_history`, `investigations`, `contacts`, `inspections`, `inspection_photos`, `document_categories`, `document_requirements`, `documents`, `loss_assessments`, `loss_assessment_items`, `loss_estimates`, `report_templates`, `reports`, `report_versions`, `clarifications`, `settlements`, `offers`, `fees`, `invoices`, `payments`, `tasks`, `notifications`, `audit_logs`.
+5. **Modal responsive sizing**: All modals use `max-w-[95vw]` on mobile and their current max-width on `sm:` and above. The Modal component already has this for `size="full"` — extend it to all sizes.
 
-All money fields are `Decimal(15,2)`. Statuses are a seedable lookup table with 18 configured values.
+6. **Form grids**: Change all bare `grid-cols-2` and `grid-cols-3` to `grid-cols-1 sm:grid-cols-2` and `grid-cols-1 md:grid-cols-3` respectively. This is a one-class-per-grid change with no logic impact.
 
-## API Summary
+7. **No bottom navigation**: The sidebar drawer pattern is sufficient. Bottom nav adds complexity and duplicates navigation. Keep it simple.
 
-Base path `/api`. Routes grouped by: auth, users, master data (insurance companies, clients, policies, claim types, document categories, claim statuses), claims (CRUD, status, history, assign, timeline, export), investigations, contacts, inspections, photos, documents, loss assessments, loss estimates, reports (generate, versions, clarifications), settlements, offers, fees, invoices, payments, dashboard, tasks, notifications, audit logs.
+## Breakpoint Strategy
 
-## Frontend Summary
+| Breakpoint | Width | Behavior |
+|-----------|-------|----------|
+| Mobile (default) | < 640px | Single column, sidebar hidden (drawer), compact spacing, horizontal scroll tables |
+| `sm` | >= 640px | Two-column forms, search visible, slightly larger touch targets |
+| `md` | >= 768px | Summary cards in 3-4 columns, filter grids multi-column |
+| `lg` | >= 1024px | Fixed sidebar visible, full desktop layout, 3-column detail grids |
+| `xl` | >= 1280px | Current desktop behavior unchanged |
 
-Role-based layouts and routes for Admin, Engineer, Accountant. UI follows `design.md` tokens: navy/red/orange palette, fixed 260px sidebar, 12-column content, 40px inputs, sticky table headers, metric cards with 4px top-cap. Shared components: table, modal, status badge, file upload, timeline, dashboard card. Dashboards use `recharts`. Forms use React Hook Form + Zod.
+## Task List
 
-## Phases
+### Phase 1: Foundation — Shared Layout & Mobile Sidebar
 
-1. **Foundation** — repo, MySQL Docker, Prisma, Express, React Vite, Tailwind, design tokens, fonts, `logo.png`, base layout.
-2. **Auth & RBAC** — login/logout, JWT cookies, middleware, role-based UI.
-3. **Master Data** — companies, clients, policies, types, categories, statuses.
-4. **Claim Management** — claim creation, assignment, register, filters, Excel export.
-5. **Investigation & Inspection** — investigation record, contacts, inspection, photo upload.
-6. **Document Management** — document checklist, upload, preview, download, audit.
-7. **Assessment** — loss assessment line items, calculations, reserve/estimate.
-8. **Reports & Templates** — template upload, DOCX/PDF generation, clarification workflow.
-9. **Settlement & Fees** — settlement, offers, fees, invoices, payments.
-10. **Dashboard, Tasks, Notifications, Audit** — role dashboards, tasks, notifications, audit log.
-11. **Testing & QA** — backend/frontend tests, coverage, manual checklist.
-12. **Deployment** — build, Nginx, SSL, PM2, MySQL backup.
+- [ ] Task 1: Create AppLayout component with responsive sidebar
+- [ ] Task 2: Add mobile hamburger menu and sidebar drawer to TopBar
+- [ ] Task 3: Migrate all pages to use AppLayout
 
-## Risks
+### Checkpoint: Foundation
+- [ ] Sidebar shows as drawer on mobile, fixed on desktop
+- [ ] All pages render without layout errors
+- [ ] Lint passes, tests pass
 
-- Report templates may be complex/unavailable → start with generic templates and refine.
-- File upload storage growth → 20MB limit, MIME validation, backup plan, future S3.
-- Puppeteer resource use on VPS → cache PDFs, sandbox flags, queue future.
+### Phase 2: Core Components — Tables, Modals, Forms
+
+- [ ] Task 4: Make DataTable horizontally scrollable on mobile
+- [ ] Task 5: Make Modal responsive across all sizes
+- [ ] Task 6: Fix form grids in NewClaim, EditClaimModal, ClaimFinance, Employees
+- [ ] Task 7: Make TopBar search responsive
+
+### Checkpoint: Core Components
+- [ ] Tables scroll horizontally on mobile
+- [ ] Modals fit mobile screens
+- [ ] Forms stack to single column on mobile
+- [ ] Search doesn't overflow on mobile
+
+### Phase 3: Page-Level Polish
+
+- [ ] Task 8: Responsive padding and spacing across all pages
+- [ ] Task 9: Responsive Claim Detail tabs and summary grid
+- [ ] Task 10: Responsive Pagination component
+- [ ] Task 11: Responsive Reports charts and grids
+
+### Checkpoint: Complete
+- [ ] All acceptance criteria met
+- [ ] Tested on mobile (375px), tablet (768px), desktop (1440px)
+- [ ] Lint passes, tests pass, build succeeds
+- [ ] No console errors in browser
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Sidebar drawer z-index conflicts with Select portal (z-9999) | Med | Use z-30 for drawer overlay, Select portal stays at z-9999 |
+| Breaking existing tests that query sidebar elements | Med | Keep sidebar DOM present but hidden on mobile (CSS, not conditional render) |
+| Modal scroll behavior on iOS Safari | Low | Use `max-h-[90vh] overflow-y-auto` which works on iOS |
+| Table horizontal scroll UX on mobile | Low | Add `-webkit-overflow-scrolling: touch` for smooth scrolling |
+| Performance impact of re-renders from window resize listener | Low | Debounce resize handler in Select component |
 
 ## Open Questions
 
-1. Where and when will the existing Word/PDF templates be provided?
-2. Desired claim/assignment number format?
-3. Money rounding rules?
-4. File storage: local disk or existing S3/network?
-5. Deployment target: specific VPS or provider-agnostic guide?
-
-## Next Step
-
-After plan approval, begin **Phase 1, Task 1.1**: initialize monorepo, ESLint, Prettier, and root scripts.
+- Should the sidebar auto-close when navigating to a new page on mobile? (Assumed yes — standard behavior)
+- Should there be a swipe-to-open gesture for the mobile drawer? (Assumed no — hamburger button is sufficient, keeps it simple)
+- Should tables hide less-important columns on mobile? (Assumed no — horizontal scroll is simpler and preserves all data)

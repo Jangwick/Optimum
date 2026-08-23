@@ -15,8 +15,7 @@ import ClaimFinance from '../components/ClaimFinance.jsx';
 import { EditClaimModal } from '../components/EditClaimModal.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { Select } from '../components/Select.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
 import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ArrowLeft, ArrowRight, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
 
@@ -140,15 +139,9 @@ export const CLAIM_DETAIL_TABS = [
 export default function ClaimDetail() {
   const { id } = useParams();
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <ClaimDetailContent claimId={id} />
-        </main>
-      </div>
-    </div>
+    <AppLayout>
+      <ClaimDetailContent claimId={id} />
+    </AppLayout>
   );
 }
 

@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createClaim } from '../services/claim.service.js';
 import { getPolicies, getClaimTypes, getInsuranceCompanies, getClients } from '../services/master-data.service.js';
 import { getUsers } from '../services/user.service.js';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { FileText, ClipboardList } from 'lucide-react';
 
 export default function NewClaim() {
@@ -82,11 +81,7 @@ export default function NewClaim() {
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+    <AppLayout>
           <h2 className="text-headline-lg font-semibold text-primary mb-2">New Claim</h2>
           <p className="text-body-md text-on-surface-variant mb-6">
             Choose how to record this claim
@@ -147,7 +142,7 @@ export default function NewClaim() {
             {mode === 'assignment' && (
               <>
                 <h3 className="text-body-lg font-semibold text-primary border-b border-surface-border pb-2">Assignment Information</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-body-sm font-semibold mb-1.5">OCS Ref. No. *</label>
                     <input type="text" value={form.claimNumber} onChange={set('claimNumber')} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary" required placeholder="OCS-XXXXXX/XXX" />
@@ -167,7 +162,7 @@ export default function NewClaim() {
                 </div>
 
                 <h3 className="text-body-lg font-semibold text-primary border-b border-surface-border pb-2">Insured & Insurance</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-body-sm font-semibold mb-1.5">Insured Name *</label>
                     <input type="text" value={form.insuredName} onChange={set('insuredName')} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary" required />
@@ -202,7 +197,7 @@ export default function NewClaim() {
                 </div>
 
                 <h3 className="text-body-lg font-semibold text-primary border-b border-surface-border pb-2">Policy Details</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-body-sm font-semibold mb-1.5">Policy No.</label>
                     <input type="text" value={form.policyNumber} onChange={set('policyNumber')} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary" />
@@ -224,7 +219,7 @@ export default function NewClaim() {
             )}
 
             <h3 className="text-body-lg font-semibold text-primary border-b border-surface-border pb-2">Loss Information</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-body-sm font-semibold mb-1.5">Date of Loss *</label>
                 <input type="date" value={form.dateOfLoss} onChange={set('dateOfLoss')} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary" required />
@@ -263,7 +258,7 @@ export default function NewClaim() {
             )}
 
             <h3 className="text-body-lg font-semibold text-primary border-b border-surface-border pb-2">Assignments</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-body-sm font-semibold mb-1.5">Engineer</label>
                 <select value={form.engineerId} onChange={set('engineerId')} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary">
@@ -288,8 +283,6 @@ export default function NewClaim() {
               Create Claim
             </button>
           </form>
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }

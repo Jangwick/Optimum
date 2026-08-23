@@ -144,7 +144,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Wallet size={18} />
@@ -440,7 +440,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                       )}
 
                       {/* Payment summary */}
-                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-surface-border">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-surface-border">
                         <div>
                           <span className="text-label-md text-outline uppercase">Total</span>
                           <p className="font-mono text-body-md font-semibold text-on-surface">{formatCurrency(inv.totalAmount)}</p>

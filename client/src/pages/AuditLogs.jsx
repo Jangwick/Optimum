@@ -3,8 +3,7 @@ import { getAuditLogs } from '../services/audit.service.js';
 import { getUsers } from '../services/user.service.js';
 import { DataTable } from '../components/DataTable.jsx';
 import { Pagination } from '../components/Pagination.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
-import { TopBar } from '../components/TopBar.jsx';
+import { AppLayout } from '../components/AppLayout.jsx';
 import { Select } from '../components/Select.jsx';
 import { useList } from '../hooks/useList.js';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -48,11 +47,7 @@ export default function AuditLogs() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-[260px]">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+    <AppLayout>
           <div className="mb-6">
             <h2 className="text-headline-lg font-semibold text-primary">Audit Logs</h2>
             <p className="text-body-md text-on-surface-variant mt-1">Recent system activity.</p>
@@ -136,8 +131,6 @@ export default function AuditLogs() {
           )}
 
           <Pagination page={page} limit={limit} total={data.count} onPageChange={setPage} onLimitChange={setLimit} />
-        </main>
-      </div>
-    </div>
+    </AppLayout>
   );
 }
