@@ -1,86 +1,154 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
+import {
+  getInvestigations,
+  createInvestigation,
+  deleteInvestigation,
+  getContacts,
+  createContact,
+  deleteContact,
+  getInspections,
+  createInspection,
+  updateInspection,
+  deleteInspection,
+  uploadInspectionPhoto,
+  ensureInspection,
+  deleteInspectionPhoto,
+} from '../services/investigation.service.js';
+import {
+  getDiscussionNotes,
+  createDiscussionNote,
+  deleteDiscussionNote,
+  getAutoReserve,
+} from '../services/discussion-note.service.js';
+import { updateClaim } from '../services/claim.service.js';
 import { authUrl } from '../services/api.js';
-import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2, X, Download } from 'lucide-react';
+import { formatCurrency } from '../utils/currency.js';
+import { Select } from './Select.jsx';
+import {
+  Search,
+  Users,
+  Calendar,
+  MapPin,
+  FileText,
+  Camera,
+  CheckCircle,
+  Plus,
+  Trash2,
+  X,
+  Download,
+  MessageSquare,
+  DollarSign,
+  Calculator,
+  Upload,
+  User,
+  Building2,
+} from 'lucide-react';
 
-export default function ClaimInvestigation({ claimId, onClaimChange }) {
-  const [tab, setTab] = useState('investigations');
+const PARTY_TYPES = [
+  { value: 'INSURED', label: 'Insured', icon: User },
+  { value: 'INSURER', label: 'Insurer', icon: Building2 },
+  { value: 'BROKER', label: 'Broker', icon: Users },
+  { value: 'INTERNAL', label: 'Internal', icon: FileText },
+];
+
+export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
+  const [tab, setTab] = useState('notes');
   const [investigations, setInvestigations] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [inspections, setInspections] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [refresh, setRefresh] = useState(0);
   const [viewingPhoto, setViewingPhoto] = useState(null);
 
   const load = useCallback(async () => {
-    const [inv, con, ins] = await Promise.all([
+    const [inv, con, ins, dn] = await Promise.all([
       getInvestigations(claimId),
       getContacts(claimId),
       getInspections(claimId),
+      getDiscussionNotes(claimId),
     ]);
     setInvestigations(inv.items || []);
     setContacts(con.items || []);
     setInspections(ins.items || []);
+    setNotes(dn.items || []);
   }, [claimId]);
 
   useEffect(() => {
     load();
   }, [claimId, refresh, load]);
 
+  const triggerRefresh = () => {
+    setRefresh((r) => r + 1);
+    onClaimChange?.();
+  };
+
+  // ─── Investigation form state ───
   const [invForm, setInvForm] = useState({ findings: '', notes: '' });
   const [conForm, setConForm] = useState({ name: '', role: '', phone: '', email: '' });
   const [inspForm, setInspForm] = useState({ scheduledAt: '', location: '', scope: '', notes: '' });
   const [findings, setFindings] = useState({});
+  const [noteForm, setNoteForm] = useState({
+    partyType: 'INSURED',
+    partyName: '',
+    discussedAt: new Date().toISOString().slice(0, 16),
+    notes: '',
+    nextAction: '',
+  });
+  const [savingNote, setSavingNote] = useState(false);
+  const [reserveValue, setReserveValue] = useState(claim?.estimatedLoss || '');
+  const [suggestion, setSuggestion] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+  const [savingReserve, setSavingReserve] = useState(false);
+  const [reserveSaved, setReserveSaved] = useState(false);
 
+  useEffect(() => {
+    setReserveValue(claim?.estimatedLoss || '');
+  }, [claim, refresh]);
+
+  // ─── Handlers ───
   const saveInvestigation = async (e) => {
     e.preventDefault();
     await createInvestigation(claimId, invForm);
     setInvForm({ findings: '', notes: '' });
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const removeInvestigation = async (id) => {
     if (!confirm('Delete this investigation?')) return;
     await deleteInvestigation(claimId, id);
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const saveContact = async (e) => {
     e.preventDefault();
     await createContact(claimId, conForm);
     setConForm({ name: '', role: '', phone: '', email: '' });
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const removeContact = async (id) => {
     if (!confirm('Delete this contact?')) return;
     await deleteContact(claimId, id);
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const saveInspection = async (e) => {
     e.preventDefault();
     await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
     setInspForm({ scheduledAt: '', location: '', scope: '', notes: '' });
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const completeInspection = async (id) => {
     await updateInspection(claimId, id, { findings: findings[id] || '', conductedAt: new Date().toISOString() });
     setFindings({ ...findings, [id]: '' });
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const removeInspection = async (id) => {
     if (!confirm('Delete this inspection and all its photos?')) return;
     await deleteInspection(claimId, id);
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const fileInputRefs = useRef({});
@@ -90,23 +158,112 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
     if (!file) return;
     await uploadInspectionPhoto(claimId, inspectionId, file, 'Inspection photo');
     e.target.value = '';
-    setRefresh((r) => r + 1);
-    onClaimChange?.();
+    triggerRefresh();
   };
 
   const triggerFileInput = (inspectionId) => {
     fileInputRefs.current[inspectionId]?.click();
   };
 
+  // ─── Discussion Note handlers ───
+  const saveNote = async (e) => {
+    e.preventDefault();
+    if (!noteForm.notes.trim()) return;
+    setSavingNote(true);
+    try {
+      await createDiscussionNote(claimId, {
+        ...noteForm,
+        discussedAt: noteForm.discussedAt ? new Date(noteForm.discussedAt).toISOString() : new Date().toISOString(),
+      });
+      setNoteForm({ partyType: 'INSURED', partyName: '', discussedAt: new Date().toISOString().slice(0, 16), notes: '', nextAction: '' });
+      triggerRefresh();
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const removeNote = async (id) => {
+    if (!confirm('Delete this discussion note?')) return;
+    await deleteDiscussionNote(claimId, id);
+    triggerRefresh();
+  };
+
+  // ─── Reserve handlers ───
+  const calculateReserve = async () => {
+    setCalculating(true);
+    try {
+      const result = await getAutoReserve(claimId);
+      setSuggestion(result);
+      setReserveValue(result.suggestedReserve);
+      setReserveSaved(false);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
+  const saveReserve = async (e) => {
+    e.preventDefault();
+    const value = Number(reserveValue);
+    if (Number.isNaN(value)) return;
+    setSavingReserve(true);
+    setReserveSaved(false);
+    try {
+      await updateClaim(claimId, { estimatedLoss: value, reserve: value });
+      setReserveSaved(true);
+      triggerRefresh();
+    } finally {
+      setSavingReserve(false);
+    }
+  };
+
+  // ─── Photos step (all photos across inspections) ───
+  const [uploading, setUploading] = useState(false);
+  const photosFileRef = useRef(null);
+
+  const allPhotos = inspections.flatMap((insp) =>
+    (insp.photos || []).map((photo) => ({ ...photo, inspectionId: insp.id }))
+  );
+
+  const handlePhotosUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const inspection = await ensureInspection(claimId);
+      for (const file of files) {
+        await uploadInspectionPhoto(claimId, inspection.id, file, '');
+      }
+      triggerRefresh();
+    } finally {
+      setUploading(false);
+      if (photosFileRef.current) photosFileRef.current.value = '';
+    }
+  };
+
+  const handlePhotosDrop = (e) => {
+    e.preventDefault();
+    handlePhotosUpload(e.dataTransfer.files);
+  };
+
+  const removePhoto = async (photo) => {
+    if (!confirm('Delete this photo?')) return;
+    await deleteInspectionPhoto(claimId, photo.id);
+    triggerRefresh();
+  };
+
+  const partyMeta = (type) => PARTY_TYPES.find((p) => p.value === type) || PARTY_TYPES[3];
+
   const tabs = [
-    { key: 'investigations', label: 'Investigations', icon: Search },
-    { key: 'contacts', label: 'Contacts', icon: Users },
-    { key: 'inspections', label: 'Inspections', icon: Calendar },
+    { key: 'notes', label: 'Discussion Notes', icon: MessageSquare, count: notes.length },
+    { key: 'reserve', label: 'Loss Reserve', icon: DollarSign },
+    { key: 'investigations', label: 'Investigations', icon: Search, count: investigations.length },
+    { key: 'contacts', label: 'Contacts', icon: Users, count: contacts.length },
+    { key: 'inspections', label: 'Site Inspections', icon: Calendar, count: inspections.length },
+    { key: 'photos', label: 'Investigation Photos', icon: Camera, count: allPhotos.length },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 border-b border-surface-border">
+      <div className="flex gap-1 border-b border-surface-border overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -117,10 +274,226 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
           >
             <t.icon size={16} className={tab === t.key ? 'text-primary' : 'text-outline'} />
             {t.label}
+            {t.count != null && t.count > 0 && (
+              <span className={`ml-0.5 px-1.5 py-0.5 rounded text-label-sm font-medium ${tab === t.key ? 'bg-primary/10 text-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                {t.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
+      {/* ─── Tab: Discussion Notes ─── */}
+      {tab === 'notes' && (
+        <div className="space-y-6">
+          <form onSubmit={saveNote} className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Add Discussion Note</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Party Type</label>
+                <Select
+                  value={noteForm.partyType}
+                  onChange={(v) => setNoteForm({ ...noteForm, partyType: v })}
+                  options={PARTY_TYPES.map((p) => ({ value: p.value, label: p.label }))}
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Party Name</label>
+                <input
+                  type="text"
+                  value={noteForm.partyName}
+                  onChange={(e) => setNoteForm({ ...noteForm, partyName: e.target.value })}
+                  placeholder="Name of person contacted"
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={noteForm.discussedAt}
+                  onChange={(e) => setNoteForm({ ...noteForm, discussedAt: e.target.value })}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-label-md text-outline uppercase mb-1.5">Next Action</label>
+                <input
+                  type="text"
+                  value={noteForm.nextAction}
+                  onChange={(e) => setNoteForm({ ...noteForm, nextAction: e.target.value })}
+                  placeholder="Agreed next step..."
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
+              <textarea
+                value={noteForm.notes}
+                onChange={(e) => setNoteForm({ ...noteForm, notes: e.target.value })}
+                placeholder="Discussion details..."
+                rows={3}
+                required
+                className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingNote || !noteForm.notes.trim()}
+              className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Plus size={16} />
+              {savingNote ? 'Saving...' : 'Add Note'}
+            </button>
+          </form>
+
+          <div className="space-y-3">
+            {notes.length === 0 ? (
+              <div className="bg-surface border border-surface-border rounded-lg p-8 text-center">
+                <MessageSquare size={32} className="mx-auto text-outline mb-3" />
+                <p className="text-body-md text-on-surface-variant">No discussion notes yet. Add the first one above.</p>
+              </div>
+            ) : (
+              notes.map((note) => {
+                const meta = partyMeta(note.partyType);
+                const Icon = meta.icon;
+                return (
+                  <div key={note.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                          <Icon size={16} />
+                        </div>
+                        <div>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary">
+                            {meta.label}
+                          </span>
+                          {note.partyName && (
+                            <span className="ml-2 text-body-sm font-medium text-on-surface">{note.partyName}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeNote(note.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
+                        title="Delete note"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <p className="text-body-sm text-on-surface">{note.notes}</p>
+                      {note.nextAction && (
+                        <div>
+                          <span className="text-label-md text-outline uppercase">Next Action</span>
+                          <p className="text-body-sm text-on-surface-variant mt-0.5">{note.nextAction}</p>
+                        </div>
+                      )}
+                      <p className="text-label-sm text-outline font-mono pt-1 border-t border-surface-border">
+                        {new Date(note.discussedAt).toLocaleString()} · {note.createdBy ? `${note.createdBy.firstName} ${note.createdBy.lastName}` : 'System'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Tab: Loss Reserve ─── */}
+      {tab === 'reserve' && (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <DollarSign size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Loss Reserve</h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-surface-container-low rounded-lg p-4">
+              <span className="text-label-md text-outline uppercase">Current Estimated Loss</span>
+              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss)}</p>
+            </div>
+            <div className="bg-surface-container-low rounded-lg p-4">
+              <span className="text-label-md text-outline uppercase">Current Reserve</span>
+              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.reserve)}</p>
+            </div>
+          </div>
+
+          <div className="border border-primary/20 rounded-lg p-4 bg-primary/5">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-body-md font-medium text-primary">Auto-Calculate Reserve</p>
+                <p className="text-body-sm text-on-surface-variant mt-0.5">
+                  Suggests a reserve based on assessment data, claimed amount, or estimated loss.
+                </p>
+              </div>
+              <button
+                onClick={calculateReserve}
+                disabled={calculating}
+                className="h-10 px-4 bg-primary text-white rounded-lg font-medium hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                <Calculator size={16} />
+                {calculating ? 'Calculating...' : 'Calculate'}
+              </button>
+            </div>
+            {suggestion && (
+              <div className="mt-3 pt-3 border-t border-primary/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-label-md text-outline uppercase">Basis</span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary capitalize">
+                    {suggestion.basis}
+                  </span>
+                </div>
+                <p className="text-body-sm text-on-surface-variant font-mono mt-1">{suggestion.calculation}</p>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={saveReserve} className="space-y-4">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Loss Reserved Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-mono">₱</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={reserveValue}
+                  onChange={(e) => { setReserveValue(e.target.value); setReserveSaved(false); }}
+                  className="w-full h-10 pl-8 pr-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-body-sm text-outline mt-1">
+                This value is saved to both Estimated Loss and Reserve fields.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {reserveSaved && (
+                <span className="inline-flex items-center gap-1 text-body-sm text-success-green font-medium">
+                  <CheckCircle size={16} />
+                  Saved
+                </span>
+              )}
+              <button
+                type="submit"
+                disabled={savingReserve}
+                className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                <DollarSign size={16} />
+                {savingReserve ? 'Saving...' : 'Save Reserve'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ─── Tab: Investigations ─── */}
       {tab === 'investigations' && (
         <div className="space-y-6">
           <form onSubmit={saveInvestigation} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
@@ -187,6 +560,7 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
         </div>
       )}
 
+      {/* ─── Tab: Contacts ─── */}
       {tab === 'contacts' && (
         <div className="space-y-6">
           <form onSubmit={saveContact} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
@@ -268,6 +642,7 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
         </div>
       )}
 
+      {/* ─── Tab: Site Inspections ─── */}
       {tab === 'inspections' && (
         <div className="space-y-6">
           <form onSubmit={saveInspection} className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 space-y-3">
@@ -307,7 +682,6 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                     isCompleted ? 'border-l-4 border-l-success' : 'border-l-4 border-l-accent-orange'
                   }`}
                 >
-                  {/* Card header */}
                   <div className="flex items-center justify-between p-4 border-b border-surface-border bg-surface-container-low">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -348,7 +722,6 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                     </div>
                   </div>
 
-                  {/* Card body — metadata */}
                   <div className="p-4 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {i.location && (
@@ -380,7 +753,6 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                       </div>
                     )}
 
-                    {/* Findings (completed) */}
                     {isCompleted && i.findings && (
                       <div className="mt-2 p-3 bg-success/5 border border-success/20 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
@@ -394,7 +766,6 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                       </div>
                     )}
 
-                    {/* Photos */}
                     {i.photos?.length > 0 && (
                       <div className="mt-2">
                         <div className="flex items-center gap-2 mb-2">
@@ -429,7 +800,6 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                       </div>
                     )}
 
-                    {/* Actions (not completed) */}
                     {!isCompleted && (
                       <div className="mt-2 pt-3 border-t border-surface-border space-y-3">
                         <div>
@@ -484,7 +854,87 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
         </div>
       )}
 
-      {/* Photo Viewer Modal */}
+      {/* ─── Tab: Investigation Photos (all photos across inspections) ─── */}
+      {tab === 'photos' && (
+        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Camera size={18} className="text-primary" />
+            <h3 className="text-headline-sm font-semibold text-primary">Investigation Photos</h3>
+          </div>
+
+          <div
+            onDrop={handlePhotosDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="border-2 border-dashed border-outline rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+            onClick={() => photosFileRef.current?.click()}
+          >
+            <input
+              ref={photosFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => handlePhotosUpload(e.target.files)}
+              className="hidden"
+            />
+            <Upload size={32} className="mx-auto text-outline mb-3" />
+            <p className="text-body-md text-on-surface-variant">
+              {uploading ? 'Uploading...' : 'Click or drag photos here to upload'}
+            </p>
+            <p className="text-body-sm text-outline mt-1">Site, document, and evidence photos</p>
+          </div>
+
+          {allPhotos.length === 0 ? (
+            <div className="text-center py-8">
+              <Camera size={32} className="mx-auto text-outline mb-3" />
+              <p className="text-body-md text-on-surface-variant">No photos uploaded yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allPhotos.map((photo) => (
+                <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
+                  <div className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => setViewingPhoto(photo)}
+                      className="w-full block cursor-zoom-in"
+                      title="Click to view full size"
+                    >
+                      <img
+                        src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
+                        alt={photo.originalName}
+                        className="w-full h-48 object-cover bg-surface-container-high"
+                      />
+                    </button>
+                    <button
+                      onClick={() => removePhoto(photo)}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete photo"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <figcaption className="p-3 text-body-sm">
+                    <p className="font-medium text-on-surface break-words">{photo.originalName}</p>
+                    {photo.caption && <p className="text-on-surface-variant mt-1">{photo.caption}</p>}
+                    <p className="text-label-sm text-outline mt-1 font-mono">
+                      {new Date(photo.createdAt).toLocaleDateString()}
+                    </p>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
+
+          {allPhotos.length > 0 && (
+            <div className="flex items-center gap-1 text-body-sm text-success-green font-medium pt-4 border-t border-surface-border">
+              <CheckCircle size={16} />
+              {allPhotos.length} {allPhotos.length === 1 ? 'photo' : 'photos'} uploaded
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Photo Viewer Lightbox */}
       {viewingPhoto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"

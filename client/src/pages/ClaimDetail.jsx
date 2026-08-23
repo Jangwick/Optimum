@@ -11,7 +11,7 @@ import { getInspections } from '../services/investigation.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import InitialInvestigation from '../components/InitialInvestigation.jsx';
+import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { EditClaimModal } from '../components/EditClaimModal.jsx';
 import { Modal } from '../components/Modal.jsx';
@@ -350,7 +350,7 @@ export function ClaimDetailContent({ claimId }) {
           </div>
 
           {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} onNavigateTab={setActiveTab} />}
-          {activeTab === 'investigation' && <InitialInvestigation claimId={claimId} claim={claim} onClaimChange={onClaimChange} />}
+          {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} claim={claim} onClaimChange={onClaimChange} />}
           {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'settlement' && <SettlementTab claimId={claimId} onClaimChange={onClaimChange} />}
