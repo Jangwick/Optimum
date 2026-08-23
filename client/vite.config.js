@@ -16,6 +16,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
+  test: {
+    environment: 'jsdom',
+  },
   optimizeDeps: {
     force: true,
   },

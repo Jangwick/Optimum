@@ -43,7 +43,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-// CORS: allow the configured origin, or any origin in production.
+// CORS: allow the configured origin, localhost variants in dev, or any origin in production.
 // Note: wildcard (*) cannot be used with credentials=true.
 // Use the request origin dynamically when config.clientUrl is '*'.
 const corsOptions = {
@@ -52,6 +52,10 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     if (config.clientUrl === '*') return callback(null, true);
     if (config.clientUrl && origin === config.clientUrl) return callback(null, true);
+    // Allow any localhost/127.0.0.1 origin in development
+    if (config.nodeEnv !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
     callback(new Error(`CORS blocked: ${origin}`));
   },
 };

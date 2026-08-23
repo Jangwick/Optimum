@@ -42,6 +42,17 @@ const STATUS_ORDER = [
   'CANCELLED',
 ];
 
+export const CLAIM_DETAIL_TABS = [
+  { key: 'summary', label: 'Summary', icon: FileText },
+  { key: 'investigation', label: 'Investigation', icon: Search },
+  { key: 'documents', label: 'Documents', icon: FolderOpen },
+  { key: 'assessment', label: 'Assessment', icon: ClipboardCheck },
+  { key: 'settlement', label: 'Settlement', icon: Handshake },
+  { key: 'finance', label: 'Finance', icon: Wallet },
+  { key: 'reports', label: 'Reports', icon: FileBarChart },
+  { key: 'insurers', label: 'Insurer Panel', icon: Building2 },
+];
+
 export default function ClaimDetail() {
   const { id } = useParams();
   return (
@@ -108,19 +119,6 @@ export function ClaimDetailContent({ claimId }) {
     setStatusNote('');
     setRefresh((r) => r + 1);
   };
-
-  const tabs = [
-    { key: 'summary', label: 'Summary', icon: FileText },
-    { key: 'investigation', label: 'Investigation', icon: Search },
-    { key: 'documents', label: 'Documents', icon: FolderOpen },
-    { key: 'assessment', label: 'Assessment', icon: ClipboardCheck },
-    { key: 'settlement', label: 'Settlement', icon: Handshake },
-    { key: 'finance', label: 'Finance', icon: Wallet },
-    { key: 'reports', label: 'Reports', icon: FileBarChart },
-    { key: 'insurers', label: 'Insurer Panel', icon: Building2 },
-    { key: 'timeline', label: 'Timeline', icon: Clock },
-    { key: 'tasks', label: 'Tasks', icon: ListTodo },
-  ];
 
   if (loading || !claim) {
     return (
@@ -224,7 +222,7 @@ export function ClaimDetailContent({ claimId }) {
 
       {/* Tabs with icons */}
       <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto">
-            {tabs.map((t) => (
+            {CLAIM_DETAIL_TABS.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
