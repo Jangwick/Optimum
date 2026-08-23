@@ -131,6 +131,34 @@ export default function Claims() {
   );
   const navigate = useNavigate();
   const [showNewClaim, setShowNewClaim] = useState(false);
+  const [savedPresets, setSavedPresets] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('claim-presets') || '[]'); } catch { return []; }
+  });
+  const [presetName, setPresetName] = useState('');
+  const [showPresetSave, setShowPresetSave] = useState(false);
+
+  const savePreset = () => {
+    if (!presetName.trim()) return;
+    const preset = { name: presetName.trim(), search, status: filters.status || '', view, id: Date.now() };
+    const updated = [...savedPresets.filter((p) => p.name !== preset.name), preset];
+    setSavedPresets(updated);
+    try { localStorage.setItem('claim-presets', JSON.stringify(updated)); } catch { /* ignore */ }
+    setPresetName('');
+    setShowPresetSave(false);
+  };
+
+  const applyPreset = (preset) => {
+    applySearch(preset.search || '');
+    applyFilters({ ...filters, status: preset.status || '' });
+    setView(preset.view || 'active');
+    setPage(1);
+  };
+
+  const deletePreset = (id) => {
+    const updated = savedPresets.filter((p) => p.id !== id);
+    setSavedPresets(updated);
+    try { localStorage.setItem('claim-presets', JSON.stringify(updated)); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     getClaimStatuses()
@@ -438,6 +466,63 @@ export default function Claims() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Saved Presets */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {savedPresets.map((preset) => (
+              <div
+                key={preset.id}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-surface-border text-body-sm hover:border-primary/30 transition-colors group"
+              >
+                <button
+                  onClick={() => applyPreset(preset)}
+                  className="text-on-surface-variant hover:text-primary font-medium transition-colors"
+                >
+                  {preset.name}
+                </button>
+                <button
+                  onClick={() => deletePreset(preset.id)}
+                  className="text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label={`Delete preset ${preset.name}`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {showPresetSave ? (
+              <div className="inline-flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && savePreset()}
+                  placeholder="Preset name..."
+                  className="h-8 px-2.5 rounded border border-outline bg-surface text-body-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors w-40"
+                  autoFocus
+                />
+                <button
+                  onClick={savePreset}
+                  className="h-8 px-2.5 rounded bg-primary text-white text-body-sm font-medium hover:bg-primary-container transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setShowPresetSave(false); setPresetName(''); }}
+                  className="h-8 px-2 text-outline hover:text-on-surface transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowPresetSave(true)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-outline text-on-surface-variant text-body-sm font-medium hover:border-primary hover:text-primary transition-colors"
+              >
+                <Plus size={14} />
+                Save Current Filters
+              </button>
+            )}
           </div>
 
           {/* Unified Table Container: Filters + Table + Pagination */}

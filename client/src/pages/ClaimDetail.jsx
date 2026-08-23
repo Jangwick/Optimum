@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
@@ -6,9 +6,7 @@ import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, dow
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
-import { getTasks, createTask, updateTask, deleteTask } from '../services/task.service.js';
 import { getInspections } from '../services/investigation.service.js';
-import { getUsers } from '../services/user.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -20,7 +18,7 @@ import { Modal } from '../components/Modal.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, ArrowRight, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
 
 const STATUS_ORDER = [
   'NEW',
@@ -43,6 +41,90 @@ const STATUS_ORDER = [
   'CLOSED',
   'CANCELLED',
 ];
+
+// Compact milestone stages for the progress indicator (groups the 18 statuses into 6 phases)
+const WORKFLOW_PHASES = [
+  { key: 'intake', label: 'Intake', statuses: ['NEW', 'ASSIGNED'], icon: FileText },
+  { key: 'investigation', label: 'Investigation', statuses: ['INVESTIGATION', 'INSPECTION_SCHEDULED', 'INSPECTION_COMPLETED'], icon: Search },
+  { key: 'documents', label: 'Documents', statuses: ['DOCUMENTS_PENDING', 'DOCUMENTS_RECEIVED'], icon: FolderOpen },
+  { key: 'assessment', label: 'Assessment', statuses: ['ASSESSMENT', 'REPORT_DRAFT', 'REPORT_SUBMITTED', 'CLIENT_REVIEW', 'CLARIFICATION_NEEDED', 'CLARIFICATION_PROVIDED'], icon: ClipboardCheck },
+  { key: 'settlement', label: 'Settlement', statuses: ['SETTLEMENT', 'OFFER_SENT', 'FEE_INVOICED', 'PAYMENT_RECEIVED'], icon: Handshake },
+  { key: 'closed', label: 'Closed', statuses: ['CLOSED'], icon: CheckCircle },
+];
+
+function WorkflowProgress({ currentStatus, isCancelled }) {
+  if (isCancelled) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-error/10 text-error text-body-sm font-medium">
+        <Ban size={16} />
+        Cancelled
+      </div>
+    );
+  }
+
+  const currentIdx = STATUS_ORDER.indexOf(currentStatus);
+  const isClosed = currentStatus === 'CLOSED';
+
+  const phaseStates = WORKFLOW_PHASES.map((phase) => {
+    const phaseStatusIndices = phase.statuses.map((s) => STATUS_ORDER.indexOf(s));
+    const minIdx = Math.min(...phaseStatusIndices);
+    const maxIdx = Math.max(...phaseStatusIndices);
+    if (currentIdx >= maxIdx) return { ...phase, state: 'done' };
+    if (currentIdx >= minIdx) return { ...phase, state: 'active' };
+    return { ...phase, state: 'pending' };
+  });
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {phaseStates.map((phase, idx) => {
+        const Icon = phase.icon;
+        const styles = {
+          done: 'bg-success-green/10 text-success-green border-success-green/30',
+          active: 'bg-primary/10 text-primary border-primary/30 ring-2 ring-primary/20',
+          pending: 'bg-surface-container-low text-outline border-surface-border',
+        };
+        return (
+          <div key={phase.key} className="flex items-center gap-1">
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-label-md font-medium ${styles[phase.state]}`}
+              title={phase.statuses.join(', ')}
+            >
+              <Icon size={14} />
+              {phase.label}
+            </div>
+            {idx < phaseStates.length - 1 && (
+              <div className={`w-4 h-px ${phase.state === 'done' ? 'bg-success-green/40' : 'bg-surface-border'}`} />
+            )}
+          </div>
+        );
+      })}
+      {isClosed && <CheckCircle size={16} className="text-success-green ml-1" />}
+    </div>
+  );
+}
+
+// Maps each workflow status to a recommended next action
+const NEXT_STEP_HINTS = {
+  NEW: { action: 'Assign the claim to an adjuster', tab: 'summary' },
+  ASSIGNED: { action: 'Begin investigation â€” schedule a site inspection', tab: 'investigation' },
+  INVESTIGATION: { action: 'Schedule and conduct a site inspection', tab: 'investigation' },
+  INSPECTION_SCHEDULED: { action: 'Conduct the inspection and record findings', tab: 'investigation' },
+  INSPECTION_COMPLETED: { action: 'Collect and upload required documents', tab: 'documents' },
+  DOCUMENTS_PENDING: { action: 'Follow up on pending documents from the client', tab: 'documents' },
+  DOCUMENTS_RECEIVED: { action: 'Prepare the loss assessment', tab: 'assessment' },
+  ASSESSMENT: { action: 'Complete the assessment and draft the report', tab: 'reports' },
+  REPORT_DRAFT: { action: 'Review and submit the draft report', tab: 'reports' },
+  REPORT_SUBMITTED: { action: 'Await client review of the submitted report', tab: 'reports' },
+  CLIENT_REVIEW: { action: 'Address any client clarifications', tab: 'reports' },
+  CLARIFICATION_NEEDED: { action: 'Provide clarification to the client', tab: 'reports' },
+  CLARIFICATION_PROVIDED: { action: 'Proceed to settlement negotiation', tab: 'settlement' },
+  SETTLEMENT: { action: 'Prepare and send the settlement offer', tab: 'settlement' },
+  OFFER_SENT: { action: 'Await client response to the settlement offer', tab: 'settlement' },
+  FEE_INVOICED: { action: 'Track payment from the client', tab: 'finance' },
+  PAYMENT_RECEIVED: { action: 'Close the claim', tab: 'summary' },
+  CLOSED: null,
+  CANCELLED: null,
+};
 
 export const CLAIM_DETAIL_TABS = [
   { key: 'summary', label: 'Summary', icon: FileText },
@@ -85,12 +167,30 @@ export function ClaimDetailContent({ claimId }) {
 
   const onClaimChange = useCallback(() => setRefresh((r) => r + 1), []);
 
-  // Reload claim data whenever active tab changes (so Summary/Timeline always show fresh data)
+  // Keyboard shortcuts: Alt+1..8 to jump between Claim Detail tabs
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const idx = Number(e.key) - 1;
+        if (idx < CLAIM_DETAIL_TABS.length) {
+          e.preventDefault();
+          setActiveTab(CLAIM_DETAIL_TABS[idx].key);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Reload claim data only when returning to the Summary tab,
+  // so Summary always shows fresh data without unnecessary reloads on other tabs.
   const prevTabRef = useRef(activeTab);
   useEffect(() => {
-    if (prevTabRef.current !== activeTab) {
+    if (prevTabRef.current !== activeTab && activeTab === 'summary') {
       prevTabRef.current = activeTab;
       setRefresh((r) => r + 1);
+    } else {
+      prevTabRef.current = activeTab;
     }
   }, [activeTab]);
 
@@ -162,7 +262,7 @@ export function ClaimDetailContent({ claimId }) {
               <h2 className="text-headline-lg font-semibold text-primary font-mono">{claim.claimNumber}</h2>
             </div>
             <p className="text-body-md text-on-surface-variant">
-              {claim.claimType?.name || '—'} · {claim.client?.name || '—'}
+              {claim.claimType?.name || 'â€”'} Â· {claim.client?.name || 'â€”'}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
@@ -193,6 +293,10 @@ export function ClaimDetailContent({ claimId }) {
               </span>
             )}
           </div>
+        </div>
+        {/* Workflow Progress Indicator */}
+        <div className="mt-4 pt-4 border-t border-surface-border">
+          <WorkflowProgress currentStatus={claim.status?.code} isCancelled={claim.isCancelled} />
         </div>
       </div>
 
@@ -252,7 +356,7 @@ export function ClaimDetailContent({ claimId }) {
             ))}
           </div>
 
-          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} onAssignClaim={() => setShowAssign(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} />}
+          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} onAssignClaim={() => setShowAssign(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} onNavigateTab={setActiveTab} />}
           {activeTab === 'investigation' && <ClaimInvestigation claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={claimId} onClaimChange={onClaimChange} />}
@@ -260,8 +364,6 @@ export function ClaimDetailContent({ claimId }) {
           {activeTab === 'finance' && <ClaimFinance claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'reports' && <ReportsTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} onClaimChange={onClaimChange} />}
-          {activeTab === 'timeline' && <TimelineTab claim={claim} />}
-          {activeTab === 'tasks' && <TasksTab claimId={claimId} onClaimChange={onClaimChange} />}
 
           <EditClaimModal open={showEdit} onClose={() => setShowEdit(false)} claim={claim} onSaved={() => setRefresh((r) => r + 1)} />
           <AssignClaimModal open={showAssign} onClose={() => setShowAssign(false)} claim={claim} onSaved={() => setRefresh((r) => r + 1)} />
@@ -269,8 +371,9 @@ export function ClaimDetailContent({ claimId }) {
   );
 }
 
-function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition, onEditClaim, onAssignClaim, canEdit }) {
+function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition, onEditClaim, onAssignClaim, canEdit, onNavigateTab }) {
   const fin = claim.financials || {};
+  const nextStep = NEXT_STEP_HINTS[claim.status?.code];
 
   // Build compact timeline from processHistory + activities + correspondence
   const timelineEvents = [
@@ -337,13 +440,13 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Policy No." value={claim.policy?.policyNumber || claim.policyNumber} mono />
             <Info label="Policy Type" value={claim.policyType} />
             <Info label="Policy Period" value={claim.policyPeriodText} />
-            <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
+            <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : 'â€”'} />
             <Info label="Nature of Loss" value={claim.natureOfLoss} />
             <Info label="Location" value={claim.locationOfLoss} />
             <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
-            <Info label="Date Inspected" value={claim.dateInspected ? new Date(claim.dateInspected).toLocaleDateString() : '—'} />
-            <Info label="Letter Request" value={claim.letterRequestDate ? new Date(claim.letterRequestDate).toLocaleDateString() : '—'} />
-            <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : '—'} />
+            <Info label="Date Inspected" value={claim.dateInspected ? new Date(claim.dateInspected).toLocaleDateString() : 'â€”'} />
+            <Info label="Letter Request" value={claim.letterRequestDate ? new Date(claim.letterRequestDate).toLocaleDateString() : 'â€”'} />
+            <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : 'â€”'} />
           </div>
           {claim.policyCoverageText && (
             <div className="mt-4 pt-4 border-t border-surface-border">
@@ -353,7 +456,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           )}
           <div className="mt-4 pt-4 border-t border-surface-border">
             <span className="text-label-md text-outline uppercase">Description</span>
-            <p className="text-body-md mt-1">{claim.description || '—'}</p>
+            <p className="text-body-md mt-1">{claim.description || 'â€”'}</p>
           </div>
           <DocumentPreview claimId={claim.id} documents={claim.documents} />
           <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
@@ -410,7 +513,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
               <Info label="OCS Import Status" value={claim.importStatus.name} />
               <Info label="Import Batch" value={claim.importBatchId} mono />
-              <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : '—'} />
+              <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : 'â€”'} />
               <Info label="Cancelled" value={claim.isCancelled ? 'Yes' : 'No'} />
               {claim.isCancelled && <Info label="Cancellation Reason" value={claim.cancellationReason} />}
             </div>
@@ -431,6 +534,25 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
       </div>
 
       <div className="space-y-6">
+        {nextStep && !claim.isReadOnly && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+            <ArrowRight size={20} className="text-primary mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-label-md text-primary uppercase font-semibold tracking-wide">Next Step</p>
+              <p className="text-body-md text-on-surface mt-1">{nextStep.action}</p>
+              {nextStep.tab && nextStep.tab !== 'summary' && onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab(nextStep.tab)}
+                  className="mt-2 inline-flex items-center gap-1 text-body-sm text-primary font-medium hover:text-primary-container transition-colors"
+                >
+                  Go to {nextStep.tab.charAt(0).toUpperCase() + nextStep.tab.slice(1)}
+                  <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
             <GitBranch size={18} className="text-primary" />
@@ -452,7 +574,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                   const isCurrent = optionIdx === currentIdx;
                   return (
                     <option key={s.id} value={s.code} disabled={isBackward}>
-                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' — past' : ''}
+                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' â€” past' : ''}
                     </option>
                   );
                 })}
@@ -495,7 +617,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                     </div>
                     {e.desc && <p className="text-on-surface-variant mt-0.5 text-body-sm">{e.desc}</p>}
                     <p className="text-label-sm text-outline mt-1 font-mono">
-                      {e.actor ? `${e.actor} · ` : ''}{e.date ? new Date(e.date).toLocaleString() : '—'}
+                      {e.actor ? `${e.actor} Â· ` : ''}{e.date ? new Date(e.date).toLocaleString() : 'â€”'}
                     </p>
                   </li>
                 );
@@ -521,16 +643,55 @@ const PREVIEWABLE_MIME_TYPES = [
   'text/html',
 ];
 
+const DOCX_MIME_TYPES = [
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+];
+
 function isPreviewable(mimeType) {
   return PREVIEWABLE_MIME_TYPES.includes(mimeType);
 }
 
+function isDocx(mimeType) {
+  return DOCX_MIME_TYPES.includes(mimeType);
+}
+
+const DOCX_PREVIEW = { idle: 'idle', loading: 'loading', ready: 'ready', error: 'error' };
+
 export function DocumentPreview({ claimId, documents = [] }) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(documents[0]?.id ? String(documents[0].id) : '');
+  const [docxHtml, setDocxHtml] = useState('');
+  const [docxStatus, setDocxStatus] = useState(DOCX_PREVIEW.idle);
   const selectedDocument =
     documents.find((document) => String(document.id) === selectedId) || documents[0];
   const canPreview = selectedDocument ? isPreviewable(selectedDocument.mimeType) : false;
+  const isDocxPreview = selectedDocument ? isDocx(selectedDocument.mimeType) : false;
+
+  useEffect(() => {
+    if (!open || !isDocxPreview || !selectedDocument) return;
+    let cancelled = false;
+    setDocxStatus(DOCX_PREVIEW.loading);
+    setDocxHtml('');
+    (async () => {
+      try {
+        const mammoth = await import('mammoth/mammoth.browser');
+        const response = await fetch(`/api/claims/${claimId}/documents/${selectedDocument.id}/preview`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        if (!cancelled) {
+          setDocxHtml(result.value || '<p><em>This document has no readable content.</em></p>');
+          setDocxStatus(DOCX_PREVIEW.ready);
+        }
+      } catch {
+        if (!cancelled) setDocxStatus(DOCX_PREVIEW.error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, isDocxPreview, claimId, selectedDocument]);
 
   return (
     <>
@@ -565,7 +726,7 @@ export function DocumentPreview({ claimId, documents = [] }) {
                 >
                   {documents.map((document) => (
                     <option key={document.id} value={document.id}>
-                      {document.originalName} — {document.category}
+                      {document.originalName} â€” {document.category}
                     </option>
                   ))}
                 </select>
@@ -586,6 +747,29 @@ export function DocumentPreview({ claimId, documents = [] }) {
                   title="Document preview"
                   className="w-full h-[65vh] bg-white"
                 />
+              </div>
+            ) : isDocxPreview ? (
+              <div className="border border-surface-border rounded-lg bg-white overflow-y-auto h-[65vh] p-6">
+                {docxStatus === DOCX_PREVIEW.loading && (
+                  <p className="text-on-surface-variant text-body-md text-center py-8">Loading document...</p>
+                )}
+                {docxStatus === DOCX_PREVIEW.error && (
+                  <div className="text-center py-8">
+                    <FileText size={32} className="mx-auto text-on-surface-variant mb-3" />
+                    <p className="text-on-surface-variant text-body-md">
+                      Could not render this document inline.
+                    </p>
+                    <p className="text-on-surface-variant text-body-sm mt-1">
+                      Use the Download button above to view the file.
+                    </p>
+                  </div>
+                )}
+                {docxStatus === DOCX_PREVIEW.ready && (
+                  <div
+                    className="prose max-w-none text-on-surface"
+                    dangerouslySetInnerHTML={{ __html: docxHtml }}
+                  />
+                )}
               </div>
             ) : (
               <div className="border border-surface-border rounded-lg bg-surface-container-low p-10 text-center">
@@ -643,7 +827,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
           <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
           <Info
             label={completed ? 'Conducted' : 'Scheduled For'}
-            value={inspectionDate ? new Date(inspectionDate).toLocaleString() : '—'}
+            value={inspectionDate ? new Date(inspectionDate).toLocaleString() : 'â€”'}
           />
           <Info label="Location" value={inspection.location} />
           <Info label="Inspector" value={inspector} />
@@ -670,11 +854,11 @@ export function InspectionSummary({ claimId, inspections = [] }) {
             <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
             <Info
               label="Scheduled For"
-              value={inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleString() : '—'}
+              value={inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleString() : 'â€”'}
             />
             <Info
               label="Conducted"
-              value={inspection.conductedAt ? new Date(inspection.conductedAt).toLocaleString() : '—'}
+              value={inspection.conductedAt ? new Date(inspection.conductedAt).toLocaleString() : 'â€”'}
             />
             <Info label="Location" value={inspection.location} />
             <Info label="Inspector" value={inspector} />
@@ -731,7 +915,7 @@ function Info({ label, value, money, mono }) {
   return (
     <div className="min-w-0">
       <span className="text-label-md text-outline uppercase tracking-wide">{label}</span>
-      <p className={`mt-1 text-on-surface break-words ${money || mono ? 'font-mono' : ''}`}>{value || '—'}</p>
+      <p className={`mt-1 text-on-surface break-words ${money || mono ? 'font-mono' : ''}`}>{value || 'â€”'}</p>
     </div>
   );
 }
@@ -834,7 +1018,7 @@ function DocumentsTab({ claimId, onClaimChange }) {
   );
 
   function formatFileSize(bytes) {
-    if (!bytes) return '—';
+    if (!bytes) return 'â€”';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -1024,7 +1208,7 @@ function DocumentsTab({ claimId, onClaimChange }) {
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-label-sm text-on-surface-variant font-mono">
                     {docs.length} file{docs.length !== 1 ? 's' : ''}
-                    {docs.length > 0 && ` · ${receivedCount} received`}
+                    {docs.length > 0 && ` Â· ${receivedCount} received`}
                   </span>
                 </div>
               </div>
@@ -1053,11 +1237,11 @@ function DocumentsTab({ claimId, onClaimChange }) {
                             </div>
                             <p className="text-label-sm text-outline mt-0.5">
                               {doc.description || 'No description'}
-                              {' · '}
+                              {' Â· '}
                               <span className="font-mono">{formatFileSize(doc.size)}</span>
-                              {' · '}
+                              {' Â· '}
                               {new Date(doc.createdAt).toLocaleDateString()}
-                              {doc.uploadedBy && ` · ${doc.uploadedBy}`}
+                              {doc.uploadedBy && ` Â· ${doc.uploadedBy}`}
                             </p>
                           </div>
                         </div>
@@ -1284,7 +1468,7 @@ function AssessmentTab({ claimId, onClaimChange }) {
                   <p className="text-body-md font-semibold text-on-surface">Assessment #{a.id}</p>
                   <p className="text-label-sm text-outline font-mono mt-0.5">
                     {new Date(a.assessmentDate).toLocaleString()}
-                    {a.preparedBy && ' · ' + a.preparedBy.firstName + ' ' + a.preparedBy.lastName}
+                    {a.preparedBy && ' Â· ' + a.preparedBy.firstName + ' ' + a.preparedBy.lastName}
                   </p>
                 </div>
               </div>
@@ -1313,7 +1497,7 @@ function AssessmentTab({ claimId, onClaimChange }) {
                     <li key={it.id} className="py-2 flex justify-between items-center gap-3">
                       <span className="text-on-surface truncate">{it.description}</span>
                       <span className="text-on-surface-variant font-mono text-body-sm whitespace-nowrap">
-                        {it.quantity} × {formatCurrency(it.unitCost)}
+                        {it.quantity} Ã— {formatCurrency(it.unitCost)}
                       </span>
                       <span className="font-mono text-on-surface font-medium min-w-[100px] text-right whitespace-nowrap">
                         {formatCurrency(it.amount)}
@@ -1402,7 +1586,7 @@ function SettlementTab({ claimId, onClaimChange }) {
       return;
     }
     if (amount > 9999999999999.99) {
-      setError('Offered amount is too large (max ₱9,999,999,999,999.99).');
+      setError('Offered amount is too large (max â‚±9,999,999,999,999.99).');
       return;
     }
     setSaving(true);
@@ -2076,378 +2260,6 @@ function ReportsTab({ claimId, onClaimChange }) {
     </div>
   );
 }
-
-function TasksTab({ claimId, onClaimChange }) {
-  const [tasks, setTasks] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [t, u] = await Promise.all([
-        getTasks({ claimId }),
-        getUsers().catch(() => ({ users: [] })),
-      ]);
-      setTasks(t.items || []);
-      setUsers(u.users || []);
-    } catch {
-      setError('Failed to load tasks');
-    } finally {
-      setLoading(false);
-    }
-  }, [claimId]);
-
-  useEffect(() => {
-    load();
-  }, [claimId, load]);
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.assignedToId) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await createTask({ ...form, claimId });
-      setForm({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'MEDIUM' });
-      await load();
-      onClaimChange?.();
-    } catch {
-      setError('Failed to create task');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleStatus = async (id, status) => {
-    setSaving(true);
-    setError(null);
-    try {
-      await updateTask(id, { status });
-      await load();
-      onClaimChange?.();
-    } catch {
-      setError('Failed to update task status');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this task?')) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await deleteTask(id);
-      await load();
-      onClaimChange?.();
-    } catch {
-      setError('Failed to delete task');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const TASK_STATUS_COLORS = {
-    PENDING: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
-    IN_PROGRESS: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
-    COMPLETED: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
-    CANCELLED: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' },
-  };
-
-  const PRIORITY_COLORS = {
-    LOW: { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' },
-    MEDIUM: { bg: 'bg-primary/10', text: 'text-primary' },
-    HIGH: { bg: 'bg-accent-orange/10', text: 'text-accent-orange' },
-    URGENT: { bg: 'bg-error/10', text: 'text-error' },
-  };
-
-  function StatusPill({ status }) {
-    const c = TASK_STATUS_COLORS[status] || TASK_STATUS_COLORS.PENDING;
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium whitespace-nowrap ${c.bg} ${c.text}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${c.dot} shrink-0`} />
-        {status?.replace(/_/g, ' ')}
-      </span>
-    );
-  }
-
-  function isOverdue(task) {
-    if (!task.dueDate || task.status === 'COMPLETED' || task.status === 'CANCELLED') return false;
-    return new Date(task.dueDate) < new Date();
-  }
-
-  const pendingCount = tasks.filter((t) => t.status === 'PENDING').length;
-  const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
-  const completedCount = tasks.filter((t) => t.status === 'COMPLETED').length;
-  const overdueCount = tasks.filter(isOverdue).length;
-
-  return (
-    <div className="space-y-6">
-      {error && (
-        <div className="bg-error/10 border border-error/30 text-error rounded-lg p-3 text-body-sm flex items-center gap-2">
-          <AlertTriangle size={16} className="shrink-0" />
-          {error}
-          <button onClick={() => setError(null)} className="ml-auto text-error hover:opacity-70 shrink-0">
-            <AlertTriangle size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <ListTodo size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Total Tasks</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{tasks.length}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-accent-orange/10 text-accent-orange flex items-center justify-center shrink-0">
-            <Clock size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Pending</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{pendingCount + inProgressCount}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
-            <CheckCircle size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Completed</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{completedCount}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-error/10 text-error flex items-center justify-center shrink-0">
-            <AlertTriangle size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Overdue</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{overdueCount}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Create form */}
-      <form onSubmit={handleCreate} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm p-4 space-y-3">
-        <div className="flex items-center gap-2 mb-2">
-          <ListTodo size={18} className="text-primary" />
-          <h3 className="text-headline-sm font-semibold text-primary">New Task</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-label-md text-outline uppercase mb-1.5">Title</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Task title..."
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-label-md text-outline uppercase mb-1.5">Assign To</label>
-            <select
-              value={form.assignedToId}
-              onChange={(e) => setForm({ ...form, assignedToId: e.target.value })}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-              required
-              disabled={users.length === 0}
-            >
-              <option value="">{users.length === 0 ? 'No users available' : 'Select user'}</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Task description..."
-            className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
-            rows={2}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-label-md text-outline uppercase mb-1.5">Due Date</label>
-            <input
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-label-md text-outline uppercase mb-1.5">Priority</label>
-            <select
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value })}
-              className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-            >
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="URGENT">Urgent</option>
-            </select>
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={saving || !form.title.trim() || !form.assignedToId}
-          className="h-10 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus size={16} />
-          {saving ? 'Creating...' : 'Create Task'}
-        </button>
-      </form>
-
-      {/* Task list */}
-      {loading ? (
-        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
-          <p className="text-body-md text-on-surface-variant">Loading tasks...</p>
-        </div>
-      ) : tasks.length === 0 ? (
-        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-8 text-center">
-          <ListTodo size={32} className="text-outline mx-auto mb-2" />
-          <p className="text-body-md text-on-surface-variant">No tasks yet.</p>
-          <p className="text-body-sm text-outline mt-1">Use the form above to create one.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {tasks.map((t) => {
-            const overdue = isOverdue(t);
-            const priorityColor = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.MEDIUM;
-            return (
-              <div key={t.id} className={`bg-surface border rounded-lg shadow-sm overflow-hidden ${overdue ? 'border-l-4 border-l-error' : 'border-l-4 border-l-primary'}`}>
-                <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      t.status === 'COMPLETED' ? 'bg-success/10 text-success' : overdue ? 'bg-error/10 text-error' : 'bg-primary/10 text-primary'
-                    }`}>
-                      <ListTodo size={18} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-body-md font-semibold text-on-surface truncate ${t.status === 'COMPLETED' ? 'line-through' : ''}`}>
-                          {t.title}
-                        </p>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-label-sm font-medium shrink-0 ${priorityColor.bg} ${priorityColor.text}`}>
-                          {t.priority}
-                        </span>
-                      </div>
-                      <p className="text-label-sm text-outline font-mono mt-0.5">
-                        Assigned to {t.assignedTo?.firstName} {t.assignedTo?.lastName}
-                        {t.createdBy && ` · Created by ${t.createdBy.firstName} ${t.createdBy.lastName}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusPill status={t.status} />
-                  </div>
-                </div>
-
-                <div className="p-3 space-y-2">
-                  {t.description && (
-                    <p className="text-body-sm text-on-surface-variant">{t.description}</p>
-                  )}
-                  <div className="flex items-center gap-3 text-label-sm text-outline font-mono flex-wrap">
-                    {t.dueDate && (
-                      <span className={overdue ? 'text-error font-medium' : ''}>
-                        Due: {new Date(t.dueDate).toLocaleDateString()}
-                        {overdue && ' (overdue)'}
-                      </span>
-                    )}
-                    {t.completedAt && (
-                      <span className="text-success">Completed: {new Date(t.completedAt).toLocaleDateString()}</span>
-                    )}
-                    <span>Created: {new Date(t.createdAt).toLocaleDateString()}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-surface-border">
-                    {t.status === 'PENDING' && (
-                      <button
-                        onClick={() => handleStatus(t.id, 'IN_PROGRESS')}
-                        disabled={saving}
-                        className="h-8 px-3 bg-primary text-white text-label-md rounded font-medium hover:bg-primary-container transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        <Clock size={12} />
-                        Start
-                      </button>
-                    )}
-                    {t.status === 'IN_PROGRESS' && (
-                      <button
-                        onClick={() => handleStatus(t.id, 'COMPLETED')}
-                        disabled={saving}
-                        className="h-8 px-3 bg-success text-white text-label-md rounded font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        <CheckCircle size={12} />
-                        Complete
-                      </button>
-                    )}
-                    {t.status === 'PENDING' && (
-                      <button
-                        onClick={() => handleStatus(t.id, 'COMPLETED')}
-                        disabled={saving}
-                        className="h-8 px-3 bg-success text-white text-label-md rounded font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        <CheckCircle size={12} />
-                        Complete
-                      </button>
-                    )}
-                    {(t.status === 'PENDING' || t.status === 'IN_PROGRESS') && (
-                      <button
-                        onClick={() => handleStatus(t.id, 'CANCELLED')}
-                        disabled={saving}
-                        className="h-8 px-3 border border-outline text-on-surface-variant text-label-md rounded font-medium hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        <Ban size={12} />
-                        Cancel
-                      </button>
-                    )}
-                    {t.status === 'CANCELLED' && (
-                      <button
-                        onClick={() => handleStatus(t.id, 'PENDING')}
-                        disabled={saving}
-                        className="h-8 px-3 border border-outline text-on-surface-variant text-label-md rounded font-medium hover:bg-surface-container-high transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        Reopen
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      disabled={saving}
-                      className="h-8 px-3 text-error text-label-md rounded font-medium hover:bg-error/10 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50 ml-auto"
-                    >
-                      <Trash2 size={12} />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange }) {
   const [insurers, setInsurers] = useState([]);
   const [panel, setPanel] = useState(initialClaim?.insurerPanel || []);
@@ -2593,7 +2405,7 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
   };
 
   function StatusBadge({ status, colors }) {
-    if (!status) return <span className="text-on-surface-variant">—</span>;
+    if (!status) return <span className="text-on-surface-variant">â€”</span>;
     const c = colors[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium ${c.bg} ${c.text}`}>
@@ -2896,20 +2708,20 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-body-sm">
                     <div>
                       <p className="text-label-md text-outline uppercase">Proposed</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.proposedSettlement ? formatCurrency(ci.proposedSettlement) : '—'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.proposedSettlement ? formatCurrency(ci.proposedSettlement) : 'â€”'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Agreed</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.agreedSettlement ? formatCurrency(ci.agreedSettlement) : '—'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.agreedSettlement ? formatCurrency(ci.agreedSettlement) : 'â€”'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Paid</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.paidAmount ? formatCurrency(ci.paidAmount) : '—'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.paidAmount ? formatCurrency(ci.paidAmount) : 'â€”'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Balance</p>
                       <p className="font-mono text-on-surface mt-0.5">
-                        {ci.agreedSettlement && ci.paidAmount ? formatCurrency(Number(ci.agreedSettlement) - Number(ci.paidAmount)) : '—'}
+                        {ci.agreedSettlement && ci.paidAmount ? formatCurrency(Number(ci.agreedSettlement) - Number(ci.paidAmount)) : 'â€”'}
                       </p>
                     </div>
                   </div>
@@ -2934,193 +2746,6 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function TimelineTab({ claim }) {
-  const [filter, setFilter] = useState('all');
-
-  const activities = (claim.activities || []).map((a) => ({
-    id: `a-${a.id}`,
-    type: 'activity',
-    date: a.occurredAt,
-    title: a.activityType,
-    desc: a.description,
-    actor: a.actor,
-    source: a.source,
-  }));
-  const correspondence = (claim.correspondence || []).map((c) => ({
-    id: `c-${c.id}`,
-    type: 'correspondence',
-    date: c.sentAt,
-    title: c.type,
-    desc: c.notes,
-    actor: c.recipient,
-    source: null,
-    followUp: c.followUpDate,
-    isHistorical: c.isHistorical,
-  }));
-  const statusChanges = (claim.processHistory || []).map((h) => ({
-    id: `s-${h.id}`,
-    type: 'status',
-    date: h.createdAt,
-    title: h.status?.name || h.status?.code || 'Status Change',
-    desc: h.notes,
-    actor: h.changedBy,
-    source: h.isOverride ? `Override: ${h.overrideReason}` : null,
-  }));
-
-  const allEvents = [...activities, ...correspondence, ...statusChanges].sort(
-    (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
-  );
-
-  const filteredEvents = filter === 'all' ? allEvents : allEvents.filter((e) => e.type === filter);
-
-  const EVENT_CONFIG = {
-    activity: { icon: GitBranch, badgeBg: 'bg-primary/10', badgeText: 'text-primary' },
-    correspondence: { icon: FileText, badgeBg: 'bg-secondary/10', badgeText: 'text-secondary' },
-    status: { icon: CheckCircle, badgeBg: 'bg-success/10', badgeText: 'text-success' },
-  };
-
-  const filters = [
-    { key: 'all', label: 'All Events', count: allEvents.length },
-    { key: 'activity', label: 'Activities', count: activities.length },
-    { key: 'correspondence', label: 'Correspondence', count: correspondence.length },
-    { key: 'status', label: 'Status Changes', count: statusChanges.length },
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Clock size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Total Events</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{allEvents.length}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <GitBranch size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Activities</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{activities.length}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
-            <FileText size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Correspondence</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{correspondence.length}</p>
-          </div>
-        </div>
-        <div className="bg-surface border border-surface-border rounded-lg p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
-            <CheckCircle size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-label-md text-outline uppercase truncate">Status Changes</p>
-            <p className="text-headline-sm font-semibold text-on-surface font-mono tabular-nums">{statusChanges.length}</p>
-          </div>
-        </div>
-      </div>
-
-      <section className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
-          <div className="flex items-center gap-2">
-            <Clock size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Activity Timeline</h3>
-          </div>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 p-3 border-b border-surface-border overflow-x-auto">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body-sm font-medium transition-colors whitespace-nowrap ${
-                filter === f.key ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              {f.label}
-              <span className={`px-1.5 py-0.5 rounded text-label-sm font-mono ${
-                filter === f.key ? 'bg-white/20' : 'bg-surface-container-high'
-              }`}>
-                {f.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Timeline */}
-        <div className="p-4">
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock size={32} className="text-outline mx-auto mb-2" />
-              <p className="text-body-md text-on-surface-variant">
-                {filter === 'all'
-                  ? 'No events recorded yet.'
-                  : `No ${filter} events recorded.`}
-              </p>
-              <p className="text-body-sm text-outline mt-1">
-                Events will appear here as the claim progresses through the workflow.
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-0">
-              {filteredEvents.map((evt, i) => {
-                const config = EVENT_CONFIG[evt.type] || EVENT_CONFIG.activity;
-                const Icon = config.icon;
-                const isLast = i === filteredEvents.length - 1;
-                return (
-                  <li key={evt.id} className="relative pl-10 pb-6 last:pb-0">
-                    {!isLast && (
-                      <span className="absolute left-[15px] top-8 bottom-0 w-px bg-surface-border" />
-                    )}
-                    <span className={`absolute left-0 top-1 w-8 h-8 rounded-full ${config.badgeBg} ${config.badgeText} flex items-center justify-center ring-4 ring-surface`}>
-                      <Icon size={16} />
-                    </span>
-                    <div className="bg-surface-container-low border border-surface-border rounded-lg p-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-md font-medium ${config.badgeBg} ${config.badgeText}`}>
-                          {evt.type}
-                        </span>
-                        <p className="font-medium text-body-md text-on-surface">{evt.title}</p>
-                        {evt.isHistorical && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-label-sm font-medium bg-accent-orange/10 text-accent-orange">
-                            Historical
-                          </span>
-                        )}
-                      </div>
-                      {evt.desc && (
-                        <p className="text-body-sm text-on-surface-variant mt-1.5">{evt.desc}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-label-sm text-outline font-mono flex-wrap">
-                        <span>
-                          {evt.date ? new Date(evt.date).toLocaleString() : 'No date'}
-                        </span>
-                        {evt.actor && <span>· {evt.actor}</span>}
-                        {evt.source && <span>· {evt.source}</span>}
-                        {evt.followUp && (
-                          <span className="text-accent-orange">· Follow-up: {new Date(evt.followUp).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
           )}
         </div>
       </section>

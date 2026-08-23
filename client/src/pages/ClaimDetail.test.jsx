@@ -48,18 +48,19 @@ describe('DocumentPreview', () => {
     );
   });
 
-  it('does not render an iframe for non-previewable file types to avoid auto-download', () => {
-    const nonPreviewable = [
+  it('renders .docx content inline via mammoth instead of auto-downloading', async () => {
+    const docxDocs = [
       { id: 20, originalName: 'report.docx', category: 'Report', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
     ];
 
-    render(<DocumentPreview claimId="3" documents={nonPreviewable} />);
+    render(<DocumentPreview claimId="3" documents={docxDocs} />);
 
     fireEvent.click(screen.getByRole('button', { name: '1 Document' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Document Preview' });
+    // No iframe should be rendered for .docx files (prevents auto-download)
     expect(within(dialog).queryByTitle('Document preview')).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/not available for this file type/i)).toBeInTheDocument();
+    // Download link should still be present
     expect(within(dialog).getByRole('link', { name: /download/i })).toHaveAttribute(
       'href',
       '/api/claims/3/documents/20/download'

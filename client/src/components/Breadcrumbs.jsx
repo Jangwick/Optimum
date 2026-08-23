@@ -20,7 +20,7 @@ const DYNAMIC_LABELS = {
 
 function buildBreadcrumbs(pathname, dynamicLabel) {
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs = [{ label: 'Dashboard', path: '/' }];
+  const crumbs = [{ label: 'Overview', path: '/' }];
 
   if (segments.length === 0) return crumbs;
 

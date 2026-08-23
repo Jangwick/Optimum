@@ -87,6 +87,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNewClaim, setShowNewClaim] = useState(false);
+  const [activityFilter, setActivityFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -387,57 +388,88 @@ export default function Dashboard() {
                 {/* Recent Activity Feed - spans 2 columns */}
                 <section className="lg:col-span-2 bg-surface border border-surface-border rounded-lg shadow-sm flex flex-col overflow-hidden">
                   <div className="p-5 border-b border-surface-border bg-surface-container-lowest">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                        <Activity size={18} />
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                          <Activity size={18} />
+                        </div>
+                        <h3 className="text-headline-sm font-semibold text-primary">Recent Activity</h3>
                       </div>
-                      <h3 className="text-headline-sm font-semibold text-primary">Recent Activity</h3>
+                      <div className="flex items-center gap-1">
+                        {[
+                          { key: 'all', label: 'All' },
+                          { key: 'status', label: 'Status' },
+                          { key: 'report', label: 'Reports' },
+                          { key: 'document', label: 'Documents' },
+                          { key: 'claim', label: 'Claims' },
+                        ].map((chip) => (
+                          <button
+                            key={chip.key}
+                            onClick={() => setActivityFilter(chip.key)}
+                            className={`px-2.5 py-1 rounded-md text-label-md font-medium transition-colors ${
+                              activityFilter === chip.key
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-on-surface-variant hover:bg-surface-container-high'
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 max-h-[400px]">
-                    {data.recentActivity?.length ? (
-                      <div className="flex flex-col">
-                        {data.recentActivity.map((a, idx) => {
-                          const { icon: Icon, tint } = activityIcon(a.action);
-                          const actor = a.user
-                            ? `${a.user.firstName} ${a.user.lastName}`.trim()
-                            : 'System';
-                          return (
-                            <div
-                              key={a.id}
-                              className={`p-4 hover:bg-surface-container-low transition-colors rounded-lg flex gap-4 ${
-                                idx !== data.recentActivity.length - 1
-                                  ? 'border-b border-surface-border/50'
-                                  : ''
-                              }`}
-                            >
-                              <div className="shrink-0">
-                                <div
-                                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${tint}`}
-                                >
-                                  <Icon size={18} />
+                    {(() => {
+                      const filtered = activityFilter === 'all'
+                        ? (data.recentActivity || [])
+                        : (data.recentActivity || []).filter((a) =>
+                            (a.action || '').toLowerCase().includes(activityFilter)
+                          );
+                      if (!filtered.length) {
+                        return (
+                          <div className="p-10 text-center">
+                            <Activity size={36} className="mx-auto text-outline mb-3" />
+                            <p className="text-body-md text-on-surface-variant">
+                              {data.recentActivity?.length ? 'No activity matches this filter.' : 'No recent activity.'}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex flex-col">
+                          {filtered.map((a, idx) => {
+                            const { icon: Icon, tint } = activityIcon(a.action);
+                            const actor = a.user
+                              ? `${a.user.firstName} ${a.user.lastName}`.trim()
+                              : 'System';
+                            return (
+                              <div
+                                key={a.id}
+                                className={`p-4 hover:bg-surface-container-low transition-colors rounded-lg flex gap-4 ${
+                                  idx !== filtered.length - 1 ? 'border-b border-surface-border/50' : ''
+                                }`}
+                              >
+                                <div className="shrink-0">
+                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tint}`}>
+                                    <Icon size={18} />
+                                  </div>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-body-sm text-on-surface">
+                                    <span className="font-semibold">{actor}</span>{' '}
+                                    <span className="text-on-surface-variant">
+                                      {a.action?.toLowerCase()?.replace(/_/g, ' ')}
+                                    </span>{' '}
+                                    <span className="text-primary font-medium">{a.tableName}</span>
+                                  </p>
+                                  <p className="text-body-sm text-outline mt-1 font-mono">{timeAgo(a.createdAt)}</p>
                                 </div>
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-body-sm text-on-surface">
-                                  <span className="font-semibold">{actor}</span>{' '}
-                                  <span className="text-on-surface-variant">
-                                    {a.action?.toLowerCase()?.replace(/_/g, ' ')}
-                                  </span>{' '}
-                                  <span className="text-primary font-medium">{a.tableName}</span>
-                                </p>
-                                <p className="text-body-sm text-outline mt-1 font-mono">{timeAgo(a.createdAt)}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-10 text-center">
-                        <Activity size={36} className="mx-auto text-outline mb-3" />
-                        <p className="text-body-md text-on-surface-variant">No recent activity.</p>
-                      </div>
-                    )}
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </section>
               </div>

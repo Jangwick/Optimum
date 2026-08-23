@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -77,6 +78,7 @@ const tooltipStyle = {
 export default function Reports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getAnalytics()
@@ -243,6 +245,14 @@ export default function Reports() {
                 title="Claims by Process Status"
                 subtitle="Distribution across the 18-stage workflow"
                 icon={BarChart3}
+                action={
+                  <button
+                    onClick={() => navigate('/claims')}
+                    className="text-body-sm text-primary hover:text-primary-container font-medium flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-primary/5 transition-colors"
+                  >
+                    View Claims
+                  </button>
+                }
               >
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={data.statusBreakdown} layout="vertical" margin={{ left: 40 }}>
@@ -366,7 +376,11 @@ export default function Reports() {
                       {data.topClients.map((c, idx) => {
                         const pct = ((c.count / s.totalClaims) * 100).toFixed(1);
                         return (
-                          <tr key={idx} className="hover:bg-surface-container-low transition-colors">
+                          <tr
+                            key={idx}
+                            onClick={() => navigate(`/claims?search=${encodeURIComponent(c.name)}`)}
+                            className="hover:bg-surface-container-low transition-colors cursor-pointer"
+                          >
                             <td className="px-4 py-3 text-on-surface-variant font-mono">#{idx + 1}</td>
                             <td className="px-4 py-3 font-medium text-on-surface">{c.name}</td>
                             <td className="px-4 py-3 text-right tabular-nums text-on-surface">{c.count}</td>
