@@ -60,7 +60,7 @@ export default function Registry() {
 
   return (
     <AppLayout>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
               <h1 className="text-headline-md font-semibold text-on-surface">Claims Registry</h1>
               <p className="text-body-md text-on-surface-variant mt-1">

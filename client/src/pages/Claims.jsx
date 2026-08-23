@@ -385,7 +385,7 @@ export default function Claims() {
   return (
     <AppLayout>
           {/* Page Header */}
-          <div className="mb-6 flex justify-between items-end">
+          <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
               <h2 className="text-headline-lg font-semibold text-primary">Claims Registry</h2>
               <p className="text-body-md text-on-surface-variant mt-1">

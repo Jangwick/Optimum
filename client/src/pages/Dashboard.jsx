@@ -92,7 +92,7 @@ export default function Dashboard() {
     <>
     <AppLayout>
           {/* Page Header */}
-          <div className="mb-8 flex justify-between items-end">
+          <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
               <h2 className="text-headline-lg font-semibold text-primary">Overview</h2>
               <p className="text-body-md text-on-surface-variant mt-1.5">

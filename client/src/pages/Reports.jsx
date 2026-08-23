@@ -33,14 +33,14 @@ const PIE_COLORS = ['#1a3a5c', '#2d5a87', '#4a90d9', '#f5a623', '#e74c3c', '#27a
 
 function MetricCard({ icon: Icon, label, value, subtitle, tint }) {
   return (
-    <div className="bg-surface border border-surface-border rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-surface border border-surface-border rounded-lg p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="flex items-center justify-between mb-3">
         <div className={`p-2.5 rounded-lg ${tint}`}>
           <Icon size={22} />
         </div>
       </div>
       <p className="text-body-sm text-on-surface-variant font-medium">{label}</p>
-      <p className="text-headline-md font-bold text-on-surface tabular-nums mt-1">{value}</p>
+      <p className="text-headline-sm sm:text-headline-md font-bold text-on-surface tabular-nums mt-1 break-all leading-tight">{value}</p>
       {subtitle && <p className="text-body-sm text-outline mt-0.5">{subtitle}</p>}
     </div>
   );
@@ -49,7 +49,7 @@ function MetricCard({ icon: Icon, label, value, subtitle, tint }) {
 function ChartCard({ title, subtitle, icon: Icon, children, action }) {
   return (
     <section className="bg-surface border border-surface-border rounded-lg shadow-sm flex flex-col overflow-hidden">
-      <div className="p-5 border-b border-surface-border bg-surface-container-lowest flex justify-between items-center">
+      <div className="p-4 sm:p-5 border-b border-surface-border bg-surface-container-lowest flex justify-between items-center gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
             <Icon size={18} />
@@ -109,7 +109,7 @@ export default function Reports() {
   return (
     <AppLayout>
           {/* Page Header */}
-          <div className="mb-8 flex justify-between items-end">
+          <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
               <h2 className="text-headline-lg font-semibold text-primary">Reports & Analytics</h2>
               <p className="text-body-md text-on-surface-variant mt-1.5">
