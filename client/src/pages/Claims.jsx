@@ -392,7 +392,7 @@ export default function Claims() {
                 Complete claim register with 18-stage workflow status
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3">
               <button
                 onClick={handleExport}
                 disabled={exporting}
