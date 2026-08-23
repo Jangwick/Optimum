@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
@@ -894,7 +895,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
         </div>
       </Modal>
 
-      {viewingPhoto && (
+      {viewingPhoto && createPortal(
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
           onClick={() => setViewingPhoto(null)}
@@ -936,7 +937,8 @@ export function InspectionSummary({ claimId, inspections = [] }) {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
