@@ -25,8 +25,8 @@ describe('ClaimDetail tabs', () => {
 
 describe('DocumentPreview', () => {
   const documents = [
-    { id: 11, originalName: 'policy.pdf', category: 'Policy' },
-    { id: 12, originalName: 'photos.pdf', category: 'Photos' },
+    { id: 11, originalName: 'policy.pdf', category: 'Policy', mimeType: 'application/pdf' },
+    { id: 12, originalName: 'photos.pdf', category: 'Photos', mimeType: 'application/pdf' },
   ];
 
   it('opens saved documents in an iframe modal and switches the preview', () => {
@@ -45,6 +45,24 @@ describe('DocumentPreview', () => {
     expect(within(dialog).getByTitle('Document preview')).toHaveAttribute(
       'src',
       '/api/claims/3/documents/12/preview'
+    );
+  });
+
+  it('does not render an iframe for non-previewable file types to avoid auto-download', () => {
+    const nonPreviewable = [
+      { id: 20, originalName: 'report.docx', category: 'Report', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    ];
+
+    render(<DocumentPreview claimId="3" documents={nonPreviewable} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '1 Document' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Document Preview' });
+    expect(within(dialog).queryByTitle('Document preview')).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/not available for this file type/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: /download/i })).toHaveAttribute(
+      'href',
+      '/api/claims/3/documents/20/download'
     );
   });
 });

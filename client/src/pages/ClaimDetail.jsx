@@ -510,11 +510,27 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
   );
 }
 
+const PREVIEWABLE_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'text/plain',
+  'text/html',
+];
+
+function isPreviewable(mimeType) {
+  return PREVIEWABLE_MIME_TYPES.includes(mimeType);
+}
+
 export function DocumentPreview({ claimId, documents = [] }) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(documents[0]?.id ? String(documents[0].id) : '');
   const selectedDocument =
     documents.find((document) => String(document.id) === selectedId) || documents[0];
+  const canPreview = selectedDocument ? isPreviewable(selectedDocument.mimeType) : false;
 
   return (
     <>
@@ -562,14 +578,26 @@ export function DocumentPreview({ claimId, documents = [] }) {
                 Download
               </a>
             </div>
-            <div className="border border-surface-border rounded-lg overflow-hidden bg-surface-container-low">
-              <iframe
-                key={selectedDocument.id}
-                src={getDocumentPreviewUrl(claimId, selectedDocument.id)}
-                title="Document preview"
-                className="w-full h-[65vh] bg-white"
-              />
-            </div>
+            {canPreview ? (
+              <div className="border border-surface-border rounded-lg overflow-hidden bg-surface-container-low">
+                <iframe
+                  key={selectedDocument.id}
+                  src={getDocumentPreviewUrl(claimId, selectedDocument.id)}
+                  title="Document preview"
+                  className="w-full h-[65vh] bg-white"
+                />
+              </div>
+            ) : (
+              <div className="border border-surface-border rounded-lg bg-surface-container-low p-10 text-center">
+                <FileText size={32} className="mx-auto text-on-surface-variant mb-3" />
+                <p className="text-on-surface-variant text-body-md">
+                  Inline preview is not available for this file type.
+                </p>
+                <p className="text-on-surface-variant text-body-sm mt-1">
+                  Use the Download button above to view the file.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-body-sm">
               <Info label="File" value={selectedDocument.originalName} />
               <Info label="Category" value={selectedDocument.category} />
