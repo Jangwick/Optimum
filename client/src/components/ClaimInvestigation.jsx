@@ -85,6 +85,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
   const [invForm, setInvForm] = useState({ findings: '', notes: '' });
   const [conForm, setConForm] = useState({ name: '', role: '', phone: '', email: '' });
   const [inspForm, setInspForm] = useState({ scheduledAt: '', location: '', scope: '', notes: '' });
+  const [inspPhotos, setInspPhotos] = useState([]);
+  const inspPhotoInputRef = useRef(null);
   const [findings, setFindings] = useState({});
   const [noteForm, setNoteForm] = useState({
     partyType: 'INSURED',
@@ -133,9 +135,19 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
 
   const saveInspection = async (e) => {
     e.preventDefault();
-    await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
-    setInspForm({ scheduledAt: '', location: '', scope: '', notes: '' });
-    triggerRefresh();
+    setUploading(true);
+    try {
+      const inspection = await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
+      for (const file of inspPhotos) {
+        await uploadInspectionPhoto(claimId, inspection.id, file, '');
+      }
+      setInspForm({ scheduledAt: '', location: '', scope: '', notes: '' });
+      setInspPhotos([]);
+      if (inspPhotoInputRef.current) inspPhotoInputRef.current.value = '';
+      triggerRefresh();
+    } finally {
+      setUploading(false);
+    }
   };
 
   const completeInspection = async (id) => {
@@ -660,9 +672,51 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
               <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
               <textarea value={inspForm.notes} onChange={(e) => setInspForm({ ...inspForm, notes: e.target.value })} placeholder="Additional notes..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
             </div>
-            <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Photos</label>
+              <div
+                onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); setInspPhotos((prev) => [...prev, ...files]); }}
+                onDragOver={(e) => e.preventDefault()}
+                className="border-2 border-dashed border-outline rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer"
+                onClick={() => inspPhotoInputRef.current?.click()}
+              >
+                <input
+                  ref={inspPhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => { const files = Array.from(e.target.files); setInspPhotos((prev) => [...prev, ...files]); e.target.value = ''; }}
+                  className="hidden"
+                />
+                <Upload size={24} className="mx-auto text-outline mb-2" />
+                <p className="text-body-sm text-on-surface-variant">Click or drag photos here</p>
+              </div>
+              {inspPhotos.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {inspPhotos.map((file, idx) => (
+                    <div key={idx} className="relative bg-surface-container-high p-2 rounded-lg border border-surface-border group">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={file.name}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setInspPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-error text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove"
+                      >
+                        <X size={12} />
+                      </button>
+                      <p className="text-label-sm truncate max-w-[80px] mt-1">{file.name}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button type="submit" disabled={uploading} className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
               <Plus size={16} />
-              Schedule Inspection
+              {uploading ? 'Saving...' : 'Schedule Inspection'}
             </button>
           </form>
 
