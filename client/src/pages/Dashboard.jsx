@@ -102,13 +102,15 @@ export default function Dashboard() {
               </p>
             </div>
             {user?.role === 'ADMIN' && (
-              <button
-                onClick={() => setShowNewClaim(true)}
-                className="bg-primary text-white px-5 py-2.5 rounded-lg text-body-md font-medium hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2"
-              >
-                <Plus size={18} />
-                New Claim
-              </button>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowNewClaim(true)}
+                  className="bg-primary text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-body-md font-medium hover:bg-primary-container transition-colors shadow-sm inline-flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  New Claim
+                </button>
+              </div>
             )}
           </div>
 
