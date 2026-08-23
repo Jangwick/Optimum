@@ -772,13 +772,6 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                             rows={2}
                           />
                         </div>
-                        <button
-                          onClick={() => completeInspection(i.id)}
-                          className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
-                        >
-                          <CheckCircle size={16} />
-                          Complete Inspection
-                        </button>
                       </div>
                     )}
 
@@ -846,6 +839,18 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                         </div>
                       )}
                     </div>
+
+                    {!isCompleted && (
+                      <div className="mt-3 pt-3 border-t border-surface-border">
+                        <button
+                          onClick={() => completeInspection(i.id)}
+                          className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+                        >
+                          <CheckCircle size={16} />
+                          Complete Inspection
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
