@@ -16,6 +16,10 @@ export async function downloadDocument(claimId, docId) {
   return api.get(`/claims/${claimId}/documents/${docId}/download`, { responseType: 'blob' });
 }
 
+export function getDocumentPreviewUrl(claimId, docId) {
+  return `/api/claims/${claimId}/documents/${docId}/preview`;
+}
+
 export async function markDocumentReceived(claimId, docId) {
   const { data } = await api.put(`/claims/${claimId}/documents/${docId}/received`);
   return data;

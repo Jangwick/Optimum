@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
-import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument } from '../services/document.service.js';
+import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument, getDocumentPreviewUrl } from '../services/document.service.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
@@ -97,12 +97,23 @@ export function ClaimDetailContent({ claimId }) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [claimData, statusesData, inspectionsData] = await Promise.all([
+      const [claimData, statusesData, inspectionsData, documentsData] = await Promise.all([
         getClaim(claimId),
         getClaimStatuses(),
         getInspections(claimId),
+        getDocuments(claimId),
       ]);
-      setClaim({ ...claimData.item, inspections: inspectionsData.items || [] });
+      const documents = (documentsData.items || []).flatMap((group) =>
+        (group.uploaded || []).map((document) => ({
+          ...document,
+          category: group.category?.name || 'Uncategorized',
+        }))
+      );
+      setClaim({
+        ...claimData.item,
+        inspections: inspectionsData.items || [],
+        documents,
+      });
       setStatuses(statusesData.items);
       setSelectedStatus(claimData.item.status?.code || '');
       setBreadcrumbLabel(claimData.item.claimNumber || 'Claim Details');
@@ -344,26 +355,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <span className="text-label-md text-outline uppercase">Description</span>
             <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
-          {/* Count badges */}
-          <div className="mt-4 pt-4 border-t border-surface-border flex flex-wrap gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-body-sm font-medium">
-              <FileText size={14} />
-              {fin.documentCount ?? 0} Documents
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-orange/5 text-accent-orange text-body-sm font-medium">
-              <ListTodo size={14} />
-              {fin.openTaskCount ?? 0} Open / {fin.taskCount ?? 0} Total Tasks
-            </span>
-            {claim.processStatus && (
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-body-sm font-medium"
-                style={{ backgroundColor: `${claim.processStatus.color}1a`, color: claim.processStatus.color }}
-              >
-                <GitBranch size={14} />
-                {claim.processStatus.name}
-              </span>
-            )}
-          </div>
+          <DocumentPreview claimId={claim.id} documents={claim.documents} />
         </section>
 
         <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
@@ -516,6 +508,78 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         </section>
       </div>
     </div>
+  );
+}
+
+export function DocumentPreview({ claimId, documents = [] }) {
+  const [open, setOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(documents[0]?.id ? String(documents[0].id) : '');
+  const selectedDocument =
+    documents.find((document) => String(document.id) === selectedId) || documents[0];
+
+  return (
+    <>
+      <div className="mt-4 pt-4 border-t border-surface-border">
+        <button
+          type="button"
+          onClick={() => documents.length > 0 && setOpen(true)}
+          disabled={documents.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 text-primary text-body-sm font-medium hover:bg-primary/10 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FileText size={14} />
+          {documents.length} {documents.length === 1 ? 'Document' : 'Documents'}
+        </button>
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Document Preview" size="xl">
+        {selectedDocument && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <label
+                  htmlFor="summary-document-preview"
+                  className="block text-label-md text-outline uppercase mb-1.5"
+                >
+                  Preview document
+                </label>
+                <select
+                  id="summary-document-preview"
+                  value={String(selectedDocument.id)}
+                  onChange={(event) => setSelectedId(event.target.value)}
+                  className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+                >
+                  {documents.map((document) => (
+                    <option key={document.id} value={document.id}>
+                      {document.originalName} — {document.category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <a
+                href={`/api/claims/${claimId}/documents/${selectedDocument.id}/download`}
+                className="h-10 px-4 inline-flex items-center justify-center gap-2 rounded-lg border border-outline text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
+              >
+                <Download size={16} />
+                Download
+              </a>
+            </div>
+            <div className="border border-surface-border rounded-lg overflow-hidden bg-surface-container-low">
+              <iframe
+                key={selectedDocument.id}
+                src={getDocumentPreviewUrl(claimId, selectedDocument.id)}
+                title="Document preview"
+                className="w-full h-[65vh] bg-white"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-body-sm">
+              <Info label="File" value={selectedDocument.originalName} />
+              <Info label="Category" value={selectedDocument.category} />
+              <Info label="Uploaded By" value={selectedDocument.uploadedBy} />
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }
 

@@ -38,19 +38,32 @@ export async function markReceived(req, res, next) {
   }
 }
 
-export async function downloadDocument(req, res, next) {
+async function sendDocumentFile(req, res, next, disposition) {
   try {
     const id = idParam(req);
-    const doc = await prisma.document.findUnique({ where: { id } });
+    const doc = await prisma.document.findFirst({
+      where: { id, claimId: Number(req.params.claimId) },
+    });
     if (!doc) throw new AppError('Document not found', 404);
     if (!fs.existsSync(doc.path)) throw new AppError('File not found on disk', 404);
 
-    res.setHeader('Content-Disposition', `attachment; filename="${doc.originalName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`
+    );
     res.setHeader('Content-Type', doc.mimeType);
     res.sendFile(path.resolve(doc.path));
   } catch (err) {
     next(err);
   }
+}
+
+export async function downloadDocument(req, res, next) {
+  await sendDocumentFile(req, res, next, 'attachment');
+}
+
+export async function previewDocument(req, res, next) {
+  await sendDocumentFile(req, res, next, 'inline');
 }
 
 export async function deleteDocument(req, res, next) {

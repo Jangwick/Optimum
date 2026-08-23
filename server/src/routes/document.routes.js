@@ -6,6 +6,7 @@ import {
   uploadDocument,
   markReceived,
   downloadDocument,
+  previewDocument,
   deleteDocument,
 } from '../controllers/document.controller.js';
 
@@ -17,6 +18,7 @@ router.get('/', getChecklist);
 router.post('/', upload.single('file'), uploadDocument);
 router.put('/:id/received', markReceived);
 router.get('/:id/download', downloadDocument);
+router.get('/:id/preview', previewDocument);
 router.delete('/:id', deleteDocument);
 
 export default router;
