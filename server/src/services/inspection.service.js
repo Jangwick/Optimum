@@ -5,6 +5,7 @@ import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 import path from 'path';
 import fs from 'fs';
+import { resolveFilePath, toRelativePath } from '../utils/file-path.js';
 
 export async function listInspections(claimId) {
   return prisma.inspection.findMany({
@@ -95,7 +96,7 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
       fileName: path.basename(file.filename),
       originalName: file.originalname,
       mimeType: file.mimetype,
-      path: file.path,
+      path: toRelativePath(file.path),
       size: file.size,
       caption: caption || null,
       uploadedById: userId,
@@ -110,8 +111,9 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
 export async function getPhoto(photoId) {
   const photo = await prisma.inspectionPhoto.findUnique({ where: { id: Number(photoId) } });
   if (!photo) throw new AppError('Photo not found', 404);
-  if (!fs.existsSync(photo.path)) throw new AppError('Photo file not found', 404);
-  return photo;
+  const resolved = resolveFilePath(photo.path);
+  if (!fs.existsSync(resolved)) throw new AppError('Photo file not found', 404);
+  return { ...photo, path: resolved };
 }
 
 export async function deletePhoto(photoId, userId) {
@@ -122,7 +124,7 @@ export async function deletePhoto(photoId, userId) {
   if (!photo) throw new AppError('Photo not found', 404);
   const claimId = photo.inspection.claimId;
   // Delete file from disk
-  try { fs.unlinkSync(photo.path); } catch { /* file may already be gone */ }
+  try { fs.unlinkSync(resolveFilePath(photo.path)); } catch { /* file may already be gone */ }
   await prisma.inspectionPhoto.delete({ where: { id: Number(photoId) } });
   await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', photoId, userId, { claimId });
   await recordActivity(claimId, 'INSPECTION_PHOTO_DELETED', `Inspection photo deleted: ${photo.originalName}`, userId);

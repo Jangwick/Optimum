@@ -1,0 +1,21 @@
+fix: resolve file path issues causing 404s for photos and documents
+
+Stored file paths in the database used Windows backslashes (e.g.
+"uploads\claims\3\file.jpg") which don't resolve on Linux hosts.
+Additionally, relative paths were not being resolved consistently
+across operating systems and working directories.
+
+Changes:
+- Add server/src/utils/file-path.js with resolveFilePath() and
+  toRelativePath() helpers that normalise separators and resolve
+  paths cross-platform
+- Update inspection, document, and report services/controllers to
+  use the new path helpers for reading, streaming, and deleting files
+- New uploads now store forward-slash relative paths
+- Add server/scripts/migrate-paths.mjs to normalise existing DB paths
+- Run migration: all InspectionPhoto, Document, and ReportTemplate
+  paths converted from backslashes to forward slashes
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

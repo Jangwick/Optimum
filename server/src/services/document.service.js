@@ -5,6 +5,7 @@ import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 import fs from 'fs';
 import path from 'path';
+import { resolveFilePath, toRelativePath } from '../utils/file-path.js';
 
 export async function getDocumentChecklist(claimId) {
   const claim = await prisma.claim.findUnique({
@@ -95,7 +96,7 @@ export async function uploadDocument(claimId, file, data, userId) {
       fileName: path.basename(file.filename),
       originalName: file.originalname,
       mimeType: file.mimetype,
-      path: file.path,
+      path: toRelativePath(file.path),
       size: file.size,
       description: data.description,
       uploadedById: userId,
@@ -126,8 +127,8 @@ export async function markDocumentReceived(id, userId) {
 export async function deleteDocument(id, userId) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) throw new AppError('Document not found', 404);
-  if (fs.existsSync(doc.path)) {
-    fs.unlinkSync(doc.path);
+  if (fs.existsSync(resolveFilePath(doc.path))) {
+    fs.unlinkSync(resolveFilePath(doc.path));
   }
   await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
   await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, userId);

@@ -3,6 +3,7 @@ import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
+import { resolveFilePath } from '../utils/file-path.js';
 import { formatCurrency } from '../utils/currency.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
@@ -130,9 +131,11 @@ export async function generateReport(id, userId) {
   await browser.close();
 
   let docxPath = null;
-  if (report.reportTemplate?.path && fs.existsSync(report.reportTemplate.path)) {
+  if (report.reportTemplate?.path) {
+    const templatePath = resolveFilePath(report.reportTemplate.path);
+    if (fs.existsSync(templatePath)) {
     try {
-      const content = fs.readFileSync(report.reportTemplate.path, 'binary');
+      const content = fs.readFileSync(templatePath, 'binary');
       const zip = new PizZip(content);
       const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
       doc.setData(docData);
@@ -144,6 +147,7 @@ export async function generateReport(id, userId) {
     } catch (err) {
       // If DOCX generation fails, still continue with PDF
       console.error('DOCX generation failed', err);
+    }
     }
   }
 

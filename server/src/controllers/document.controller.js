@@ -1,8 +1,8 @@
 import * as documentService from '../services/document.service.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
-import path from 'path';
 import fs from 'fs';
+import { resolveFilePath } from '../utils/file-path.js';
 
 function idParam(req) {
   const id = Number(req.params.id);
@@ -45,14 +45,15 @@ async function sendDocumentFile(req, res, next, disposition) {
       where: { id, claimId: Number(req.params.claimId) },
     });
     if (!doc) throw new AppError('Document not found', 404);
-    if (!fs.existsSync(doc.path)) throw new AppError('File not found on disk', 404);
+    const resolved = resolveFilePath(doc.path);
+    if (!fs.existsSync(resolved)) throw new AppError('File not found on disk', 404);
 
     res.setHeader(
       'Content-Disposition',
       `${disposition}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.sendFile(path.resolve(doc.path));
+    res.sendFile(resolved);
   } catch (err) {
     next(err);
   }
