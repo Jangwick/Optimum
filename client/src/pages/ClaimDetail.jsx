@@ -74,7 +74,7 @@ export function WorkflowProgress({ currentStatus, isCancelled }) {
   });
 
   return (
-    <div className="flex items-center gap-1 flex-wrap">
+    <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap overflow-x-auto sm:overflow-visible -mx-1 px-1">
       {phaseStates.map((phase, idx) => {
         const Icon = phase.icon;
         const styles = {
@@ -235,7 +235,7 @@ export function ClaimDetailContent({ claimId }) {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Back button */}
       <button
         onClick={() => navigate('/claims')}
@@ -246,7 +246,7 @@ export function ClaimDetailContent({ claimId }) {
       </button>
 
       {/* Header card */}
-      <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 mb-6">
+      <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6 mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -403,9 +403,9 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6">
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <FileText size={18} className="text-primary" />
@@ -421,7 +421,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="OCS Ref #" value={claim.claimNumber} mono />
             <Info label="Assignment #" value={claim.assignmentNumber} mono />
             <Info label="Insurer Claim #" value={claim.insurerClaimNumber} mono />
@@ -455,12 +455,12 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
         </section>
 
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Wallet size={18} className="text-primary" />
             <h3 className="text-headline-sm font-semibold text-primary">Financial Summary</h3>
           </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="Estimated Loss" value={formatCurrency(claim.estimatedLoss)} money />
             <Info label="Reserve" value={formatCurrency(claim.reserve)} money />
             <Info label="Claimed Amount" value={claim.claimedAmountRaw || formatCurrency(claim.claimedAmount)} money />
@@ -474,12 +474,12 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
         </section>
 
         {claim.importStatus && (
-          <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+          <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Clock size={18} className="text-primary" />
               <h3 className="text-headline-sm font-semibold text-primary">Historical Import Metadata</h3>
             </div>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
               <Info label="OCS Import Status" value={claim.importStatus.name} />
               <Info label="Import Batch" value={claim.importBatchId} mono />
               <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : '—'} />
@@ -522,7 +522,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             </div>
           </div>
         )}
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <GitBranch size={18} className="text-primary" />
             <h3 className="text-headline-sm font-semibold text-primary">Update Status</h3>
@@ -563,7 +563,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           </form>
         </section>
 
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Clock size={18} className="text-primary" />
             <h3 className="text-headline-sm font-semibold text-primary">Recent Activity</h3>
