@@ -403,9 +403,9 @@ export default function Claims() {
               </button>
               <button
                 onClick={() => setShowNewClaim(true)}
-                className="bg-primary text-white px-4 py-2 rounded text-label-md font-medium uppercase hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary text-white text-body-md font-medium hover:bg-primary-container transition-colors shadow-sm"
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 New Claim
               </button>
             </div>
