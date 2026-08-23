@@ -765,40 +765,6 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                       </div>
                     )}
 
-                    {i.photos?.length > 0 && (
-                      <div className="mt-2">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Camera size={16} className="text-on-surface-variant shrink-0" />
-                          <span className="text-label-md text-outline uppercase">Photos ({i.photos.length})</span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                          {i.photos.map((p) => (
-                            <button
-                              key={p.id}
-                              onClick={() => setViewingPhoto(p)}
-                              className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all cursor-pointer group"
-                              title={`View ${p.originalName}`}
-                            >
-                              <div className="w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
-                                <img
-                                  src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id}`)}
-                                  alt={p.originalName}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  loading="lazy"
-                                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                                />
-                                <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
-                                  <Camera size={24} className="text-on-surface-variant" />
-                                </div>
-                              </div>
-                              <p className="text-label-sm truncate" title={p.originalName}>{p.originalName}</p>
-                              {p.caption && <p className="text-label-sm text-outline truncate">{p.caption}</p>}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {!isCompleted && (
                       <div className="mt-2 pt-3 border-t border-surface-border space-y-3">
                         <div>
