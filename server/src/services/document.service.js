@@ -150,6 +150,14 @@ export async function getDocumentFile(id, claimId) {
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(doc.path);
-  if (!fs.existsSync(resolved)) throw new AppError('File not found', 404);
-  return { ...doc, buffer: fs.readFileSync(resolved) };
+  if (fs.existsSync(resolved)) {
+    return { ...doc, buffer: fs.readFileSync(resolved) };
+  }
+
+  // File is missing (ephemeral filesystem lost it) — return a text placeholder
+  const placeholder = Buffer.from(
+    `This document ("${doc.originalName}") was uploaded to the server's local disk, ` +
+    'which was lost during a redeploy. Please re-upload the file to restore it.'
+  );
+  return { ...doc, buffer: placeholder, mimeType: 'text/plain', isPlaceholder: true };
 }

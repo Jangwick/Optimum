@@ -109,6 +109,12 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
   return photo;
 }
 
+// 1x1 transparent PNG placeholder for missing legacy photos
+const PLACEHOLDER_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAlT0yiRAAAAAElFTkSuQmCC',
+  'base64'
+);
+
 export async function getPhoto(photoId) {
   const photo = await prisma.inspectionPhoto.findUnique({ where: { id: Number(photoId) } });
   if (!photo) throw new AppError('Photo not found', 404);
@@ -120,8 +126,13 @@ export async function getPhoto(photoId) {
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(photo.path);
-  if (!fs.existsSync(resolved)) throw new AppError('Photo file not found', 404);
-  return { ...photo, buffer: fs.readFileSync(resolved) };
+  if (fs.existsSync(resolved)) {
+    return { ...photo, buffer: fs.readFileSync(resolved) };
+  }
+
+  // File is missing (ephemeral filesystem lost it) — return placeholder
+  // so the <img> doesn't show a broken image icon
+  return { ...photo, buffer: PLACEHOLDER_PNG, mimeType: 'image/png', isPlaceholder: true };
 }
 
 export async function deletePhoto(photoId, userId) {
