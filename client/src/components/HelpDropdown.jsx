@@ -24,7 +24,7 @@ export function HelpDropdown() {
           <HelpCircle size={22} />
         </MenuButton>
 
-        <MenuItems className="absolute right-0 mt-2 w-64 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">
+        <MenuItems className="fixed right-2 sm:absolute sm:right-0 mt-2 w-[calc(100vw-1rem)] sm:w-64 max-w-64 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">
           <div className="px-3 py-2 border-b border-surface-border">
             <p className="text-body-sm font-semibold text-on-surface">Help & Support</p>
           </div>

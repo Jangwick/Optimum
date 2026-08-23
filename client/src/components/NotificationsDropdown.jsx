@@ -78,7 +78,7 @@ export function NotificationsDropdown() {
             )}
           </MenuButton>
 
-          <MenuItems className="absolute right-0 mt-2 w-80 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">
+          <MenuItems className="fixed right-2 sm:absolute sm:right-0 mt-2 w-[calc(100vw-1rem)] sm:w-80 max-w-80 bg-surface border border-surface-border rounded-lg shadow-lg z-50 origin-top-right focus:outline-none">
             <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border">
               <h3 className="text-body-md font-semibold text-on-surface">Notifications</h3>
               {unreadCount > 0 && (
