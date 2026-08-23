@@ -13,12 +13,11 @@ import { useAuth } from '../context/AuthContext.jsx';
 import InitialInvestigation from '../components/InitialInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
 import { EditClaimModal } from '../components/EditClaimModal.jsx';
-import { AssignClaimModal } from '../components/AssignClaimModal.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { TopBar } from '../components/TopBar.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
-import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ListTodo, ArrowLeft, ArrowRight, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
+import { Lock, Ban, AlertTriangle, FileText, GitBranch, Search, FolderOpen, ClipboardCheck, Handshake, Wallet, FileBarChart, Building2, Clock, ArrowLeft, ArrowRight, Plus, Trash2, CheckCircle, Download, FileCheck, File, UploadCloud, X, Pencil, Calendar, Camera, Eye } from 'lucide-react';
 
 const STATUS_ORDER = [
   'NEW',
@@ -163,7 +162,6 @@ export function ClaimDetailContent({ claimId }) {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [showEdit, setShowEdit] = useState(false);
-  const [showAssign, setShowAssign] = useState(false);
 
   const onClaimChange = useCallback(() => setRefresh((r) => r + 1), []);
 
@@ -356,7 +354,7 @@ export function ClaimDetailContent({ claimId }) {
             ))}
           </div>
 
-          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} onAssignClaim={() => setShowAssign(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} onNavigateTab={setActiveTab} />}
+          {activeTab === 'summary' && <SummaryTab claim={claim} statuses={statuses} selectedStatus={selectedStatus} setSelectedStatus={setSelectedStatus} statusNote={statusNote} setStatusNote={setStatusNote} onTransition={handleTransition} onEditClaim={() => setShowEdit(true)} canEdit={user?.role === 'ADMIN' && !claim.isReadOnly} onNavigateTab={setActiveTab} />}
           {activeTab === 'investigation' && <InitialInvestigation claimId={claimId} claim={claim} onClaimChange={onClaimChange} />}
           {activeTab === 'documents' && <DocumentsTab claimId={claimId} onClaimChange={onClaimChange} />}
           {activeTab === 'assessment' && <AssessmentTab claimId={claimId} onClaimChange={onClaimChange} />}
@@ -366,12 +364,11 @@ export function ClaimDetailContent({ claimId }) {
           {activeTab === 'insurers' && <InsurerPanelTab claim={claim} claimId={claimId} isAdmin={user?.role === 'ADMIN'} onClaimChange={onClaimChange} />}
 
           <EditClaimModal open={showEdit} onClose={() => setShowEdit(false)} claim={claim} onSaved={() => setRefresh((r) => r + 1)} />
-          <AssignClaimModal open={showAssign} onClose={() => setShowAssign(false)} claim={claim} onSaved={() => setRefresh((r) => r + 1)} />
     </div>
   );
 }
 
-function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition, onEditClaim, onAssignClaim, canEdit, onNavigateTab }) {
+function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, statusNote, setStatusNote, onTransition, onEditClaim, canEdit, onNavigateTab }) {
   const fin = claim.financials || {};
   const nextStep = NEXT_STEP_HINTS[claim.status?.code];
 
@@ -479,30 +476,6 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Fee Total" value={formatCurrency(fin.feeTotal)} money />
             <Info label="Invoice Total" value={formatCurrency(fin.invoiceTotal)} money />
             <Info label="Payment Total" value={formatCurrency(fin.paymentTotal)} money />
-          </div>
-        </section>
-
-        <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2">
-              <ListTodo size={18} className="text-primary" />
-              <h3 className="text-headline-sm font-semibold text-primary">Assignment</h3>
-            </div>
-            {canEdit && (
-              <button
-                onClick={onAssignClaim}
-                className="inline-flex items-center gap-1.5 h-9 px-3 border border-outline text-on-surface-variant rounded-lg text-body-sm font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
-              >
-                <Pencil size={16} />
-                Edit Assignment
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
-            <Info label="Engineer" value={claim.engineer?.fullName} />
-            <Info label="Accountant" value={claim.accountant?.fullName} />
-            <Info label="Assigned By" value={claim.assignedByName} />
-            <Info label="Contact" value={claim.contactRaw} />
           </div>
         </section>
 
