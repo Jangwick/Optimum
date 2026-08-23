@@ -88,3 +88,12 @@ export async function removeClaimInsurer(req, res, next) {
     next(err);
   }
 }
+
+export async function autoReserve(req, res, next) {
+  try {
+    const result = await claimService.autoCalculateReserve(idParam(req));
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+}

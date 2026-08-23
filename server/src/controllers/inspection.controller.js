@@ -69,3 +69,12 @@ export async function getInspectionPhoto(req, res, next) {
     next(err);
   }
 }
+
+export async function deleteInspectionPhoto(req, res, next) {
+  try {
+    await inspectionService.deletePhoto(Number(req.params.photoId), req.user.id);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}

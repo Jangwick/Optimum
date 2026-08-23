@@ -59,3 +59,21 @@ export async function uploadInspectionPhoto(claimId, inspectionId, file, caption
   });
   return data;
 }
+
+export async function ensureInspection(claimId) {
+  const { data } = await api.get(`/claims/${claimId}/inspections`);
+  const inspections = data.items || [];
+  if (inspections.length > 0) return inspections[0];
+  const { data: created } = await api.post(`/claims/${claimId}/inspections`, {
+    scheduledAt: new Date().toISOString(),
+    location: 'Initial Investigation',
+    scope: 'Initial investigation photos',
+    notes: 'Auto-created for initial investigation photo upload',
+  });
+  return created.item;
+}
+
+export async function deleteInspectionPhoto(claimId, photoId) {
+  const { data } = await api.delete(`/claims/${claimId}/inspections/photos/${photoId}`);
+  return data;
+}

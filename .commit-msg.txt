@@ -1,0 +1,23 @@
+feat: add Initial Investigation workflow module
+
+Replaces the Investigation tab with a streamlined 3-step workflow:
+1. Discussion Notes - structured notes by party type (Insured/Insurer/Broker/Internal)
+2. Loss Reserve - auto-calculated suggestion based on assessment/claimed amount
+3. Investigation Photos - drag-drop photo upload with grid view
+
+Backend:
+- New DiscussionNote Prisma model with full CRUD API
+- Auto-reserve endpoint (GET /claims/:id/auto-reserve)
+- Inspection photo delete endpoint
+- Audit logging and activity recording for all new operations
+
+Frontend:
+- New InitialInvestigation.jsx component with 3-step stepper
+- Discussion note service client
+- Auto-creates inspection record for photo upload if none exists
+
+Tests: 20 backend tests pass, 18 frontend tests pass
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

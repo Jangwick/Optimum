@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
-import { listInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto, getInspectionPhoto } from '../controllers/inspection.controller.js';
+import { listInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto, getInspectionPhoto, deleteInspectionPhoto } from '../controllers/inspection.controller.js';
 
 const router = Router({ mergeParams: true });
 
@@ -13,5 +13,6 @@ router.put('/:id', updateInspection);
 router.delete('/:id', deleteInspection);
 router.post('/:id/photos', upload.single('file'), uploadInspectionPhoto);
 router.get('/photos/:photoId', getInspectionPhoto);
+router.delete('/photos/:photoId', deleteInspectionPhoto);
 
 export default router;

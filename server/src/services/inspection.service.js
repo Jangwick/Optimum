@@ -113,3 +113,17 @@ export async function getPhoto(photoId) {
   if (!fs.existsSync(photo.path)) throw new AppError('Photo file not found', 404);
   return photo;
 }
+
+export async function deletePhoto(photoId, userId) {
+  const photo = await prisma.inspectionPhoto.findUnique({
+    where: { id: Number(photoId) },
+    include: { inspection: { select: { claimId: true } } },
+  });
+  if (!photo) throw new AppError('Photo not found', 404);
+  const claimId = photo.inspection.claimId;
+  // Delete file from disk
+  try { fs.unlinkSync(photo.path); } catch { /* file may already be gone */ }
+  await prisma.inspectionPhoto.delete({ where: { id: Number(photoId) } });
+  await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', photoId, userId, { claimId });
+  await recordActivity(claimId, 'INSPECTION_PHOTO_DELETED', `Inspection photo deleted: ${photo.originalName}`, userId);
+}

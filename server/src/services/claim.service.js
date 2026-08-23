@@ -813,3 +813,55 @@ export async function removeClaimInsurer(claimId, insurerId, removedBy) {
   await recordActivity(claimId, 'INSURER_REMOVED', 'Insurer removed from panel', removedBy);
   return { id: insurerId, deleted: true };
 }
+
+/**
+ * Auto-calculate a suggested loss reserve based on available claim data.
+ * Priority: assessment total (×1.1 buffer) > claimed amount (×0.8) > existing estimated loss.
+ * Returns the suggestion without saving — the caller (UI) decides whether to accept.
+ */
+export async function autoCalculateReserve(claimId) {
+  const claim = await prisma.claim.findUnique({
+    where: { id: Number(claimId) },
+    include: {
+      lossAssessments: { select: { totalAmount: true } },
+    },
+  });
+  if (!claim) throw new AppError('Claim not found', 404);
+
+  const assessmentTotal = claim.lossAssessments.reduce(
+    (sum, a) => sum + Number(a.totalAmount || 0),
+    0
+  );
+
+  if (assessmentTotal > 0) {
+    const suggested = assessmentTotal * 1.1;
+    return {
+      suggestedReserve: suggested.toFixed(2),
+      basis: 'assessment',
+      calculation: `Assessment total ₱${assessmentTotal.toFixed(2)} × 1.10 (10% buffer) = ₱${suggested.toFixed(2)}`,
+    };
+  }
+
+  if (claim.claimedAmount && Number(claim.claimedAmount) > 0) {
+    const suggested = Number(claim.claimedAmount) * 0.8;
+    return {
+      suggestedReserve: suggested.toFixed(2),
+      basis: 'claimed',
+      calculation: `Claimed amount ₱${Number(claim.claimedAmount).toFixed(2)} × 0.80 (80% of claimed) = ₱${suggested.toFixed(2)}`,
+    };
+  }
+
+  if (claim.estimatedLoss && Number(claim.estimatedLoss) > 0) {
+    return {
+      suggestedReserve: Number(claim.estimatedLoss).toFixed(2),
+      basis: 'estimated',
+      calculation: `Existing estimated loss ₱${Number(claim.estimatedLoss).toFixed(2)} (no assessment or claimed amount available)`,
+    };
+  }
+
+  return {
+    suggestedReserve: '0',
+    basis: 'none',
+    calculation: 'No assessment, claimed amount, or estimated loss available to calculate a reserve.',
+  };
+}

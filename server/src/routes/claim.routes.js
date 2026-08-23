@@ -11,6 +11,7 @@ import {
   addClaimInsurer,
   updateClaimInsurer,
   removeClaimInsurer,
+  autoReserve,
 } from '../controllers/claim.controller.js';
 import {
   listProcessStatusHistory,
@@ -38,5 +39,8 @@ router.get('/:id/insurers', listClaimInsurers);
 router.post('/:id/insurers', requireRole('ADMIN'), addClaimInsurer);
 router.patch('/:id/insurers/:insurerId', requireRole('ADMIN'), updateClaimInsurer);
 router.delete('/:id/insurers/:insurerId', requireRole('ADMIN'), removeClaimInsurer);
+
+// Auto-calculate loss reserve suggestion
+router.get('/:id/auto-reserve', autoReserve);
 
 export default router;

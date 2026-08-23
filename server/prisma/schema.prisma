@@ -65,6 +65,7 @@ model User {
   correspondenceCreated   ClaimCorrespondence[]
   importBatches           ClaimImportBatch[]
   adjusterAliases         AdjusterAlias[]
+  discussionNotesCreated  DiscussionNote[]    @relation("DiscussionNoteCreatedBy")
 
   @@map("users")
 }
@@ -340,6 +341,7 @@ model Claim {
   invoices             Invoice[]
   tasks                Task[]
   notifications        Notification[]
+  discussionNotes      DiscussionNote[]
 
   @@index([statusId])
   @@index([processStatusId])
@@ -429,6 +431,24 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@map("contacts")
+}
+
+model DiscussionNote {
+  id          Int      @id @default(autoincrement())
+  claimId     Int
+  claim       Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  partyType   String   @db.VarChar(50)
+  partyName   String?  @db.VarChar(255)
+  discussedAt DateTime @default(now())
+  notes       String   @db.Text
+  nextAction  String?  @db.Text
+  createdById Int
+  createdBy   User     @relation("DiscussionNoteCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([claimId, discussedAt])
+  @@map("discussion_notes")
 }
 
 model ClaimInsurer {

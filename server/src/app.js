@@ -31,6 +31,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import processStatusRoutes from './routes/process-status.routes.js';
 import activityRoutes from './routes/activity.routes.js';
+import discussionNoteRoutes from './routes/discussion-note.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -83,6 +84,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/master-data', masterDataRoutes);
 app.use('/api/claims', claimRoutes);
 app.use('/api/claims/:claimId/investigations', investigationRoutes);
+app.use('/api/claims/:claimId/discussion-notes', discussionNoteRoutes);
 app.use('/api/claims/:claimId/contacts', contactRoutes);
 app.use('/api/claims/:claimId/inspections', inspectionRoutes);
 app.use('/api/claims/:claimId/documents', documentRoutes);
