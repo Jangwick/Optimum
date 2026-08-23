@@ -206,10 +206,6 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
               <label className="block text-label-md text-outline uppercase mb-1.5">Location</label>
               <input type="text" value={form.locationOfLoss} onChange={set('locationOfLoss')} className={inputClass} />
             </div>
-            <div className="col-span-2">
-              <label className="block text-label-md text-outline uppercase mb-1.5">Description</label>
-              <textarea value={form.description} onChange={set('description')} rows={3} className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" />
-            </div>
           </div>
 
           {/* Key Dates */}
