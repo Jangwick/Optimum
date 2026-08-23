@@ -42,6 +42,8 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
       denialLetterDate: claim.denialLetterDate ? new Date(claim.denialLetterDate).toISOString().slice(0, 10) : '',
       policyPeriodText: claim.policyPeriodText || '',
       policyCoverageText: claim.policyCoverageText || '',
+      lossReserved: claim.estimatedLoss || claim.reserve || '',
+      claimedAmount: claim.claimedAmount || '',
       engineerId: claim.engineerId || '',
       accountantId: claim.accountantId || '',
     });
@@ -66,6 +68,11 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
     setSaving(true);
     setError(null);
     const payload = { ...form };
+    const lossReserved = payload.lossReserved ? Number(payload.lossReserved) : 0;
+    payload.estimatedLoss = lossReserved;
+    payload.reserve = lossReserved;
+    delete payload.lossReserved;
+    payload.claimedAmount = payload.claimedAmount ? Number(payload.claimedAmount) : 0;
     ['policyId', 'engineerId', 'accountantId', 'clientId', 'insuranceCompanyId', 'claimTypeId'].forEach((k) => {
       payload[k] = payload[k] ? Number(payload[k]) : null;
     });
@@ -205,6 +212,36 @@ export function EditClaimModal({ open, onClose, claim, onSaved }) {
             <div className="col-span-2">
               <label className="block text-label-md text-outline uppercase mb-1.5">Location</label>
               <input type="text" value={form.locationOfLoss} onChange={set('locationOfLoss')} className={inputClass} />
+            </div>
+          </div>
+
+          {/* Financial */}
+          <h3 className="text-body-md font-semibold text-primary border-b border-surface-border pb-2">Financial</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Loss Reserved</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.lossReserved}
+                onChange={set('lossReserved')}
+                className={inputClass}
+                placeholder="0.00"
+              />
+              <p className="text-label-sm text-outline mt-1">Saved to both Estimated Loss and Reserve.</p>
+            </div>
+            <div>
+              <label className="block text-label-md text-outline uppercase mb-1.5">Claimed Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.claimedAmount}
+                onChange={set('claimedAmount')}
+                className={inputClass}
+                placeholder="0.00"
+              />
             </div>
           </div>
 
