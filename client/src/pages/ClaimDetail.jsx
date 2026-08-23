@@ -44,7 +44,7 @@ const STATUS_ORDER = [
 
 // Compact milestone stages for the progress indicator (groups the 18 statuses into 6 phases)
 const WORKFLOW_PHASES = [
-  { key: 'intake', label: 'Intake', statuses: ['NEW', 'ASSIGNED'], icon: FileText },
+  { key: 'intake', label: 'New Claim', statuses: ['NEW', 'ASSIGNED'], icon: FileText },
   { key: 'investigation', label: 'Investigation', statuses: ['INVESTIGATION', 'INSPECTION_SCHEDULED', 'INSPECTION_COMPLETED'], icon: Search },
   { key: 'documents', label: 'Documents', statuses: ['DOCUMENTS_PENDING', 'DOCUMENTS_RECEIVED'], icon: FolderOpen },
   { key: 'assessment', label: 'Assessment', statuses: ['ASSESSMENT', 'REPORT_DRAFT', 'REPORT_SUBMITTED', 'CLIENT_REVIEW', 'CLARIFICATION_NEEDED', 'CLARIFICATION_PROVIDED'], icon: ClipboardCheck },
