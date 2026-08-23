@@ -4,7 +4,7 @@ import { AppError } from './error.js';
 
 export async function authMiddleware(req, res, next) {
   try {
-    const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+    const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '') || req.query?.token;
 
     if (!token) {
       throw new AppError('Authentication required', 401);

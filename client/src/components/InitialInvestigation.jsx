@@ -28,6 +28,7 @@ import {
   uploadInspectionPhoto,
   deleteInspectionPhoto,
 } from '../services/investigation.service.js';
+import { authUrl } from '../services/api.js';
 import { Select } from './Select.jsx';
 
 const PARTY_TYPES = [
@@ -541,7 +542,7 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
               <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
                 <div className="relative group">
                   <img
-                    src={`/api/claims/${claimId}/inspections/photos/${photo.id}`}
+                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
                     alt={photo.originalName}
                     className="w-full h-48 object-cover bg-surface-container-high"
                   />

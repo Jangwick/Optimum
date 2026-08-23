@@ -17,7 +17,10 @@ export async function downloadDocument(claimId, docId) {
 }
 
 export function getDocumentPreviewUrl(claimId, docId) {
-  return `/api/claims/${claimId}/documents/${docId}/preview`;
+  let token = null;
+  try { token = localStorage.getItem('token'); } catch { /* localStorage not available */ }
+  const base = `/api/claims/${claimId}/documents/${docId}/preview`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 export async function markDocumentReceived(claimId, docId) {

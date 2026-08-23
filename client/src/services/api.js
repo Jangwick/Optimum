@@ -37,3 +37,14 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Build an authenticated URL for binary resources (images, documents)
+ * that are loaded via <img>, <a download>, etc. and cannot send
+ * Authorization headers. Appends the JWT as a query parameter.
+ */
+export function authUrl(path) {
+  const token = getToken();
+  const sep = path.includes('?') ? '&' : '?';
+  return token ? `${path}${sep}token=${encodeURIComponent(token)}` : path;
+}

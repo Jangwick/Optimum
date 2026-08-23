@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
 import { getDocuments, uploadDocument, markDocumentReceived, deleteDocument, downloadDocument, getDocumentPreviewUrl } from '../services/document.service.js';
+import { authUrl } from '../services/api.js';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
@@ -695,7 +696,7 @@ export function DocumentPreview({ claimId, documents = [] }) {
                 />
               </div>
               <a
-                href={`/api/claims/${claimId}/documents/${selectedDocument.id}/download`}
+                href={authUrl(`/api/claims/${claimId}/documents/${selectedDocument.id}/download`)}
                 className="h-10 px-4 inline-flex items-center justify-center gap-2 rounded-lg border border-outline text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
               >
                 <Download size={16} />
@@ -855,7 +856,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
                 {photos.map((photo) => (
                   <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden">
                     <img
-                      src={`/api/claims/${claimId}/inspections/photos/${photo.id}`}
+                      src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
                       alt={photo.originalName}
                       className="w-full h-48 object-cover bg-surface-container-high"
                     />

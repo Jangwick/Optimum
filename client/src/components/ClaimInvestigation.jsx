@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getInvestigations, createInvestigation, deleteInvestigation, getContacts, createContact, deleteContact, getInspections, createInspection, updateInspection, deleteInspection, uploadInspectionPhoto } from '../services/investigation.service.js';
+import { authUrl } from '../services/api.js';
 import { Search, Users, Calendar, MapPin, FileText, Camera, CheckCircle, Plus, Trash2, X, Download } from 'lucide-react';
 
 export default function ClaimInvestigation({ claimId, onClaimChange }) {
@@ -410,7 +411,7 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
                             >
                               <div className="w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
                                 <img
-                                  src={`/api/claims/${claimId}/inspections/photos/${p.id}`}
+                                  src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id}`)}
                                   alt={p.originalName}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                   loading="lazy"
@@ -502,7 +503,7 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`}
+                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
                   download={viewingPhoto.originalName}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
                   title="Download"
@@ -520,7 +521,7 @@ export default function ClaimInvestigation({ claimId, onClaimChange }) {
             </div>
             <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
               <img
-                src={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`}
+                src={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
                 alt={viewingPhoto.originalName}
                 className="max-w-full max-h-[65vh] rounded-lg object-contain"
               />
