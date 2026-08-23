@@ -356,9 +356,8 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
           <DocumentPreview claimId={claim.id} documents={claim.documents} />
+          <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
         </section>
-
-        <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
 
         <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -597,7 +596,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
 
   return (
     <>
-      <section className="bg-surface border border-surface-border rounded-lg shadow-sm p-6">
+      <div className="mt-4 pt-4 border-t border-surface-border">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <Calendar size={18} className="text-primary" />
@@ -635,7 +634,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
             </span>
           </div>
         )}
-      </section>
+      </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Inspection Details" size="lg">
         <div className="space-y-5">

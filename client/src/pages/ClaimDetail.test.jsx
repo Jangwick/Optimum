@@ -61,9 +61,10 @@ describe('InspectionSummary', () => {
     photos: [{ id: 11, originalName: 'site.jpg', caption: 'Front elevation' }],
   };
 
-  it('shows saved inspection data in Summary and opens a read-only modal', () => {
-    render(<InspectionSummary claimId="3" inspections={[inspection]} />);
+  it('shows saved inspection data as embedded Summary content and opens a read-only modal', () => {
+    const { container } = render(<InspectionSummary claimId="3" inspections={[inspection]} />);
 
+    expect(container.querySelector('section')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Latest Inspection' })).toBeInTheDocument();
     expect(screen.getByText('Test Site Location')).toBeInTheDocument();
     expect(screen.getByText('Scheduled')).toBeInTheDocument();
