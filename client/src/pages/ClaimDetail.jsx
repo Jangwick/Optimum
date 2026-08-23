@@ -761,6 +761,19 @@ export function DocumentPreview({ claimId, documents = [] }) {
 export function InspectionSummary({ claimId, inspections = [] }) {
   const [open, setOpen] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(null);
+
+  useEffect(() => {
+    if (!viewingPhoto) return;
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setViewingPhoto(null);
+      }
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [viewingPhoto]);
+
   if (inspections.length === 0) return null;
 
   const inspection = inspections[0];
@@ -769,6 +782,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
   const inspector = inspection.inspector
     ? `${inspection.inspector.firstName} ${inspection.inspector.lastName}`
     : null;
+
   const photos = inspection.photos || [];
 
   return (
@@ -813,7 +827,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
         )}
       </div>
 
-      <Modal open={open} onClose={() => { setViewingPhoto(null); setOpen(false); }} title="Inspection Details" size="lg">
+      <Modal open={open} onClose={() => setOpen(false)} title="Inspection Details" size="lg">
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
