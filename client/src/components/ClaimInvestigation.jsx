@@ -258,7 +258,6 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     { key: 'investigations', label: 'Investigations', icon: Search, count: investigations.length },
     { key: 'contacts', label: 'Contacts', icon: Users, count: contacts.length },
     { key: 'inspections', label: 'Site Inspections', icon: Calendar, count: inspections.length },
-    { key: 'photos', label: 'Investigation Photos', icon: Camera, count: allPhotos.length },
   ];
 
   return (
@@ -851,86 +850,79 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      {/* ─── Tab: Investigation Photos (all photos across inspections) ─── */}
-      {tab === 'photos' && (
-        <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <Camera size={18} className="text-primary" />
-            <h3 className="text-headline-sm font-semibold text-primary">Investigation Photos</h3>
-          </div>
-
-          <div
-            onDrop={handlePhotosDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className="border-2 border-dashed border-outline rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
-            onClick={() => photosFileRef.current?.click()}
-          >
-            <input
-              ref={photosFileRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => handlePhotosUpload(e.target.files)}
-              className="hidden"
-            />
-            <Upload size={32} className="mx-auto text-outline mb-3" />
-            <p className="text-body-md text-on-surface-variant">
-              {uploading ? 'Uploading...' : 'Click or drag photos here to upload'}
-            </p>
-            <p className="text-body-sm text-outline mt-1">Site, document, and evidence photos</p>
-          </div>
-
-          {allPhotos.length === 0 ? (
-            <div className="text-center py-8">
-              <Camera size={32} className="mx-auto text-outline mb-3" />
-              <p className="text-body-md text-on-surface-variant">No photos uploaded yet.</p>
+          {/* Drag & drop photo upload — adds photos to the latest inspection */}
+          <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Camera size={18} className="text-primary" />
+              <h3 className="text-headline-sm font-semibold text-primary">Inspection Photos</h3>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allPhotos.map((photo) => (
-                <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      onClick={() => setViewingPhoto(photo)}
-                      className="w-full block cursor-zoom-in"
-                      title="Click to view full size"
+            <div
+              onDrop={handlePhotosDrop}
+              onDragOver={(e) => e.preventDefault()}
+              className="border-2 border-dashed border-outline rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+              onClick={() => photosFileRef.current?.click()}
+            >
+              <input
+                ref={photosFileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => handlePhotosUpload(e.target.files)}
+                className="hidden"
+              />
+              <Upload size={32} className="mx-auto text-outline mb-3" />
+              <p className="text-body-md text-on-surface-variant">
+                {uploading ? 'Uploading...' : 'Click or drag photos here to upload'}
+              </p>
+              <p className="text-body-sm text-outline mt-1">Site, document, and evidence photos</p>
+            </div>
+
+            {allPhotos.length > 0 && (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {allPhotos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all group"
                     >
-                      <img
-                        src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
-                        alt={photo.originalName}
-                        className="w-full h-48 object-cover bg-surface-container-high"
-                      />
-                    </button>
-                    <button
-                      onClick={() => removePhoto(photo)}
-                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Delete photo"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <figcaption className="p-3 text-body-sm">
-                    <p className="font-medium text-on-surface break-words">{photo.originalName}</p>
-                    {photo.caption && <p className="text-on-surface-variant mt-1">{photo.caption}</p>}
-                    <p className="text-label-sm text-outline mt-1 font-mono">
-                      {new Date(photo.createdAt).toLocaleDateString()}
-                    </p>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          )}
-
-          {allPhotos.length > 0 && (
-            <div className="flex items-center gap-1 text-body-sm text-success-green font-medium pt-4 border-t border-surface-border">
-              <CheckCircle size={16} />
-              {allPhotos.length} {allPhotos.length === 1 ? 'photo' : 'photos'} uploaded
-            </div>
-          )}
+                      <div className="relative w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setViewingPhoto(photo)}
+                          className="w-full h-full block cursor-zoom-in"
+                          title={`View ${photo.originalName}`}
+                        >
+                          <img
+                            src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
+                            alt={photo.originalName}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          />
+                          <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
+                            <Camera size={24} className="text-on-surface-variant" />
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => removePhoto(photo)}
+                          className="absolute top-1 right-1 w-7 h-7 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete photo"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <p className="text-label-sm truncate" title={photo.originalName}>{photo.originalName}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 text-body-sm text-success-green font-medium pt-2 border-t border-surface-border">
+                  <CheckCircle size={16} />
+                  {allPhotos.length} {allPhotos.length === 1 ? 'photo' : 'photos'} uploaded
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
