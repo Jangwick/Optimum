@@ -66,12 +66,27 @@ export default function AuditLogs() {
               placeholder="Search action"
               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
             />
-            <input
-              type="text"
+            <Select
               value={filters.tableName || ''}
-              onChange={(e) => applyFilters({ ...filters, tableName: e.target.value })}
-              placeholder="Table"
-              className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary"
+              onChange={(v) => applyFilters({ ...filters, tableName: v })}
+              options={[
+                { value: '', label: 'All tables' },
+                { value: 'Claim', label: 'Claim' },
+                { value: 'Document', label: 'Document' },
+                { value: 'InspectionPhoto', label: 'Inspection Photo' },
+                { value: 'Report', label: 'Report' },
+                { value: 'Clarification', label: 'Clarification' },
+                { value: 'DiscussionNote', label: 'Discussion Note' },
+                { value: 'Invoice', label: 'Invoice' },
+                { value: 'Payment', label: 'Payment' },
+                { value: 'Settlement', label: 'Settlement' },
+                { value: 'Offer', label: 'Offer' },
+                { value: 'LossAssessment', label: 'Loss Assessment' },
+                { value: 'Investigation', label: 'Investigation' },
+                { value: 'Fee', label: 'Fee' },
+              ]}
+              placeholder="All tables"
+              ariaLabel="Filter by table"
             />
             <Select
               value={filters.userId || ''}
