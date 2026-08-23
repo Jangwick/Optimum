@@ -507,67 +507,70 @@ export default function Claims() {
                   ariaLabel="Filter by status"
                   className="min-w-[160px]"
                 />
-                <button
-                  onClick={() => setShowAdvancedFilters((v) => !v)}
-                  className={`h-10 px-3 rounded border text-body-md font-medium transition-colors flex items-center gap-2 cursor-pointer ${
-                    showAdvancedFilters || activeFilterCount > 0
-                      ? 'border-primary text-primary bg-primary/5'
-                      : 'border-outline text-on-surface-variant hover:bg-surface-container-low'
-                  }`}
-                  aria-label="Advanced filters"
-                >
-                  <Filter size={16} />
-                  <span className="hidden sm:inline">Filters</span>
-                  {activeFilterCount > 0 && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-label-sm font-semibold">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                  {showAdvancedFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-                {/* Column visibility toggle */}
-                <div className="relative">
+                {/* Action buttons: side-by-side on mobile, inline on desktop */}
+                <div className="flex gap-3 sm:contents">
                   <button
-                    onClick={() => setShowColumnToggle(!showColumnToggle)}
-                    className="h-10 px-3 rounded border border-outline bg-surface text-body-md hover:bg-surface-container-low transition-colors flex items-center gap-2 cursor-pointer"
-                    aria-label="Toggle columns"
+                    onClick={() => setShowAdvancedFilters((v) => !v)}
+                    className={`h-10 px-3 rounded border text-body-md font-medium transition-colors flex items-center gap-2 cursor-pointer flex-1 sm:flex-none justify-center sm:justify-start ${
+                      showAdvancedFilters || activeFilterCount > 0
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-outline text-on-surface-variant hover:bg-surface-container-low'
+                    }`}
+                    aria-label="Advanced filters"
                   >
-                    <Filter size={16} className="text-outline" />
-                    <span className="hidden sm:inline">Columns</span>
-                    <ChevronDown size={14} className="text-outline" />
+                    <Filter size={16} />
+                    <span className="hidden sm:inline">Filters</span>
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-label-sm font-semibold">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                    {showAdvancedFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
-                  {showColumnToggle && (
-                    <div className="absolute right-0 top-12 z-20 bg-surface border border-surface-border rounded-lg shadow-lg p-3 min-w-[200px]">
-                      <p className="text-label-md text-outline uppercase font-medium mb-2 px-1">Toggle Columns</p>
-                      <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                        {ALL_COLUMNS.map((col) => (
-                          <label
-                            key={col.key}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-container-low cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={visibleCols[col.key]}
-                              onChange={(e) => setVisibleCols({ ...visibleCols, [col.key]: e.target.checked })}
-                              className="rounded border-outline"
-                            />
-                            <span className="text-body-sm text-on-surface">{col.label}</span>
-                          </label>
-                        ))}
+                  {/* Column visibility toggle */}
+                  <div className="relative flex-1 sm:flex-none">
+                    <button
+                      onClick={() => setShowColumnToggle(!showColumnToggle)}
+                      className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md hover:bg-surface-container-low transition-colors flex items-center gap-2 cursor-pointer justify-center sm:justify-start"
+                      aria-label="Toggle columns"
+                    >
+                      <Filter size={16} className="text-outline" />
+                      <span className="hidden sm:inline">Columns</span>
+                      <ChevronDown size={14} className="text-outline" />
+                    </button>
+                    {showColumnToggle && (
+                      <div className="absolute right-0 top-12 z-20 bg-surface border border-surface-border rounded-lg shadow-lg p-3 min-w-[200px]">
+                        <p className="text-label-md text-outline uppercase font-medium mb-2 px-1">Toggle Columns</p>
+                        <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                          {ALL_COLUMNS.map((col) => (
+                            <label
+                              key={col.key}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-container-low cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={visibleCols[col.key]}
+                                onChange={(e) => setVisibleCols({ ...visibleCols, [col.key]: e.target.checked })}
+                                className="rounded border-outline"
+                              />
+                              <span className="text-body-sm text-on-surface">{col.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="h-10 px-3 rounded border border-outline text-body-md text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5 justify-center sm:justify-start"
+                      title="Clear all filters"
+                    >
+                      <X size={16} />
+                      <span className="hidden sm:inline">Clear</span>
+                    </button>
                   )}
                 </div>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="h-10 px-3 rounded border border-outline text-body-md text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5"
-                    title="Clear all filters"
-                  >
-                    <X size={16} />
-                    <span className="hidden sm:inline">Clear</span>
-                  </button>
-                )}
               </div>
 
               {/* Advanced Filters Panel */}
