@@ -137,9 +137,10 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     e.preventDefault();
     setUploading(true);
     try {
-      const inspection = await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
+      const result = await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
+      const inspectionId = result.item?.id || result.id;
       for (const file of inspPhotos) {
-        await uploadInspectionPhoto(claimId, inspection.id, file, '');
+        await uploadInspectionPhoto(claimId, inspectionId, file, '');
       }
       setInspForm({ scheduledAt: '', location: '', scope: '', notes: '' });
       setInspPhotos([]);
