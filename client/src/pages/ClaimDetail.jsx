@@ -813,7 +813,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
         )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Inspection Details" size="lg">
+      <Modal open={open} onClose={() => { setViewingPhoto(null); setOpen(false); }} title="Inspection Details" size="lg">
         <div className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-body-md">
             <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
