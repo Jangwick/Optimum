@@ -14,7 +14,10 @@ export async function exportClaimsToExcel(filters, user) {
   }
   if (filters.status) where.status = { code: filters.status };
   if (filters.processStatus) where.processStatus = { code: filters.processStatus };
+  if (filters.claimType) where.claimType = { code: filters.claimType };
   if (filters.clientId) where.clientId = Number(filters.clientId);
+  if (filters.engineerId) where.engineerId = Number(filters.engineerId);
+  if (filters.insurerId) where.insuranceCompanyId = Number(filters.insurerId);
 
   if (filters.view === 'active') {
     where.AND = [

@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClaims, exportClaims } from '../services/claim.service.js';
-import { getClaimStatuses } from '../services/master-data.service.js';
+import { getClaimStatuses, getClaimTypes, getClients, getInsuranceCompanies } from '../services/master-data.service.js';
+import { getUsers } from '../services/user.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { useList } from '../hooks/useList.js';
 import { DataTable } from '../components/DataTable.jsx';
@@ -23,6 +24,7 @@ import {
   Filter,
   X,
   ChevronDown,
+  ChevronUp,
   AlertTriangle,
   Eye,
 } from 'lucide-react';
@@ -122,47 +124,37 @@ export default function Claims() {
   const [data, setData] = useState({ items: [], count: 0 });
   const [globalCounts, setGlobalCounts] = useState({ total: 0, active: 0, closed: 0, cancelled: 0 });
   const [claimStatuses, setClaimStatuses] = useState([]);
+  const [claimTypes, setClaimTypes] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [insurers, setInsurers] = useState([]);
+  const [engineers, setEngineers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showColumnToggle, setShowColumnToggle] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [view, setView] = useState('active');
   const [visibleCols, setVisibleCols] = useState(
     () => Object.fromEntries(ALL_COLUMNS.map((c) => [c.key, c.default]))
   );
   const navigate = useNavigate();
   const [showNewClaim, setShowNewClaim] = useState(false);
-  const [savedPresets, setSavedPresets] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('claim-presets') || '[]'); } catch { return []; }
-  });
-  const [presetName, setPresetName] = useState('');
-  const [showPresetSave, setShowPresetSave] = useState(false);
 
-  const savePreset = () => {
-    if (!presetName.trim()) return;
-    const preset = { name: presetName.trim(), search, status: filters.status || '', view, id: Date.now() };
-    const updated = [...savedPresets.filter((p) => p.name !== preset.name), preset];
-    setSavedPresets(updated);
-    try { localStorage.setItem('claim-presets', JSON.stringify(updated)); } catch { /* ignore */ }
-    setPresetName('');
-    setShowPresetSave(false);
-  };
-
-  const applyPreset = (preset) => {
-    applySearch(preset.search || '');
-    applyFilters({ ...filters, status: preset.status || '' });
-    setView(preset.view || 'active');
-    setPage(1);
-  };
-
-  const deletePreset = (id) => {
-    const updated = savedPresets.filter((p) => p.id !== id);
-    setSavedPresets(updated);
-    try { localStorage.setItem('claim-presets', JSON.stringify(updated)); } catch { /* ignore */ }
-  };
-
+  // Load filter reference data once
   useEffect(() => {
-    getClaimStatuses()
-      .then((res) => setClaimStatuses(res.items || []))
+    Promise.all([
+      getClaimStatuses(),
+      getClaimTypes(),
+      getClients(),
+      getInsuranceCompanies(),
+      getUsers(),
+    ])
+      .then(([statuses, types, clientsData, insurersData, usersData]) => {
+        setClaimStatuses(statuses.items || []);
+        setClaimTypes(types.items || []);
+        setClients(clientsData.items || []);
+        setInsurers(insurersData.items || []);
+        setEngineers((usersData.users || []).filter((u) => u.role === 'ENGINEER' || u.role === 'ACCOUNTANT'));
+      })
       .catch(() => {});
   }, []);
 
@@ -173,6 +165,10 @@ export default function Claims() {
       limit,
       search,
       status: filters.status || '',
+      processStatus: filters.processStatus || '',
+      claimType: filters.claimType || '',
+      clientId: filters.clientId || '',
+      engineerId: filters.engineerId || '',
       view,
       sortField,
       sortOrder,
@@ -203,7 +199,15 @@ export default function Claims() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const blob = await exportClaims({ search, status: filters.status, view });
+      const blob = await exportClaims({
+        search,
+        status: filters.status,
+        processStatus: filters.processStatus,
+        claimType: filters.claimType,
+        clientId: filters.clientId,
+        engineerId: filters.engineerId,
+        view,
+      });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
       link.href = url;
@@ -217,7 +221,14 @@ export default function Claims() {
     }
   };
 
-  const hasActiveFilters = search || filters.status || view !== 'active';
+  const hasActiveFilters = search || filters.status || filters.processStatus || filters.claimType || filters.clientId || filters.engineerId || view !== 'active';
+  const activeFilterCount = [
+    filters.status,
+    filters.processStatus,
+    filters.claimType,
+    filters.clientId,
+    filters.engineerId,
+  ].filter(Boolean).length + (view !== 'active' ? 1 : 0);
 
   const summaryStats = useMemo(() => {
     const items = data.items;
@@ -361,8 +372,13 @@ export default function Claims() {
 
   const clearFilters = () => {
     applySearch('');
-    applyFilters({ ...filters, status: '' });
+    applyFilters({});
     setView('active');
+    setPage(1);
+  };
+
+  const setFilter = (key, value) => {
+    applyFilters({ ...filters, [key]: value || undefined });
     setPage(1);
   };
 
@@ -468,63 +484,6 @@ export default function Claims() {
             })}
           </div>
 
-          {/* Saved Presets */}
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {savedPresets.map((preset) => (
-              <div
-                key={preset.id}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface border border-surface-border text-body-sm hover:border-primary/30 transition-colors group"
-              >
-                <button
-                  onClick={() => applyPreset(preset)}
-                  className="text-on-surface-variant hover:text-primary font-medium transition-colors"
-                >
-                  {preset.name}
-                </button>
-                <button
-                  onClick={() => deletePreset(preset.id)}
-                  className="text-outline hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label={`Delete preset ${preset.name}`}
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-            {showPresetSave ? (
-              <div className="inline-flex items-center gap-1.5">
-                <input
-                  type="text"
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && savePreset()}
-                  placeholder="Preset name..."
-                  className="h-8 px-2.5 rounded border border-outline bg-surface text-body-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors w-40"
-                  autoFocus
-                />
-                <button
-                  onClick={savePreset}
-                  className="h-8 px-2.5 rounded bg-primary text-white text-body-sm font-medium hover:bg-primary-container transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setShowPresetSave(false); setPresetName(''); }}
-                  className="h-8 px-2 text-outline hover:text-on-surface transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowPresetSave(true)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-outline text-on-surface-variant text-body-sm font-medium hover:border-primary hover:text-primary transition-colors"
-              >
-                <Plus size={14} />
-                Save Current Filters
-              </button>
-            )}
-          </div>
-
           {/* Unified Table Container: Filters + Table + Pagination */}
           <div className="bg-surface border border-surface-border rounded-lg shadow-sm overflow-hidden">
             {/* Filter Bar */}
@@ -543,11 +502,8 @@ export default function Claims() {
                 </div>
                 <select
                   value={filters.status || ''}
-                  onChange={(e) => {
-                    applyFilters({ ...filters, status: e.target.value });
-                    setPage(1);
-                  }}
-                  className="h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer min-w-[180px]"
+                  onChange={(e) => setFilter('status', e.target.value)}
+                  className="h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer min-w-[160px]"
                   aria-label="Filter by status"
                 >
                   <option value="">All Statuses</option>
@@ -557,6 +513,24 @@ export default function Claims() {
                     </option>
                   ))}
                 </select>
+                <button
+                  onClick={() => setShowAdvancedFilters((v) => !v)}
+                  className={`h-10 px-3 rounded border text-body-md font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+                    showAdvancedFilters || activeFilterCount > 0
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-outline text-on-surface-variant hover:bg-surface-container-low'
+                  }`}
+                  aria-label="Advanced filters"
+                >
+                  <Filter size={16} />
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-label-sm font-semibold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                  {showAdvancedFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
                 {/* Column visibility toggle */}
                 <div className="relative">
                   <button
@@ -594,13 +568,96 @@ export default function Claims() {
                   <button
                     onClick={clearFilters}
                     className="h-10 px-3 rounded border border-outline text-body-md text-on-surface-variant hover:bg-surface-container-low transition-colors flex items-center gap-1.5"
-                    title="Clear filters"
+                    title="Clear all filters"
                   >
                     <X size={16} />
                     <span className="hidden sm:inline">Clear</span>
                   </button>
                 )}
               </div>
+
+              {/* Advanced Filters Panel */}
+              {showAdvancedFilters && (
+                <div className="mt-4 pt-4 border-t border-surface-border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-label-md text-outline uppercase mb-1.5">Process Status</label>
+                      <select
+                        value={filters.processStatus || ''}
+                        onChange={(e) => setFilter('processStatus', e.target.value)}
+                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
+                      >
+                        <option value="">All Process Statuses</option>
+                        {claimStatuses.map((s) => (
+                          <option key={s.id} value={s.code}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-md text-outline uppercase mb-1.5">Claim Type</label>
+                      <select
+                        value={filters.claimType || ''}
+                        onChange={(e) => setFilter('claimType', e.target.value)}
+                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
+                      >
+                        <option value="">All Types</option>
+                        {claimTypes.map((t) => (
+                          <option key={t.id} value={t.code}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-md text-outline uppercase mb-1.5">Insured (Client)</label>
+                      <select
+                        value={filters.clientId || ''}
+                        onChange={(e) => setFilter('clientId', e.target.value)}
+                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
+                      >
+                        <option value="">All Clients</option>
+                        {clients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-md text-outline uppercase mb-1.5">Insurer</label>
+                      <select
+                        value={filters.insurerId || ''}
+                        onChange={(e) => setFilter('insurerId', e.target.value)}
+                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
+                      >
+                        <option value="">All Insurers</option>
+                        {insurers.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-md text-outline uppercase mb-1.5">Adjuster</label>
+                      <select
+                        value={filters.engineerId || ''}
+                        onChange={(e) => setFilter('engineerId', e.target.value)}
+                        className="w-full h-10 px-3 pr-8 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors cursor-pointer"
+                      >
+                        <option value="">All Adjusters</option>
+                        {engineers.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.fullName} ({e.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Data Table (bare - no own container) */}

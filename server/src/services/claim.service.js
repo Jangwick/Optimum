@@ -202,6 +202,7 @@ export async function getClaims(filters, user) {
     clientId,
     engineerId,
     accountantId,
+    insurerId,
     view,
     page = 1,
     limit = 25,
@@ -232,6 +233,7 @@ export async function getClaims(filters, user) {
   if (clientId) where.clientId = Number(clientId);
   if (engineerId) where.engineerId = Number(engineerId);
   if (accountantId) where.accountantId = Number(accountantId);
+  if (insurerId) where.insuranceCompanyId = Number(insurerId);
 
   // View-based filtering: active, closed, cancelled
   if (view === 'active') {
