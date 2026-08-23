@@ -1,0 +1,13 @@
+fix: resolve mojibake encoding in ClaimDetail.jsx
+
+Replace double-encoded UTF-8 characters:
+- 22 instances of mojibake em dash replaced with proper em dash
+- 7 instances of mojibake middle dot replaced with proper middle dot
+
+These were caused by UTF-8 content being interpreted as Windows-1252
+during file saves, resulting in garbled characters displaying in the
+browser for empty field placeholders and activity feed separators.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

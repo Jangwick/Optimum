@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getClaim, updateClaimStatus, addClaimInsurer, updateClaimInsurer, removeClaimInsurer } from '../services/claim.service.js';
 import { getClaimStatuses } from '../services/master-data.service.js';
@@ -106,7 +106,7 @@ export function WorkflowProgress({ currentStatus, isCancelled }) {
 // Maps each workflow status to a recommended next action
 const NEXT_STEP_HINTS = {
   NEW: { action: 'Assign the claim to an adjuster', tab: 'summary' },
-  ASSIGNED: { action: 'Begin investigation â€” schedule a site inspection', tab: 'investigation' },
+  ASSIGNED: { action: 'Begin investigation — schedule a site inspection', tab: 'investigation' },
   INVESTIGATION: { action: 'Schedule and conduct a site inspection', tab: 'investigation' },
   INSPECTION_SCHEDULED: { action: 'Conduct the inspection and record findings', tab: 'investigation' },
   INSPECTION_COMPLETED: { action: 'Collect and upload required documents', tab: 'documents' },
@@ -262,7 +262,7 @@ export function ClaimDetailContent({ claimId }) {
               <h2 className="text-headline-lg font-semibold text-primary font-mono">{claim.claimNumber}</h2>
             </div>
             <p className="text-body-md text-on-surface-variant">
-              {claim.claimType?.name || 'â€”'} Â· {claim.client?.name || 'â€”'}
+              {claim.claimType?.name || '—'} · {claim.client?.name || '—'}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
@@ -442,13 +442,13 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <Info label="Policy No." value={claim.policy?.policyNumber || claim.policyNumber} mono />
             <Info label="Policy Type" value={claim.policyType} />
             <Info label="Policy Period" value={claim.policyPeriodText} />
-            <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : 'â€”'} />
+            <Info label="Date of Loss" value={claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—'} />
             <Info label="Nature of Loss" value={claim.natureOfLoss} />
             <Info label="Location" value={claim.locationOfLoss} />
             <Info label="Received" value={new Date(claim.dateReceived).toLocaleDateString()} />
-            <Info label="Date Inspected" value={claim.dateInspected ? new Date(claim.dateInspected).toLocaleDateString() : 'â€”'} />
-            <Info label="Letter Request" value={claim.letterRequestDate ? new Date(claim.letterRequestDate).toLocaleDateString() : 'â€”'} />
-            <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : 'â€”'} />
+            <Info label="Date Inspected" value={claim.dateInspected ? new Date(claim.dateInspected).toLocaleDateString() : '—'} />
+            <Info label="Letter Request" value={claim.letterRequestDate ? new Date(claim.letterRequestDate).toLocaleDateString() : '—'} />
+            <Info label="Denial Letter" value={claim.denialLetterDate ? new Date(claim.denialLetterDate).toLocaleDateString() : '—'} />
           </div>
           {claim.policyCoverageText && (
             <div className="mt-4 pt-4 border-t border-surface-border">
@@ -458,7 +458,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
           )}
           <div className="mt-4 pt-4 border-t border-surface-border">
             <span className="text-label-md text-outline uppercase">Description</span>
-            <p className="text-body-md mt-1">{claim.description || 'â€”'}</p>
+            <p className="text-body-md mt-1">{claim.description || '—'}</p>
           </div>
           <DocumentPreview claimId={claim.id} documents={claim.documents} />
           <InspectionSummary claimId={claim.id} inspections={claim.inspections} />
@@ -515,7 +515,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
             <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-body-md">
               <Info label="OCS Import Status" value={claim.importStatus.name} />
               <Info label="Import Batch" value={claim.importBatchId} mono />
-              <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : 'â€”'} />
+              <Info label="Imported At" value={claim.importedAt ? new Date(claim.importedAt).toLocaleString() : '—'} />
               <Info label="Cancelled" value={claim.isCancelled ? 'Yes' : 'No'} />
               {claim.isCancelled && <Info label="Cancellation Reason" value={claim.cancellationReason} />}
             </div>
@@ -576,7 +576,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                   const isCurrent = optionIdx === currentIdx;
                   return (
                     <option key={s.id} value={s.code} disabled={isBackward}>
-                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' â€” past' : ''}
+                      {s.name}{isCurrent ? ' (current)' : isBackward ? ' — past' : ''}
                     </option>
                   );
                 })}
@@ -619,7 +619,7 @@ function SummaryTab({ claim, statuses, selectedStatus, setSelectedStatus, status
                     </div>
                     {e.desc && <p className="text-on-surface-variant mt-0.5 text-body-sm">{e.desc}</p>}
                     <p className="text-label-sm text-outline mt-1 font-mono">
-                      {e.actor ? `${e.actor} Â· ` : ''}{e.date ? new Date(e.date).toLocaleString() : 'â€”'}
+                      {e.actor ? `${e.actor} · ` : ''}{e.date ? new Date(e.date).toLocaleString() : '—'}
                     </p>
                   </li>
                 );
@@ -728,7 +728,7 @@ export function DocumentPreview({ claimId, documents = [] }) {
                 >
                   {documents.map((document) => (
                     <option key={document.id} value={document.id}>
-                      {document.originalName} â€” {document.category}
+                      {document.originalName} — {document.category}
                     </option>
                   ))}
                 </select>
@@ -829,7 +829,7 @@ export function InspectionSummary({ claimId, inspections = [] }) {
           <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
           <Info
             label={completed ? 'Conducted' : 'Scheduled For'}
-            value={inspectionDate ? new Date(inspectionDate).toLocaleString() : 'â€”'}
+            value={inspectionDate ? new Date(inspectionDate).toLocaleString() : '—'}
           />
           <Info label="Location" value={inspection.location} />
           <Info label="Inspector" value={inspector} />
@@ -856,11 +856,11 @@ export function InspectionSummary({ claimId, inspections = [] }) {
             <Info label="Status" value={completed ? 'Completed' : 'Scheduled'} />
             <Info
               label="Scheduled For"
-              value={inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleString() : 'â€”'}
+              value={inspection.scheduledAt ? new Date(inspection.scheduledAt).toLocaleString() : '—'}
             />
             <Info
               label="Conducted"
-              value={inspection.conductedAt ? new Date(inspection.conductedAt).toLocaleString() : 'â€”'}
+              value={inspection.conductedAt ? new Date(inspection.conductedAt).toLocaleString() : '—'}
             />
             <Info label="Location" value={inspection.location} />
             <Info label="Inspector" value={inspector} />
@@ -917,7 +917,7 @@ function Info({ label, value, money, mono }) {
   return (
     <div className="min-w-0">
       <span className="text-label-md text-outline uppercase tracking-wide">{label}</span>
-      <p className={`mt-1 text-on-surface break-words ${money || mono ? 'font-mono' : ''}`}>{value || 'â€”'}</p>
+      <p className={`mt-1 text-on-surface break-words ${money || mono ? 'font-mono' : ''}`}>{value || '—'}</p>
     </div>
   );
 }
@@ -1020,7 +1020,7 @@ function DocumentsTab({ claimId, onClaimChange }) {
   );
 
   function formatFileSize(bytes) {
-    if (!bytes) return 'â€”';
+    if (!bytes) return '—';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -1210,7 +1210,7 @@ function DocumentsTab({ claimId, onClaimChange }) {
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-label-sm text-on-surface-variant font-mono">
                     {docs.length} file{docs.length !== 1 ? 's' : ''}
-                    {docs.length > 0 && ` Â· ${receivedCount} received`}
+                    {docs.length > 0 && ` · ${receivedCount} received`}
                   </span>
                 </div>
               </div>
@@ -1239,11 +1239,11 @@ function DocumentsTab({ claimId, onClaimChange }) {
                             </div>
                             <p className="text-label-sm text-outline mt-0.5">
                               {doc.description || 'No description'}
-                              {' Â· '}
+                              {' · '}
                               <span className="font-mono">{formatFileSize(doc.size)}</span>
-                              {' Â· '}
+                              {' · '}
                               {new Date(doc.createdAt).toLocaleDateString()}
-                              {doc.uploadedBy && ` Â· ${doc.uploadedBy}`}
+                              {doc.uploadedBy && ` · ${doc.uploadedBy}`}
                             </p>
                           </div>
                         </div>
@@ -1470,7 +1470,7 @@ function AssessmentTab({ claimId, onClaimChange }) {
                   <p className="text-body-md font-semibold text-on-surface">Assessment #{a.id}</p>
                   <p className="text-label-sm text-outline font-mono mt-0.5">
                     {new Date(a.assessmentDate).toLocaleString()}
-                    {a.preparedBy && ' Â· ' + a.preparedBy.firstName + ' ' + a.preparedBy.lastName}
+                    {a.preparedBy && ' · ' + a.preparedBy.firstName + ' ' + a.preparedBy.lastName}
                   </p>
                 </div>
               </div>
@@ -2407,7 +2407,7 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
   };
 
   function StatusBadge({ status, colors }) {
-    if (!status) return <span className="text-on-surface-variant">â€”</span>;
+    if (!status) return <span className="text-on-surface-variant">—</span>;
     const c = colors[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant' };
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium ${c.bg} ${c.text}`}>
@@ -2710,20 +2710,20 @@ function InsurerPanelTab({ claim: initialClaim, claimId, isAdmin, onClaimChange 
                   <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-body-sm">
                     <div>
                       <p className="text-label-md text-outline uppercase">Proposed</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.proposedSettlement ? formatCurrency(ci.proposedSettlement) : 'â€”'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.proposedSettlement ? formatCurrency(ci.proposedSettlement) : '—'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Agreed</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.agreedSettlement ? formatCurrency(ci.agreedSettlement) : 'â€”'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.agreedSettlement ? formatCurrency(ci.agreedSettlement) : '—'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Paid</p>
-                      <p className="font-mono text-on-surface mt-0.5">{ci.paidAmount ? formatCurrency(ci.paidAmount) : 'â€”'}</p>
+                      <p className="font-mono text-on-surface mt-0.5">{ci.paidAmount ? formatCurrency(ci.paidAmount) : '—'}</p>
                     </div>
                     <div>
                       <p className="text-label-md text-outline uppercase">Balance</p>
                       <p className="font-mono text-on-surface mt-0.5">
-                        {ci.agreedSettlement && ci.paidAmount ? formatCurrency(Number(ci.agreedSettlement) - Number(ci.paidAmount)) : 'â€”'}
+                        {ci.agreedSettlement && ci.paidAmount ? formatCurrency(Number(ci.agreedSettlement) - Number(ci.paidAmount)) : '—'}
                       </p>
                     </div>
                   </div>
