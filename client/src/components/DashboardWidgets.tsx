@@ -1,6 +1,17 @@
 import { useNavigate } from 'react-router-dom';
+import { type LucideIcon } from 'lucide-react';
+import { type ReactNode } from 'react';
 
-export function DashboardMetricCard({ title, subtitle, value, icon: Icon, cap, iconTint }) {
+interface DashboardMetricCardProps {
+  title: string;
+  subtitle?: string;
+  value: ReactNode;
+  icon: LucideIcon;
+  cap: string;
+  iconTint: string;
+}
+
+export function DashboardMetricCard({ title, subtitle, value, icon: Icon, cap, iconTint }: DashboardMetricCardProps) {
   return (
     <div
       className={`bg-surface ${cap} border-x border-b border-surface-border rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow`}
@@ -23,7 +34,14 @@ export function DashboardMetricCard({ title, subtitle, value, icon: Icon, cap, i
   );
 }
 
-export function DashboardSection({ title, icon: Icon, children, action }) {
+interface DashboardSectionProps {
+  title: string;
+  icon: LucideIcon;
+  children: ReactNode;
+  action?: ReactNode;
+}
+
+export function DashboardSection({ title, icon: Icon, children, action }: DashboardSectionProps) {
   return (
     <section className="bg-surface border border-surface-border rounded-lg shadow-sm flex flex-col overflow-hidden">
       <div className="p-4 sm:p-5 border-b border-surface-border bg-surface-container-lowest flex justify-between items-center gap-2">
@@ -40,7 +58,31 @@ export function DashboardSection({ title, icon: Icon, children, action }) {
   );
 }
 
-export function OpenTasksList({ tasks, overdueCount, userRole }) {
+interface AssignedUser {
+  firstName?: string;
+  lastName?: string;
+}
+
+interface TaskClaim {
+  id: number;
+  claimNumber?: string;
+}
+
+interface Task {
+  id: number;
+  title: string;
+  dueDate?: string | null;
+  assignedTo?: AssignedUser | null;
+  claim?: TaskClaim | null;
+}
+
+interface OpenTasksListProps {
+  tasks: Task[];
+  overdueCount: number;
+  userRole: string;
+}
+
+export function OpenTasksList({ tasks, overdueCount, userRole }: OpenTasksListProps) {
   const now = new Date();
   const navigate = useNavigate();
 
@@ -56,9 +98,9 @@ export function OpenTasksList({ tasks, overdueCount, userRole }) {
         {tasks.length ? (
           <div className="flex flex-col gap-2">
             {tasks.map((t) => {
-              const isOverdue = t.dueDate && new Date(t.dueDate) < now;
+              const isOverdue = t.dueDate ? new Date(t.dueDate) < now : false;
               const actor = t.assignedTo
-                ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}`.trim()
+                ? `${t.assignedTo.firstName ?? ''} ${t.assignedTo.lastName ?? ''}`.trim()
                 : 'Unassigned';
               return (
                 <button

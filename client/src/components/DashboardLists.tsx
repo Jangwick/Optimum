@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Activity, FileText, ArrowRight, Plus } from 'lucide-react';
+import { type LucideIcon, ClipboardList, Activity, FileText, ArrowRight, Plus } from 'lucide-react';
 
-function timeAgo(dateStr) {
+function timeAgo(dateStr: string | undefined) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -14,7 +14,12 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
-function activityIcon(action) {
+interface ActivityIconResult {
+  icon: LucideIcon;
+  tint: string;
+}
+
+function activityIcon(action: string | undefined): ActivityIconResult {
   if (action?.includes('CLAIM_CREATED')) return { icon: Plus, tint: 'bg-primary/10 text-primary' };
   if (action?.includes('REPORT')) return { icon: FileText, tint: 'bg-primary/10 text-primary' };
   if (action?.includes('STATUS')) return { icon: Activity, tint: 'bg-success-green/10 text-success-green' };
@@ -23,7 +28,23 @@ function activityIcon(action) {
   return { icon: Activity, tint: 'bg-surface-container-high text-on-surface-variant' };
 }
 
-export function RecentClaims({ claims }) {
+interface ProcessStatus {
+  name: string;
+  color: string;
+}
+
+interface RecentClaim {
+  id: number;
+  claimNumber: string;
+  client?: string | null;
+  processStatus?: ProcessStatus | null;
+}
+
+interface RecentClaimsProps {
+  claims: RecentClaim[];
+}
+
+export function RecentClaims({ claims }: RecentClaimsProps) {
   const navigate = useNavigate();
 
   return (
@@ -90,7 +111,23 @@ export function RecentClaims({ claims }) {
   );
 }
 
-export function RecentActivity({ activity }) {
+interface ActivityUser {
+  firstName?: string;
+  lastName?: string;
+}
+
+interface ActivityItem {
+  id: number;
+  action: string;
+  user?: ActivityUser | null;
+  createdAt: string;
+}
+
+interface RecentActivityProps {
+  activity: ActivityItem[];
+}
+
+export function RecentActivity({ activity }: RecentActivityProps) {
   return (
     <section className="bg-surface border border-surface-border rounded-lg shadow-sm flex flex-col overflow-hidden">
       <div className="p-5 border-b border-surface-border bg-surface-container-lowest">
@@ -107,7 +144,7 @@ export function RecentActivity({ activity }) {
             {activity.slice(0, 12).map((a, idx) => {
               const { icon: Icon, tint } = activityIcon(a.action);
               const actor = a.user
-                ? `${a.user.firstName} ${a.user.lastName}`.trim()
+                ? `${a.user.firstName ?? ''} ${a.user.lastName ?? ''}`.trim()
                 : 'System';
               return (
                 <div

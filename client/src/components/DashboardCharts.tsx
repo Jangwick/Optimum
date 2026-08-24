@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   LineChart,
   Line,
@@ -22,11 +22,31 @@ const tooltipStyle = {
   boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
 };
 
-// ponytail: raw hex palette for chart colors until design tokens are mapped to a chart palette.
 const AGING_COLORS = ['#27ae60', '#f5a623', '#e67e22', '#e74c3c'];
 
-export function VolumeChart({ monthlyData, weeklyData }) {
-  const [view, setView] = useState('monthly');
+interface VolumeDataPoint {
+  label: string;
+  claims?: number;
+  estimatedLoss?: number;
+}
+
+interface StatusDataPoint {
+  status?: { name?: string; color?: string } | null;
+  count: number;
+}
+
+interface AgingDataPoint {
+  label: string;
+  count: number;
+}
+
+interface VolumeChartProps {
+  monthlyData: VolumeDataPoint[];
+  weeklyData: VolumeDataPoint[];
+}
+
+export function VolumeChart({ monthlyData, weeklyData }: VolumeChartProps) {
+  const [view, setView] = useState<'monthly' | 'weekly'>('monthly');
   const data = view === 'monthly' ? monthlyData : weeklyData;
 
   return (
@@ -41,12 +61,14 @@ export function VolumeChart({ monthlyData, weeklyData }) {
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 12, fill: '#7a7a7a' }}
-              tickFormatter={(v) => `₱${(v / 1000000).toFixed(1)}M`}
+              tickFormatter={(v: number) => `₱${(v / 1000000).toFixed(1)}M`}
             />
             <Tooltip
               contentStyle={tooltipStyle}
               formatter={(value, name) =>
-                name === 'Estimated Loss' ? [formatCurrency(value), name] : [value, name]
+                name === 'Estimated Loss'
+                  ? [formatCurrency(value as string | number | null | undefined), name ?? '']
+                  : [value as ReactNode, name ?? '']
               }
             />
             <Legend wrapperStyle={{ fontSize: 13 }} />
@@ -99,7 +121,11 @@ export function VolumeChart({ monthlyData, weeklyData }) {
   );
 }
 
-export function StatusBarChart({ data }) {
+interface StatusBarChartProps {
+  data: StatusDataPoint[];
+}
+
+export function StatusBarChart({ data }: StatusBarChartProps) {
   const chartData = data.map((s) => ({
     name: s.status?.name || 'Unknown',
     count: s.count,
@@ -116,7 +142,7 @@ export function StatusBarChart({ data }) {
           <Tooltip contentStyle={tooltipStyle} />
           <Bar dataKey="count" name="Claims" radius={[0, 4, 4, 0]}>
             {chartData.map((entry, idx) => (
-              <Cell key={idx} fill={entry.color} />
+              <Cell key={idx} fill={entry.color || '#999'} />
             ))}
           </Bar>
         </BarChart>
@@ -125,7 +151,11 @@ export function StatusBarChart({ data }) {
   );
 }
 
-export function AgingBarChart({ data }) {
+interface AgingBarChartProps {
+  data: AgingDataPoint[];
+}
+
+export function AgingBarChart({ data }: AgingBarChartProps) {
   return (
     <div className="h-64 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
@@ -136,7 +166,7 @@ export function AgingBarChart({ data }) {
           <Tooltip contentStyle={tooltipStyle} />
           <Bar dataKey="count" name="Claims" radius={[4, 4, 0, 0]}>
             {data.map((_, idx) => (
-              <Cell key={idx} fill={AGING_COLORS[idx % AGING_COLORS.length]} />
+              <Cell key={idx} fill={AGING_COLORS[idx % AGING_COLORS.length] ?? '#999'} />
             ))}
           </Bar>
         </BarChart>
