@@ -86,7 +86,12 @@ export function setAuthCookie(res, token) {
 }
 
 export function clearAuthCookie(res) {
-  res.clearCookie('token');
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: config.nodeEnv === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+  });
 }
 
 export function verifyToken(token) {
