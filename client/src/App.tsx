@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
@@ -11,7 +12,12 @@ import AuditLogs from './pages/AuditLogs.jsx';
 import Employees from './pages/Employees.jsx';
 import Reports from './pages/Reports.jsx';
 
-function ProtectedRoute({ children, roles }) {
+interface ProtectedRouteProps {
+  children: ReactNode;
+  roles?: string[];
+}
+
+function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -27,7 +33,7 @@ function ProtectedRoute({ children, roles }) {
   return children;
 }
 
-export default function App() {
+export default function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
