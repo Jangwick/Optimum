@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../db/client.js';
 
 const router = Router();
 
-router.get('/', async (req, res) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
     const [userCount, roleCount, claimStatusCount, processStatusCount] = await Promise.all([
       prisma.user.count(),
@@ -23,10 +23,10 @@ router.get('/', async (req, res) => {
         processStatuses: processStatusCount,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     res.status(500).json({
       status: 'error',
-      error: err.message,
+      error: err instanceof Error ? err.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
   }
