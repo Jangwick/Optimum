@@ -6,9 +6,9 @@ import { config } from '../config/index.js';
  * Check whether a resolved path is contained within a root directory.
  * Uses path.relative to avoid case and separator pitfalls with startsWith.
  */
-function isWithinRoot(root, resolved) {
+function isWithinRoot(root: string, resolved: string): boolean {
   const rel = path.relative(root, resolved);
-  return rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+  return rel ? !rel.startsWith('..') && !path.isAbsolute(rel) : false;
 }
 
 /**
@@ -24,7 +24,7 @@ function isWithinRoot(root, resolved) {
  * legacy paths that begin with the root's directory name (e.g. "uploads/...")
  * continue to work while ".." or absolute paths outside the root are rejected.
  */
-export function resolveFilePath(storedPath, rootDir = config.uploadDir) {
+export function resolveFilePath(storedPath: string | null | undefined, rootDir: string = config.uploadDir): string | null {
   if (!storedPath) return null;
 
   const root = path.resolve(rootDir);
@@ -50,7 +50,7 @@ export function resolveFilePath(storedPath, rootDir = config.uploadDir) {
 /**
  * Check whether a file exists at the stored path.
  */
-export function fileExists(storedPath, rootDir = config.uploadDir) {
+export function fileExists(storedPath: string | null | undefined, rootDir: string = config.uploadDir): boolean {
   const resolved = resolveFilePath(storedPath, rootDir);
   if (!resolved) return false;
   return fs.existsSync(resolved);
@@ -61,8 +61,8 @@ export function fileExists(storedPath, rootDir = config.uploadDir) {
  * If the path is within the root directory, it will be made relative to that root.
  * Returns null for paths outside the root to prevent leaking unsafe paths.
  */
-export function toRelativePath(absolutePath, rootDir = config.uploadDir) {
-  if (!absolutePath) return absolutePath;
+export function toRelativePath(absolutePath: string | null | undefined, rootDir: string = config.uploadDir): string | null {
+  if (!absolutePath) return absolutePath ?? null;
   const root = path.resolve(rootDir);
   const resolved = path.resolve(absolutePath);
 

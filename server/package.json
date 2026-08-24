@@ -70,6 +70,10 @@
     "testEnvironment": "node",
     "testTimeout": 30000,
     "testPathIgnorePatterns": ["<rootDir>/dist/"],
+    "moduleFileExtensions": ["js", "ts", "mjs", "cjs", "json", "node"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
     "coverageDirectory": "coverage",
     "globalSetup": "<rootDir>/tests/globalSetup.js",
     "setupFiles": ["<rootDir>/tests/setup-test-env.js"],
