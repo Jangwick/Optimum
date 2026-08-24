@@ -123,7 +123,7 @@ export async function uploadPhoto(inspectionId: number, file: Express.Multer.Fil
       originalName: file.originalname,
       mimeType: file.mimetype,
       path: '',
-      data: file.buffer,
+      data: new Uint8Array(file.buffer),
       size: file.size,
       caption: caption || null,
       uploadedById: userId,

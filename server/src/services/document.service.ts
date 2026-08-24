@@ -116,7 +116,7 @@ export async function uploadDocument(claimId: number | string, file: Express.Mul
     originalName: file.originalname,
     mimeType: file.mimetype,
     path: '',
-    data: file.buffer,
+    data: new Uint8Array(file.buffer),
     size: file.size,
     description: data.description ?? null,
     uploadedById: user.id,
