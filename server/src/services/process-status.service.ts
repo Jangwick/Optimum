@@ -1,3 +1,4 @@
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
@@ -6,7 +7,7 @@ import { createNotification } from './notification.service.js';
 // 18-stage primary workflow status transitions.
 // The primary status dimension for registry/reporting.
 // Admin may override any transition with a reason.
-export const processStatusTransitions = {
+export const processStatusTransitions: Record<string, string[]> = {
   NEW_CLAIM: ['CLAIM_ASSIGNED', 'CLAIM_CLOSED'],
   CLAIM_ASSIGNED: ['INITIAL_REVIEW', 'CLAIM_CLOSED'],
   INITIAL_REVIEW: ['CONTACTED_INSURED', 'SITE_INSPECTION_SCHEDULED', 'CLAIM_CLOSED'],
@@ -30,8 +31,8 @@ export const processStatusTransitions = {
 // Closing guards: conditions that must be met before a claim can be
 // moved to the CLAIM_CLOSED or CLAIM_SETTLED process status.
 // Each guard returns an array of reason strings (empty = satisfied).
-async function checkClosingGuards(claimId) {
-  const reasons = [];
+async function checkClosingGuards(claimId: number) {
+  const reasons: string[] = [];
 
   const claim = await prisma.claim.findUnique({
     where: { id: claimId },
@@ -65,8 +66,8 @@ async function checkClosingGuards(claimId) {
 }
 
 // Settlement guards: conditions for entering CLAIM_SETTLED.
-async function checkSettlementGuards(claimId) {
-  const reasons = [];
+async function checkSettlementGuards(claimId: number) {
+  const reasons: string[] = [];
 
   const claim = await prisma.claim.findUnique({
     where: { id: claimId },
@@ -99,7 +100,7 @@ export async function getProcessStatuses() {
   }));
 }
 
-export async function getProcessStatusHistory(claimId) {
+export async function getProcessStatusHistory(claimId: number) {
   const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
@@ -126,10 +127,17 @@ export async function getProcessStatusHistory(claimId) {
   }));
 }
 
+interface UpdateProcessStatusInput {
+  statusCode: string;
+  notes?: string;
+  isOverride?: boolean;
+  overrideReason?: string;
+}
+
 export async function updateProcessStatus(
-  claimId,
-  { statusCode, notes = '', isOverride = false, overrideReason = '' },
-  changedBy
+  claimId: number,
+  { statusCode, notes = '', isOverride = false, overrideReason = '' }: UpdateProcessStatusInput,
+  changedBy: number
 ) {
   const claim = await prisma.claim.findUnique({
     where: { id: claimId },
@@ -190,15 +198,17 @@ export async function updateProcessStatus(
     }
   }
 
+  const updateData: Prisma.ClaimUncheckedUpdateInput = {
+    processStatusId: newStatus.id,
+    isClosed: statusCode === 'CLAIM_CLOSED' ? true : claim.isClosed,
+    closedAt: statusCode === 'CLAIM_CLOSED' ? new Date() : claim.closedAt,
+    closedById: statusCode === 'CLAIM_CLOSED' ? changedBy : claim.closedById,
+    lastUserModifiedAt: new Date(),
+  };
+
   const updated = await prisma.claim.update({
     where: { id: claimId },
-    data: {
-      processStatusId: newStatus.id,
-      isClosed: statusCode === 'CLAIM_CLOSED' ? true : claim.isClosed,
-      closedAt: statusCode === 'CLAIM_CLOSED' ? new Date() : claim.closedAt,
-      closedById: statusCode === 'CLAIM_CLOSED' ? changedBy : claim.closedById,
-      lastUserModifiedAt: new Date(),
-    },
+    data: updateData,
     include: {
       processStatus: true,
       status: true,
@@ -207,17 +217,17 @@ export async function updateProcessStatus(
     },
   });
 
-  await prisma.claimProcessStatusHistory.create({
-    data: {
-      claimId,
-      processStatusId: newStatus.id,
-      changedById: changedBy,
-      notes,
-      source: 'USER',
-      isOverride,
-      overrideReason: isOverride ? overrideReason : null,
-    },
-  });
+  const historyData: Prisma.ClaimProcessStatusHistoryUncheckedCreateInput = {
+    claimId,
+    processStatusId: newStatus.id,
+    changedById: changedBy,
+    notes,
+    source: 'USER',
+    isOverride,
+    overrideReason: isOverride ? overrideReason : null,
+  };
+
+  await prisma.claimProcessStatusHistory.create({ data: historyData });
 
   await logAction('PROCESS_STATUS_CHANGED', 'Claim', claimId, changedBy, {
     from: currentCode,
@@ -226,7 +236,7 @@ export async function updateProcessStatus(
     isOverride,
   });
 
-  const notifyUsers = [updated.engineerId, updated.accountantId].filter(Boolean);
+  const notifyUsers = [updated.engineerId, updated.accountantId].filter((id): id is number => Boolean(id));
   for (const userId of notifyUsers) {
     await createNotification(userId, {
       title: `Process status changed to ${statusCode}`,
@@ -249,7 +259,7 @@ export async function updateProcessStatus(
   };
 }
 
-export async function getClosingGuardStatus(claimId) {
+export async function getClosingGuardStatus(claimId: number) {
   const claim = await prisma.claim.findUnique({
     where: { id: claimId },
     select: { id: true, isIncomplete: true, isClosed: true, processStatus: { select: { code: true } } },
