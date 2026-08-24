@@ -245,6 +245,7 @@ Client (`.env` / `.env.local`):
   - `server/src/middleware/upload.ts`
   - `server/src/services/auth.service.ts`
   - `server/src/db/client.ts`
+  - `server/src/config/logger.ts`
 - Jest was configured with `maxWorkers: 1` to avoid claim-number generation races across parallel integration suites sharing the same test database.
 - `server/package.json` Jest config updated to `ts-jest/presets/default-esm` with `moduleNameMapper` so existing `.js` imports resolve to renamed `.ts` source files and tests still run without editing every import path.
 
