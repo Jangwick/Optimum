@@ -6,6 +6,7 @@ import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import { resolveFilePath } from '../utils/file-path.js';
 import { config } from '../config/index.js';
 import { formatCurrency } from '../utils/currency.js';
+import { escapeHtml } from '../utils/escape-html.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
@@ -112,21 +113,21 @@ export async function generateReport(claimId, id, user) {
   </style>
 </head>
 <body>
-  <h1>${report.title}</h1>
+  <h1>${escapeHtml(report.title)}</h1>
   <div class="meta">
-    <p><strong>Claim:</strong> ${claim.claimNumber}</p>
-    <p><strong>Client:</strong> ${claim.client?.name}</p>
-    <p><strong>Insurer:</strong> ${claim.insuranceCompany?.name}</p>
-    <p><strong>Type:</strong> ${claim.claimType?.name}</p>
-    <p><strong>Engineer:</strong> ${claim.engineer ? `${claim.engineer.firstName} ${claim.engineer.lastName}` : '—'}</p>
-    <p><strong>Status:</strong> ${claim.status?.name}</p>
-    <p><strong>Estimated Loss:</strong> ${formatCurrency(claim.estimatedLoss)}</p>
-    <p><strong>Reserve:</strong> ${formatCurrency(claim.reserve)}</p>
-    <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+    <p><strong>Claim:</strong> ${escapeHtml(claim.claimNumber)}</p>
+    <p><strong>Client:</strong> ${escapeHtml(claim.client?.name)}</p>
+    <p><strong>Insurer:</strong> ${escapeHtml(claim.insuranceCompany?.name)}</p>
+    <p><strong>Type:</strong> ${escapeHtml(claim.claimType?.name)}</p>
+    <p><strong>Engineer:</strong> ${claim.engineer ? escapeHtml(`${claim.engineer.firstName} ${claim.engineer.lastName}`) : '—'}</p>
+    <p><strong>Status:</strong> ${escapeHtml(claim.status?.name)}</p>
+    <p><strong>Estimated Loss:</strong> ${escapeHtml(formatCurrency(claim.estimatedLoss))}</p>
+    <p><strong>Reserve:</strong> ${escapeHtml(formatCurrency(claim.reserve))}</p>
+    <p><strong>Generated:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
   </div>
   <div class="section">
     <h2>Summary</h2>
-    <p>${report.notes || 'No summary provided.'}</p>
+    <p>${escapeHtml(report.notes || 'No summary provided.')}</p>
   </div>
 </body>
 </html>`;
