@@ -4,6 +4,7 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 import { resolveFilePath } from '../utils/file-path.js';
+import { config } from '../config/index.js';
 import { formatCurrency } from '../utils/currency.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
@@ -11,7 +12,7 @@ import PizZip from 'pizzip';
 import fs from 'fs';
 import path from 'path';
 
-const reportOutputDir = './uploads/reports';
+const reportOutputDir = path.resolve(config.uploadDir, 'reports');
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -132,8 +133,8 @@ export async function generateReport(id, userId) {
 
   let docxPath = null;
   if (report.reportTemplate?.path) {
-    const templatePath = resolveFilePath(report.reportTemplate.path);
-    if (fs.existsSync(templatePath)) {
+    const templatePath = resolveFilePath(report.reportTemplate.path, config.uploadDir);
+    if (templatePath && fs.existsSync(templatePath)) {
     try {
       const content = fs.readFileSync(templatePath, 'binary');
       const zip = new PizZip(content);
