@@ -1,4 +1,5 @@
 import multer from 'multer';
+import type { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
@@ -7,7 +8,7 @@ import { AppError } from '../middleware/error.js';
 // This ensures files persist across deploys on ephemeral filesystems (e.g. Railway).
 const storage = multer.memoryStorage();
 
-const ALLOWED_FILES = {
+const ALLOWED_FILES: Record<string, string[]> = {
   '.jpg': ['image/jpeg'],
   '.jpeg': ['image/jpeg'],
   '.png': ['image/png'],
@@ -21,16 +22,16 @@ const ALLOWED_FILES = {
   '.txt': ['text/plain'],
 };
 
-function fileFilter(req, file, cb) {
+function fileFilter(_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) {
   const ext = path.extname(file.originalname || '').toLowerCase();
   const allowedMimes = ALLOWED_FILES[ext];
 
   if (!allowedMimes) {
-    return cb(new AppError('File type not allowed', 400), false);
+    return cb(new AppError('File type not allowed', 400));
   }
 
   if (!allowedMimes.includes(file.mimetype)) {
-    return cb(new AppError('File type does not match extension', 400), false);
+    return cb(new AppError('File type does not match extension', 400));
   }
 
   cb(null, true);
@@ -42,7 +43,7 @@ export const upload = multer({
   limits: { fileSize: config.maxFileSize || 20 * 1024 * 1024 },
 });
 
-const SIGNATURES = {
+const SIGNATURES: Record<string, number[][]> = {
   'image/jpeg': [[0xFF, 0xD8, 0xFF]],
   'image/png': [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
   'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]],
@@ -54,7 +55,7 @@ const SIGNATURES = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4B, 0x03, 0x04]],
 };
 
-function matchesSignature(buffer, mimetype) {
+function matchesSignature(buffer: Buffer, mimetype: string): boolean {
   const signatures = SIGNATURES[mimetype];
   if (!signatures) {
     // No signature for this type (text/plain). Reject obvious binary data
@@ -78,7 +79,7 @@ function matchesSignature(buffer, mimetype) {
   return false;
 }
 
-export function validateUpload(req, res, next) {
+export function validateUpload(req: Request, _res: Response, next: NextFunction) {
   if (!req.file) return next();
   if (!matchesSignature(req.file.buffer, req.file.mimetype)) {
     return next(new AppError('File content does not match the declared type', 400));
