@@ -1,7 +1,10 @@
+import type { AuthUser } from '../middleware/auth.js';
 import { prisma } from '../db/client.js';
 
-export async function getDashboard(user) {
-  const baseWhere = {};
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export async function getDashboard(user: AuthUser) {
+  const baseWhere: any = {};
   if (user.role === 'ENGINEER') baseWhere.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') baseWhere.accountantId = user.id;
 
@@ -9,7 +12,7 @@ export async function getDashboard(user) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-  const taskWhere =
+  const taskWhere: any =
     user.role === 'ADMIN'
       ? { status: { not: 'COMPLETED' } }
       : { assignedToId: user.id, status: { not: 'COMPLETED' } };
@@ -151,16 +154,16 @@ export async function getDashboard(user) {
   const processStatuses = await prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } });
   const processStatusMap = new Map(processStatuses.map((s) => [s.id, s]));
 
-  const statusBreakdown = processStatusCounts
-    .map((s) => ({
+  const statusBreakdown: any[] = (processStatusCounts as any[])
+    .map((s: any) => ({
       status: processStatusMap.get(s.processStatusId),
       count: s._count.id,
     }))
-    .filter((s) => s.status)
-    .sort((a, b) => (a.status.sortOrder || 0) - (b.status.sortOrder || 0));
+    .filter((s: any) => s.status)
+    .sort((a: any, b: any) => (a.status.sortOrder || 0) - (b.status.sortOrder || 0));
 
   // Monthly volume buckets (last 12 months)
-  const monthLabels = [];
+  const monthLabels: any[] = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     monthLabels.push({
@@ -176,7 +179,7 @@ export async function getDashboard(user) {
   const currentWeekStart = new Date(now);
   currentWeekStart.setHours(0, 0, 0, 0);
   currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
-  const weekLabels = [];
+  const weekLabels: any[] = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(currentWeekStart);
     d.setDate(d.getDate() - 7 * i);
@@ -189,7 +192,7 @@ export async function getDashboard(user) {
   }
   const weekMap = new Map(weekLabels.map((w) => [w.key, w]));
 
-  for (const c of monthlyVolumeRaw) {
+  for (const c of monthlyVolumeRaw as any[]) {
     const d = new Date(c.dateReceived);
     const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const monthEntry = monthMap.get(monthKey);
@@ -211,8 +214,8 @@ export async function getDashboard(user) {
 
   // Aging buckets for open claims
   const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-  for (const c of agingRaw) {
-    const days = Math.floor((now - new Date(c.dateReceived)) / (1000 * 60 * 60 * 24));
+  for (const c of agingRaw as any[]) {
+    const days = Math.floor((now.getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
     if (days <= 30) buckets['0-30']++;
     else if (days <= 60) buckets['31-60']++;
     else if (days <= 90) buckets['61-90']++;
@@ -222,8 +225,8 @@ export async function getDashboard(user) {
   // Average cycle time in days for claims closed in the last 12 months
   let averageCycleTime = null;
   if (closedForCycleTime.length > 0) {
-    const totalDays = closedForCycleTime.reduce((sum, c) => {
-      const days = Math.floor((new Date(c.closedAt) - new Date(c.dateReceived)) / (1000 * 60 * 60 * 24));
+    const totalDays = (closedForCycleTime as any[]).reduce((sum, c: any) => {
+      const days = Math.floor((new Date(c.closedAt as Date).getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
       return sum + days;
     }, 0);
     averageCycleTime = Math.round((totalDays / closedForCycleTime.length) * 10) / 10;
@@ -231,24 +234,24 @@ export async function getDashboard(user) {
 
   return {
     counts: {
-      total: totals._count.id,
+      total: (totals as any)._count.id,
       active: activeCount,
-      estimated: Number(totals._sum.estimatedLoss || 0),
-      reserve: Number(totals._sum.reserve || 0),
+      estimated: Number((totals as any)._sum.estimatedLoss || 0),
+      reserve: Number((totals as any)._sum.reserve || 0),
       openTasks: openTasksCount,
       overdueTasks: overdueTasksCount,
       readOnly: readOnlyCount,
       cancelled: cancelledCount,
       pendingInspections: pendingInspectionsCount,
-      settledMTD: Number(settledMTD._sum.settledAmount || 0),
-      settledMTDCount: settledMTD._count.id,
+      settledMTD: Number((settledMTD as any)._sum.settledAmount || 0),
+      settledMTDCount: (settledMTD as any)._count.id,
       averageCycleTime,
     },
     monthlyVolume: monthLabels,
     weeklyVolume: weekLabels,
     agingBuckets: Object.entries(buckets).map(([label, count]) => ({ label, count })),
     statusBreakdown,
-    recentClaims: claims.map((c) => ({
+    recentClaims: (claims as any[]).map((c: any) => ({
       id: c.id,
       claimNumber: c.claimNumber,
       client: c.client?.name,
@@ -258,12 +261,12 @@ export async function getDashboard(user) {
       isCancelled: c.isCancelled,
       createdAt: c.createdAt.toISOString(),
     })),
-    openTasksList: openTasksList.map((t) => ({
+    openTasksList: (openTasksList as any[]).map((t: any) => ({
       ...t,
       dueDate: t.dueDate ? t.dueDate.toISOString() : null,
       createdAt: t.createdAt.toISOString(),
     })),
-    pendingInspectionsList: pendingInspectionsList.map((i) => ({
+    pendingInspectionsList: (pendingInspectionsList as any[]).map((i: any) => ({
       ...i,
       scheduledAt: i.scheduledAt ? i.scheduledAt.toISOString() : null,
       createdAt: i.createdAt.toISOString(),

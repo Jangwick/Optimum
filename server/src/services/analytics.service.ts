@@ -1,11 +1,14 @@
+import type { AuthUser } from '../middleware/auth.js';
 import { prisma } from '../db/client.js';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
  * Returns aggregated analytics data for the Reports page.
  * All queries are scoped by role: engineers/accountants only see their own claims.
  */
-export async function getAnalytics(user) {
-  const baseWhere = {};
+export async function getAnalytics(user: AuthUser) {
+  const baseWhere: any = {};
   if (user.role === 'ENGINEER') baseWhere.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') baseWhere.accountantId = user.id;
 
@@ -128,30 +131,30 @@ export async function getAnalytics(user) {
   const clientMap = new Map(clients.map((c) => [c.id, c]));
 
   // Build process status breakdown
-  const statusBreakdown = processStatusCounts
-    .map((s) => ({
+  const statusBreakdown: any[] = (processStatusCounts as any[])
+    .map((s: any) => ({
       name: statusMap.get(s.processStatusId)?.name || 'Unknown',
       code: statusMap.get(s.processStatusId)?.code || 'UNKNOWN',
       color: statusMap.get(s.processStatusId)?.color || '#999',
       count: s._count.id,
     }))
-    .filter((s) => s.code !== 'UNKNOWN')
-    .sort((a, b) => {
-      const aOrder = processStatuses.find((p) => p.id === processStatusCounts.find((c) => c.processStatusId === processStatuses.find((ps) => ps.name === a.name)?.id)?.processStatusId)?.sortOrder || 0;
-      const bOrder = processStatuses.find((p) => p.id === processStatusCounts.find((c) => c.processStatusId === processStatuses.find((ps) => ps.name === b.name)?.id)?.processStatusId)?.sortOrder || 0;
+    .filter((s: any) => s.code !== 'UNKNOWN')
+    .sort((a: any, b: any) => {
+      const aOrder = processStatuses.find((p) => p.id === (processStatusCounts as any[]).find((c: any) => c.processStatusId === processStatuses.find((ps: any) => ps.name === a.name)?.id)?.processStatusId)?.sortOrder || 0;
+      const bOrder = processStatuses.find((p) => p.id === (processStatusCounts as any[]).find((c: any) => c.processStatusId === processStatuses.find((ps: any) => ps.name === b.name)?.id)?.processStatusId)?.sortOrder || 0;
       return aOrder - bOrder;
     });
 
   // Build claim type breakdown
-  const typeBreakdown = claimTypeCounts
-    .map((t) => ({
+  const typeBreakdown: any[] = (claimTypeCounts as any[])
+    .map((t: any) => ({
       name: typeMap.get(t.claimTypeId)?.name || 'Unknown',
       count: t._count.id,
     }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a: any, b: any) => b.count - a.count);
 
   // Build monthly trends
-  const monthLabels = [];
+  const monthLabels: any[] = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     monthLabels.push({
@@ -178,28 +181,28 @@ export async function getAnalytics(user) {
   }
 
   // Build engineer workload
-  const engineerWorkload = engineerWorkloads
-    .map((e) => {
+  const engineerWorkload: any[] = (engineerWorkloads as any[])
+    .map((e: any) => {
       const eng = engineerMap.get(e.engineerId);
       return {
         name: eng ? `${eng.firstName} ${eng.lastName}`.trim() : 'Unassigned',
         count: e._count.id,
       };
     })
-    .sort((a, b) => b.count - a.count);
+    .sort((a: any, b: any) => b.count - a.count);
 
   // Build top clients
-  const topClients = clientCounts
-    .map((c) => ({
+  const topClients: any[] = (clientCounts as any[])
+    .map((c: any) => ({
       name: clientMap.get(c.clientId)?.name || 'Unknown',
       count: c._count.id,
     }))
-    .filter((c) => c.name !== 'Unknown');
+    .filter((c: any) => c.name !== 'Unknown');
 
   // Build aging buckets
   const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-  for (const c of agingBuckets) {
-    const days = Math.floor((now - new Date(c.dateReceived)) / (1000 * 60 * 60 * 24));
+  for (const c of agingBuckets as any[]) {
+    const days = Math.floor((now.getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
     if (days <= 30) buckets['0-30']++;
     else if (days <= 60) buckets['31-60']++;
     else if (days <= 90) buckets['61-90']++;
@@ -208,20 +211,20 @@ export async function getAnalytics(user) {
 
   return {
     summary: {
-      totalClaims: financialTotals._count.id,
-      claimedAmount: Number(financialTotals._sum.claimedAmount || 0),
-      estimatedLoss: Number(financialTotals._sum.estimatedLoss || 0),
-      actualLoss: Number(financialTotals._sum.actualLoss || 0),
-      adjustedLoss: Number(financialTotals._sum.adjustedLoss || 0),
-      proposedSettlement: Number(financialTotals._sum.proposedSettlement || 0),
-      agreedSettlement: Number(financialTotals._sum.agreedSettlement || 0),
-      reserve: Number(financialTotals._sum.reserve || 0),
-      totalSettled: Number(settlementTotals._sum.settledAmount || 0),
-      settlementCount: settlementTotals._count.id,
-      totalInvoiced: Number(invoiceTotals._sum.totalAmount || 0),
-      invoiceCount: invoiceTotals._count.id,
-      totalPaid: Number(paymentTotals._sum.amount || 0),
-      paymentCount: paymentTotals._count.id,
+      totalClaims: (financialTotals as any)._count.id,
+      claimedAmount: Number((financialTotals as any)._sum.claimedAmount || 0),
+      estimatedLoss: Number((financialTotals as any)._sum.estimatedLoss || 0),
+      actualLoss: Number((financialTotals as any)._sum.actualLoss || 0),
+      adjustedLoss: Number((financialTotals as any)._sum.adjustedLoss || 0),
+      proposedSettlement: Number((financialTotals as any)._sum.proposedSettlement || 0),
+      agreedSettlement: Number((financialTotals as any)._sum.agreedSettlement || 0),
+      reserve: Number((financialTotals as any)._sum.reserve || 0),
+      totalSettled: Number((settlementTotals as any)._sum.settledAmount || 0),
+      settlementCount: (settlementTotals as any)._count.id,
+      totalInvoiced: Number((invoiceTotals as any)._sum.totalAmount || 0),
+      invoiceCount: (invoiceTotals as any)._count.id,
+      totalPaid: Number((paymentTotals as any)._sum.amount || 0),
+      paymentCount: (paymentTotals as any)._count.id,
     },
     monthlyTrend: monthLabels,
     statusBreakdown,
