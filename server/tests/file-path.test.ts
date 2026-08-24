@@ -4,7 +4,7 @@ describe('file-path', () => {
   it('resolves a relative path under the upload root', () => {
     const resolved = resolveFilePath('uploads/claims/3/file.jpg');
     expect(resolved).toBeTruthy();
-    expect(resolved.endsWith('uploads\\claims\\3\\file.jpg')).toBe(true);
+    expect(resolved!.endsWith('uploads\\claims\\3\\file.jpg')).toBe(true);
   });
 
   it('rejects relative traversal outside the upload root', () => {

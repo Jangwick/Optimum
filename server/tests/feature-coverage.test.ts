@@ -3,9 +3,9 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let policyId;
-let claimId;
-let testUserId;
+let policyId: number;
+let claimId: number;
+let testUserId: number;
 
 async function ensureTestData() {
   const [adminRole, engineerRole, accountantRole] = await Promise.all([
@@ -77,12 +77,12 @@ async function ensureTestData() {
   testUserId = testUser.id;
 }
 
-async function loginAsAdmin(agent) {
+async function loginAsAdmin(agent: request.Agent) {
   const res = await agent.post('/api/auth/login').send({ email: 'admin@optimum.com', password: 'ChangeMe123!' });
   expect(res.statusCode).toBe(200);
 }
 
-async function createTestClaim(agent) {
+async function createTestClaim(agent: request.Agent) {
   const res = await agent.post('/api/claims').send({
     policyId,
     claimTypeId: 1,
@@ -93,8 +93,9 @@ async function createTestClaim(agent) {
     engineerId: testUserId,
     accountantId: testUserId,
   });
+  const body = res.body as Record<string, unknown>;
   expect(res.statusCode).toBe(201);
-  return res.body.item;
+  return body.item as Record<string, unknown>;
 }
 
 describe('Document endpoints', () => {
@@ -110,7 +111,7 @@ describe('Document endpoints', () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const claim = await createTestClaim(agent);
-    claimId = claim.id;
+    claimId = claim.id as number;
 
     const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF');
     const res = await agent
@@ -119,10 +120,12 @@ describe('Document endpoints', () => {
       .field('description', 'Test PDF')
       .attach('file', pdf, 'test.pdf');
 
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
     expect(res.statusCode).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item.originalName).toBe('test.pdf');
-    expect(res.body.item.mimeType).toBe('application/pdf');
+    expect(body.success).toBe(true);
+    expect(item.originalName).toBe('test.pdf');
+    expect(item.mimeType).toBe('application/pdf');
   });
 
   it('GET /api/claims/:claimId/documents returns the checklist', async () => {
@@ -130,9 +133,11 @@ describe('Document endpoints', () => {
     await loginAsAdmin(agent);
     const res = await agent.get(`/api/claims/${claimId}/documents`);
 
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
+    expect(body.success).toBe(true);
+    expect(Array.isArray(items)).toBe(true);
   });
 
   it('POST /api/claims/:claimId/documents rejects an unsupported file type', async () => {
@@ -143,8 +148,9 @@ describe('Document endpoints', () => {
       .post(`/api/claims/${claimId}/documents`)
       .attach('file', exe, 'malicious.exe');
 
+    const body = res.body as Record<string, unknown>;
     expect(res.statusCode).toBe(400);
-    expect(res.body.success).toBe(false);
+    expect(body.success).toBe(false);
   });
 
   it('POST /api/claims/:claimId/documents rejects a mismatched file signature', async () => {
@@ -155,8 +161,9 @@ describe('Document endpoints', () => {
       .post(`/api/claims/${claimId}/documents`)
       .attach('file', fake, 'fake.pdf');
 
+    const body = res.body as Record<string, unknown>;
     expect(res.statusCode).toBe(400);
-    expect(res.body.success).toBe(false);
+    expect(body.success).toBe(false);
   });
 });
 
@@ -174,15 +181,17 @@ describe('Report endpoints', () => {
     await loginAsAdmin(agent);
     const claim = await createTestClaim(agent);
 
-    const res = await agent.post(`/api/claims/${claim.id}/reports`).send({
+    const res = await agent.post(`/api/claims/${claim.id as number}/reports`).send({
       title: 'Initial Report',
       notes: 'Draft notes',
     });
 
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
     expect(res.statusCode).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item.title).toBe('Initial Report');
-    expect(res.body.item.status).toBe('DRAFT');
+    expect(body.success).toBe(true);
+    expect(item.title).toBe('Initial Report');
+    expect(item.status).toBe('DRAFT');
   });
 
   it('GET /api/claims/:claimId/reports lists reports', async () => {
@@ -190,13 +199,15 @@ describe('Report endpoints', () => {
     await loginAsAdmin(agent);
     const claim = await createTestClaim(agent);
 
-    await agent.post(`/api/claims/${claim.id}/reports`).send({ title: 'List Test', notes: '' });
-    const res = await agent.get(`/api/claims/${claim.id}/reports`);
+    await agent.post(`/api/claims/${claim.id as number}/reports`).send({ title: 'List Test', notes: '' });
+    const res = await agent.get(`/api/claims/${claim.id as number}/reports`);
 
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(1);
+    expect(body.success).toBe(true);
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThanOrEqual(1);
   });
 
   it('POST /api/claims/:claimId/reports returns 404 for an unknown claim', async () => {
@@ -204,8 +215,9 @@ describe('Report endpoints', () => {
     await loginAsAdmin(agent);
     const res = await agent.post('/api/claims/999999/reports').send({ title: 'Nope', notes: '' });
 
+    const body = res.body as Record<string, unknown>;
     expect(res.statusCode).toBe(404);
-    expect(res.body.success).toBe(false);
+    expect(body.success).toBe(false);
   });
 });
 
@@ -231,10 +243,12 @@ describe('User endpoints', () => {
       employeeNumber: `NEW-${Date.now()}`,
     });
 
+    const body = res.body as Record<string, unknown>;
+    const user = body.user as Record<string, unknown>;
     expect(res.statusCode).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.user.email).toBe(email);
-    expect(res.body.user.role).toBe('ENGINEER');
+    expect(body.success).toBe(true);
+    expect(user.email).toBe(email);
+    expect(user.role).toBe('ENGINEER');
   });
 
   it('PUT /api/users/:id changes a user role', async () => {
@@ -246,9 +260,11 @@ describe('User endpoints', () => {
       department: 'Finance',
     });
 
+    const body = res.body as Record<string, unknown>;
+    const user = body.user as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.user.role).toBe('ACCOUNTANT');
+    expect(body.success).toBe(true);
+    expect(user.role).toBe('ACCOUNTANT');
   });
 
   it('PUT /api/users/:id ignores role changes from non-admin users', async () => {
@@ -262,8 +278,10 @@ describe('User endpoints', () => {
     });
 
     // Non-admins cannot update role; the field is stripped and the request is a no-op
+    const body = res.body as Record<string, unknown>;
+    const user = body.user as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.user.role).toBe('ACCOUNTANT');
+    expect(body.success).toBe(true);
+    expect(user.role).toBe('ACCOUNTANT');
   });
 });

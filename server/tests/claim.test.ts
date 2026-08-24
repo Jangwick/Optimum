@@ -3,9 +3,9 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let policyId;
-let engineerId;
-let accountantId;
+let policyId: number;
+let engineerId: number;
+let accountantId: number;
 
 describe('Claims endpoints', () => {
   beforeAll(async () => {
@@ -93,17 +93,20 @@ describe('Claims endpoints', () => {
       engineerId,
       accountantId,
     });
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
     expect(res.statusCode).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item.claimNumber).toMatch(/^CS-/);
+    expect(body.success).toBe(true);
+    expect(item.claimNumber).toMatch(/^CS-/);
   });
 
   it('GET /api/claims returns role-scoped list', async () => {
     const agent = request.agent(app);
     await agent.post('/api/auth/login').send({ email: 'engineer@optimum.com', password: 'ChangeMe123!' });
     const res = await agent.get('/api/claims');
+    const body = res.body as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.items)).toBe(true);
   });
 });

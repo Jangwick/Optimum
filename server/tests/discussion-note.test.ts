@@ -3,8 +3,8 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let claimId;
-let token;
+let claimId: number;
+let token: string;
 
 async function ensureSeed() {
   const adminRole = await prisma.role.upsert({
@@ -37,6 +37,7 @@ async function ensureSeed() {
   let claim = await prisma.claim.findFirst({ where: { claimNumber: 'TEST-DN-001' } });
   if (!claim) {
     const admin = await prisma.user.findUnique({ where: { email: 'admin@optimum.com' } });
+    if (!admin) throw new Error('Admin user not found');
     claim = await prisma.claim.create({
       data: {
         claimNumber: 'TEST-DN-001',
@@ -53,7 +54,8 @@ async function login() {
     email: 'admin@optimum.com',
     password: 'ChangeMe123!',
   });
-  token = res.body.token;
+  const body = res.body as Record<string, unknown>;
+  token = body.token as string;
 }
 
 beforeAll(async () => {
@@ -70,7 +72,7 @@ afterAll(async () => {
 });
 
 describe('Discussion Notes API', () => {
-  let noteId;
+  let noteId: number;
 
   it('creates a discussion note', async () => {
     const res = await request(app)
@@ -83,13 +85,15 @@ describe('Discussion Notes API', () => {
         nextAction: 'Schedule inspection',
       });
 
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
     expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item.partyType).toBe('INSURED');
-    expect(res.body.item.partyName).toBe('Test Insured');
-    expect(res.body.item.notes).toBe('Discussed claim details');
-    expect(res.body.item.nextAction).toBe('Schedule inspection');
-    noteId = res.body.item.id;
+    expect(body.success).toBe(true);
+    expect(item.partyType).toBe('INSURED');
+    expect(item.partyName).toBe('Test Insured');
+    expect(item.notes).toBe('Discussed claim details');
+    expect(item.nextAction).toBe('Schedule inspection');
+    noteId = item.id as number;
   });
 
   it('lists discussion notes', async () => {
@@ -97,10 +101,12 @@ describe('Discussion Notes API', () => {
       .get(`/api/claims/${claimId}/discussion-notes`)
       .set('Authorization', `Bearer ${token}`);
 
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(1);
+    expect(body.success).toBe(true);
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThanOrEqual(1);
   });
 
   it('deletes a discussion note', async () => {
@@ -108,8 +114,9 @@ describe('Discussion Notes API', () => {
       .delete(`/api/claims/${claimId}/discussion-notes/${noteId}`)
       .set('Authorization', `Bearer ${token}`);
 
+    const body = res.body as Record<string, unknown>;
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
+    expect(body.success).toBe(true);
   });
 });
 
@@ -119,10 +126,11 @@ describe('Auto-Reserve API', () => {
       .get(`/api/claims/${claimId}/auto-reserve`)
       .set('Authorization', `Bearer ${token}`);
 
+    const body = res.body as Record<string, unknown>;
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body).toHaveProperty('suggestedReserve');
-    expect(res.body).toHaveProperty('basis');
-    expect(res.body).toHaveProperty('calculation');
+    expect(body.success).toBe(true);
+    expect(body).toHaveProperty('suggestedReserve');
+    expect(body).toHaveProperty('basis');
+    expect(body).toHaveProperty('calculation');
   });
 });

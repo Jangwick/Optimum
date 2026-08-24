@@ -3,10 +3,10 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let policyId;
-let claimId;
-let engineerId;
-let accountantId;
+let policyId: number;
+let claimId: number;
+let engineerId: number;
+let accountantId: number;
 
 async function ensureSeed() {
   const [adminRole, engineerRole, accountantRole] = await Promise.all([
@@ -94,12 +94,12 @@ async function ensureSeed() {
   policyId = policy.id;
 }
 
-async function loginAsAdmin(agent) {
+async function loginAsAdmin(agent: request.Agent) {
   const res = await agent.post('/api/auth/login').send({ email: 'admin@optimum.com', password: 'ChangeMe123!' });
   expect(res.statusCode).toBe(200);
 }
 
-async function createTestClaim(agent) {
+async function createTestClaim(agent: request.Agent) {
   const res = await agent.post('/api/claims').send({
     policyId,
     claimTypeId: 1,
@@ -110,8 +110,9 @@ async function createTestClaim(agent) {
     engineerId,
     accountantId,
   });
+  const body = res.body as Record<string, unknown>;
   expect(res.statusCode).toBe(201);
-  return res.body.item;
+  return body.item as Record<string, unknown>;
 }
 
 describe('Process status endpoints', () => {
@@ -127,11 +128,13 @@ describe('Process status endpoints', () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.get('/api/process-statuses');
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(6);
-    const codes = res.body.items.map((s) => s.code);
+    expect(body.success).toBe(true);
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThanOrEqual(6);
+    const codes = items.map((s) => s.code as string);
     expect(codes).toContain('NEW_CLAIM');
     expect(codes).toContain('CLAIM_CLOSED');
   });
@@ -140,9 +143,10 @@ describe('Process status endpoints', () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const item = await createTestClaim(agent);
-    claimId = item.id;
-    expect(item.processStatus).toBeTruthy();
-    expect(item.processStatus.code).toBe('NEW_CLAIM');
+    claimId = item.id as number;
+    const processStatus = item.processStatus as Record<string, unknown>;
+    expect(processStatus).toBeTruthy();
+    expect(processStatus.code).toBe('NEW_CLAIM');
   });
 
   it('PATCH /api/claims/:id/process-status transitions from NEW_CLAIM to CLAIM_ASSIGNED', async () => {
@@ -152,9 +156,12 @@ describe('Process status endpoints', () => {
       statusCode: 'CLAIM_ASSIGNED',
       notes: 'Engineer assigned',
     });
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
+    const processStatus = item.processStatus as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item.processStatus.code).toBe('CLAIM_ASSIGNED');
+    expect(body.success).toBe(true);
+    expect(processStatus.code).toBe('CLAIM_ASSIGNED');
   });
 
   it('PATCH /api/claims/:id/process-status rejects invalid transition', async () => {
@@ -180,21 +187,25 @@ describe('Process status endpoints', () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.get(`/api/claims/${claimId}/process-status-history`);
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(Array.isArray(res.body.items)).toBe(true);
-    expect(res.body.items.length).toBeGreaterThanOrEqual(2); // NEW_CLAIM + CLAIM_ASSIGNED
+    expect(body.success).toBe(true);
+    expect(Array.isArray(items)).toBe(true);
+    expect(items.length).toBeGreaterThanOrEqual(2); // NEW_CLAIM + CLAIM_ASSIGNED
   });
 
   it('GET /api/claims/:id/closing-guards returns guard status', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.get(`/api/claims/${claimId}/closing-guards`);
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.item).toHaveProperty('canClose');
-    expect(res.body.item).toHaveProperty('reasons');
-    expect(Array.isArray(res.body.item.reasons)).toBe(true);
+    expect(body.success).toBe(true);
+    expect(item).toHaveProperty('canClose');
+    expect(item).toHaveProperty('reasons');
+    expect(Array.isArray(item.reasons)).toBe(true);
   });
 
   it('PATCH /api/claims/:id/process-status to CLAIM_CLOSED is blocked by guards', async () => {
@@ -211,8 +222,9 @@ describe('Process status endpoints', () => {
     const res = await agent.patch(`/api/claims/${claimId}/process-status`).send({
       statusCode: 'CLAIM_CLOSED',
     });
+    const body = res.body as Record<string, unknown>;
     expect(res.statusCode).toBe(400);
-    expect(res.body.error).toMatch(/close/i);
+    expect(body.error).toMatch(/close/i);
   });
 
   it('PATCH /api/claims/:id/process-status to CLAIM_CLOSED succeeds with override', async () => {
@@ -223,28 +235,38 @@ describe('Process status endpoints', () => {
       isOverride: true,
       overrideReason: 'Test override — closing without report for test purposes',
     });
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
+    const processStatus = item.processStatus as Record<string, unknown>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.item.processStatus.code).toBe('CLAIM_CLOSED');
-    expect(res.body.item.isClosed).toBe(true);
+    expect(processStatus.code).toBe('CLAIM_CLOSED');
+    expect(item.isClosed).toBe(true);
   });
 
   it('GET /api/claims includes processStatus in list items', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.get('/api/claims');
+    const body = res.body as Record<string, unknown>;
+    const items = body.items as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    const item = res.body.items.find((c) => c.id === claimId);
+    const item = items.find((c) => (c.id as number) === claimId);
     expect(item).toBeTruthy();
-    expect(item.processStatus).toBeTruthy();
+    const found = item as Record<string, unknown>;
+    expect(found.processStatus).toBeTruthy();
   });
 
   it('GET /api/claims/:id includes processStatus and processHistory', async () => {
     const agent = request.agent(app);
     await loginAsAdmin(agent);
     const res = await agent.get(`/api/claims/${claimId}`);
+    const body = res.body as Record<string, unknown>;
+    const item = body.item as Record<string, unknown>;
+    const processStatus = item.processStatus as Record<string, unknown>;
+    const processHistory = item.processHistory as Array<Record<string, unknown>>;
     expect(res.statusCode).toBe(200);
-    expect(res.body.item.processStatus).toBeTruthy();
-    expect(Array.isArray(res.body.item.processHistory)).toBe(true);
-    expect(res.body.item.processHistory.length).toBeGreaterThan(0);
+    expect(processStatus).toBeTruthy();
+    expect(Array.isArray(processHistory)).toBe(true);
+    expect(processHistory.length).toBeGreaterThan(0);
   });
 });
