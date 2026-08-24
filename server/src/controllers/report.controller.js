@@ -1,4 +1,5 @@
 import * as reportService from '../services/report.service.js';
+import { assertClaimAccess } from '../services/claim.service.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { resolveFilePath } from '../utils/file-path.js';
@@ -13,7 +14,7 @@ function idParam(req) {
 
 export async function listReports(req, res, next) {
   try {
-    const items = await reportService.listReports(req.params.claimId);
+    const items = await reportService.listReports(req.params.claimId, req.user);
     res.json({ success: true, items });
   } catch (err) {
     next(err);
@@ -22,7 +23,7 @@ export async function listReports(req, res, next) {
 
 export async function createReport(req, res, next) {
   try {
-    const item = await reportService.createReportDraft(req.params.claimId, req.body, req.user.id);
+    const item = await reportService.createReportDraft(req.params.claimId, req.body, req.user);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -31,7 +32,7 @@ export async function createReport(req, res, next) {
 
 export async function generateReport(req, res, next) {
   try {
-    const item = await reportService.generateReport(idParam(req), req.user.id);
+    const item = await reportService.generateReport(req.params.claimId, idParam(req), req.user);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -40,7 +41,7 @@ export async function generateReport(req, res, next) {
 
 export async function createClarification(req, res, next) {
   try {
-    const item = await reportService.createClarification(idParam(req), req.body, req.user.id);
+    const item = await reportService.createClarification(req.params.claimId, idParam(req), req.body, req.user);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -51,7 +52,7 @@ export async function answerClarification(req, res, next) {
   try {
     const id = Number(req.params.clarificationId);
     if (Number.isNaN(id)) throw new AppError('Invalid clarification id', 400);
-    const item = await reportService.answerClarification(id, req.body, req.user.id);
+    const item = await reportService.answerClarification(req.params.claimId, id, req.body, req.user);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -61,8 +62,13 @@ export async function answerClarification(req, res, next) {
 export async function downloadReport(req, res, next) {
   try {
     const id = idParam(req);
-    const report = await prisma.report.findUnique({ where: { id } });
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: { claim: { select: { engineerId: true, accountantId: true, createdById: true } } },
+    });
     if (!report || !report.pdfPath) throw new AppError('Report not found', 404);
+    if (report.claimId !== Number(req.params.claimId)) throw new AppError('Report not found', 404);
+    assertClaimAccess(req.user, report.claim);
 
     const resolved = resolveFilePath(report.pdfPath);
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('PDF not found', 404);
@@ -78,8 +84,13 @@ export async function downloadReport(req, res, next) {
 export async function downloadDocx(req, res, next) {
   try {
     const id = idParam(req);
-    const report = await prisma.report.findUnique({ where: { id } });
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: { claim: { select: { engineerId: true, accountantId: true, createdById: true } } },
+    });
     if (!report || !report.docxPath) throw new AppError('DOCX not found', 404);
+    if (report.claimId !== Number(req.params.claimId)) throw new AppError('Report not found', 404);
+    assertClaimAccess(req.user, report.claim);
 
     const resolved = resolveFilePath(report.docxPath);
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('File not found', 404);

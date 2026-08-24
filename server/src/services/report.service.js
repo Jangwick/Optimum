@@ -2,7 +2,7 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
-import { autoAdvanceStatus } from './claim.service.js';
+import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import { resolveFilePath } from '../utils/file-path.js';
 import { config } from '../config/index.js';
 import { formatCurrency } from '../utils/currency.js';
@@ -18,7 +18,11 @@ function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-export async function listReports(claimId) {
+export async function listReports(claimId, user) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
+  if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
+
   return prisma.report.findMany({
     where: { claimId: Number(claimId) },
     include: {
@@ -46,7 +50,11 @@ async function defaultTemplateId() {
   return template.id;
 }
 
-export async function createReportDraft(claimId, data, userId) {
+export async function createReportDraft(claimId, data, user) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
+  if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
+
   const templateId = await defaultTemplateId();
   const report = await prisma.report.create({
     data: {
@@ -58,17 +66,19 @@ export async function createReportDraft(claimId, data, userId) {
     },
     include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
   });
-  await recordActivity(claimId, 'REPORT_CREATED', `Report draft created: ${data.title}`, userId);
-  await autoAdvanceStatus(claimId, 'REPORT_DRAFT', userId);
+  await recordActivity(claimId, 'REPORT_CREATED', `Report draft created: ${data.title}`, user.id);
+  await autoAdvanceStatus(claimId, 'REPORT_DRAFT', user.id);
   return report;
 }
 
-export async function generateReport(id, userId) {
+export async function generateReport(claimId, id, user) {
   const report = await prisma.report.findUnique({
     where: { id },
     include: { reportTemplate: true, claim: { include: { client: true, insuranceCompany: true, claimType: true, engineer: true, status: true } } },
   });
   if (!report) throw new AppError('Report not found', 404);
+  if (report.claimId !== Number(claimId)) throw new AppError('Report not found', 404);
+  assertClaimAccess(user, report.claim);
 
   const claim = report.claim;
 
@@ -161,57 +171,67 @@ export async function generateReport(id, userId) {
         versionNumber: versionCount + 1,
         pdfPath: filePath,
         docxPath,
-        generatedById: userId,
+        generatedById: user.id,
         notes: 'Generated from template',
       },
     });
 
     return tx.report.update({
       where: { id },
-      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: userId, pdfPath: filePath, docxPath },
+      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: user.id, pdfPath: filePath, docxPath },
       include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
     });
   });
 
-  await logAction('REPORT_GENERATED', 'Report', id, userId, { claimId: updated.claimId, pdfPath: filePath });
-  await recordActivity(updated.claimId, 'REPORT_GENERATED', `Report generated: ${report.title}`, userId);
-  await autoAdvanceStatus(updated.claimId, 'REPORT_SUBMITTED', userId);
+  await logAction('REPORT_GENERATED', 'Report', id, user.id, { claimId: updated.claimId, pdfPath: filePath });
+  await recordActivity(updated.claimId, 'REPORT_GENERATED', `Report generated: ${report.title}`, user.id);
+  await autoAdvanceStatus(updated.claimId, 'REPORT_SUBMITTED', user.id);
   return updated;
 }
 
-export async function createClarification(reportId, data, userId) {
-  const report = await prisma.report.findUnique({ where: { id: Number(reportId) } });
+export async function createClarification(claimId, reportId, data, user) {
+  const report = await prisma.report.findUnique({
+    where: { id: Number(reportId) },
+    include: { claim: true },
+  });
   if (!report) throw new AppError('Report not found', 404);
+  if (report.claimId !== Number(claimId)) throw new AppError('Report not found', 404);
+  assertClaimAccess(user, report.claim);
 
   const cl = await prisma.clarification.create({
     data: {
       reportId: Number(reportId),
       question: data.question,
-      askedById: userId,
+      askedById: user.id,
       status: 'ASKED',
     },
     include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
   });
-  await logAction('CLARIFICATION_CREATED', 'Clarification', cl.id, userId, { reportId });
-  await recordActivity(report.claimId, 'CLARIFICATION_REQUESTED', `Clarification requested: ${data.question?.slice(0, 80)}`, userId);
+  await logAction('CLARIFICATION_CREATED', 'Clarification', cl.id, user.id, { reportId });
+  await recordActivity(report.claimId, 'CLARIFICATION_REQUESTED', `Clarification requested: ${data.question?.slice(0, 80)}`, user.id);
   return cl;
 }
 
-export async function answerClarification(id, data, userId) {
-  const clarification = await prisma.clarification.findUnique({ where: { id }, include: { report: { select: { claimId: true } } } });
+export async function answerClarification(claimId, id, data, user) {
+  const clarification = await prisma.clarification.findUnique({
+    where: { id },
+    include: { report: { include: { claim: true } } },
+  });
   if (!clarification) throw new AppError('Clarification not found', 404);
+  if (clarification.report.claimId !== Number(claimId)) throw new AppError('Clarification not found', 404);
+  assertClaimAccess(user, clarification.report.claim);
 
   const cl = await prisma.clarification.update({
     where: { id },
     data: {
       answer: data.answer,
-      answeredById: userId,
+      answeredById: user.id,
       answeredAt: new Date(),
       status: 'ANSWERED',
     },
     include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
   });
-  await logAction('CLARIFICATION_ANSWERED', 'Clarification', id, userId, { reportId: cl.reportId });
-  await recordActivity(clarification.report.claimId, 'CLARIFICATION_ANSWERED', `Clarification answered`, userId);
+  await logAction('CLARIFICATION_ANSWERED', 'Clarification', id, user.id, { reportId: cl.reportId });
+  await recordActivity(clarification.report.claimId, 'CLARIFICATION_ANSWERED', `Clarification answered`, user.id);
   return cl;
 }
