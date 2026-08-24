@@ -55,7 +55,7 @@ export async function updateUser(req, res, next) {
       throw new AppError('Forbidden', 403);
     }
 
-    const user = await userService.updateUser(id, req.body);
+    const user = await userService.updateUser(id, req.body, req.user);
     res.json({ success: true, user });
   } catch (err) {
     next(err);
@@ -69,7 +69,7 @@ export async function deactivateUser(req, res, next) {
       throw new AppError('Invalid user id', 400);
     }
 
-    const user = await userService.deactivateUser(id);
+    const user = await userService.deactivateUser(id, req.user);
     res.json({ success: true, user });
   } catch (err) {
     next(err);
@@ -83,7 +83,7 @@ export async function activateUser(req, res, next) {
       throw new AppError('Invalid user id', 400);
     }
 
-    const user = await userService.activateUser(id);
+    const user = await userService.activateUser(id, req.user);
     res.json({ success: true, user });
   } catch (err) {
     next(err);
