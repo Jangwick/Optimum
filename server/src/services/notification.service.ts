@@ -1,6 +1,12 @@
 import { prisma } from '../db/client.js';
 
-export async function getNotifications(userId) {
+interface NotificationInput {
+  title: string;
+  message: string;
+  claimId?: number | string | null;
+}
+
+export async function getNotifications(userId: number) {
   return prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
@@ -8,7 +14,7 @@ export async function getNotifications(userId) {
   });
 }
 
-export async function createNotification(userId, { title, message, claimId }) {
+export async function createNotification(userId: number, { title, message, claimId }: NotificationInput) {
   return prisma.notification.create({
     data: {
       userId,
@@ -20,7 +26,7 @@ export async function createNotification(userId, { title, message, claimId }) {
   });
 }
 
-export async function markRead(id, userId) {
+export async function markRead(id: number, userId: number) {
   const notification = await prisma.notification.findUnique({ where: { id } });
   if (!notification || notification.userId !== userId) return null;
   return prisma.notification.update({
@@ -29,7 +35,7 @@ export async function markRead(id, userId) {
   });
 }
 
-export async function markAllRead(userId) {
+export async function markAllRead(userId: number) {
   const result = await prisma.notification.updateMany({
     where: { userId, isRead: false },
     data: { isRead: true, readAt: new Date() },
@@ -37,7 +43,7 @@ export async function markAllRead(userId) {
   return { count: result.count };
 }
 
-export async function getUnreadCount(userId) {
+export async function getUnreadCount(userId: number) {
   const count = await prisma.notification.count({
     where: { userId, isRead: false },
   });
