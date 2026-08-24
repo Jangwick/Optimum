@@ -15,6 +15,8 @@ pnpm-lock.yaml
 # Build / dist
 client/dist/
 server/dist/
+packages/*/dist/
+*.tsbuildinfo
 *.log
 
 # Uploads and generated files
