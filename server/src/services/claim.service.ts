@@ -145,7 +145,7 @@ interface UpdateClaimInsurerInput {
   notes?: string | null;
 }
 
-export function assertClaimAccess(user: AuthUser, claim: Claim | null | undefined) {
+export function assertClaimAccess(user: AuthUser, claim: Partial<Claim> | null | undefined) {
   if (!claim) throw new AppError('Claim not found', 404);
   if (user.role === 'ADMIN') return;
   if (user.role === 'ENGINEER' && claim.engineerId === user.id) return;

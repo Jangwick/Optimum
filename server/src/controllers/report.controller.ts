@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as reportService from '../services/report.service.js';
 import { assertClaimAccess } from '../services/claim.service.js';
 import { prisma } from '../db/client.js';
@@ -5,61 +6,58 @@ import { AppError } from '../middleware/error.js';
 import { resolveFilePath } from '../utils/file-path.js';
 import fs from 'fs';
 import path from 'path';
+import type { Request, RequestHandler } from 'express';
+import type { AuthenticatedRequest } from '../middleware/auth.js';
 
-function idParam(req) {
-  const id = Number(req.params.id);
+function idParam(req: Request) {
+  const id = Number(Number(req.params.id));
   if (Number.isNaN(id)) throw new AppError('Invalid id', 400);
   return id;
 }
 
-export async function listReports(req, res, next) {
+export const listReports: RequestHandler = async (req, res, next) => {
   try {
-    const items = await reportService.listReports(req.params.claimId, req.user);
+    const items = await reportService.listReports(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function createReport(req, res, next) {
+export const createReport: RequestHandler = async (req, res, next) => {
   try {
-    const item = await reportService.createReportDraft(req.params.claimId, req.body, req.user);
+    const item = await reportService.createReportDraft(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function generateReport(req, res, next) {
+export const generateReport: RequestHandler = async (req, res, next) => {
   try {
-    const item = await reportService.generateReport(req.params.claimId, idParam(req), req.user);
+    const item = await reportService.generateReport(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function createClarification(req, res, next) {
+export const createClarification: RequestHandler = async (req, res, next) => {
   try {
-    const item = await reportService.createClarification(req.params.claimId, idParam(req), req.body, req.user);
+    const item = await reportService.createClarification(Number(req.params.claimId), idParam(req), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function answerClarification(req, res, next) {
+export const answerClarification: RequestHandler = async (req, res, next) => {
   try {
-    const id = Number(req.params.clarificationId);
+    const id = Number(Number(req.params.clarificationId));
     if (Number.isNaN(id)) throw new AppError('Invalid clarification id', 400);
-    const item = await reportService.answerClarification(req.params.claimId, id, req.body, req.user);
+    const item = await reportService.answerClarification(Number(req.params.claimId), id, req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function downloadReport(req, res, next) {
+export const downloadReport: RequestHandler = async (req, res, next) => {
   try {
     const id = idParam(req);
     const report = await prisma.report.findUnique({
@@ -67,8 +65,8 @@ export async function downloadReport(req, res, next) {
       include: { claim: { select: { engineerId: true, accountantId: true, createdById: true } } },
     });
     if (!report || !report.pdfPath) throw new AppError('Report not found', 404);
-    if (report.claimId !== Number(req.params.claimId)) throw new AppError('Report not found', 404);
-    assertClaimAccess(req.user, report.claim);
+    if (report.claimId !== Number(Number(req.params.claimId))) throw new AppError('Report not found', 404);
+    assertClaimAccess((req as AuthenticatedRequest).user, report.claim);
 
     const resolved = resolveFilePath(report.pdfPath);
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('PDF not found', 404);
@@ -76,12 +74,11 @@ export async function downloadReport(req, res, next) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
     res.sendFile(resolved);
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
 
-export async function downloadDocx(req, res, next) {
+export const downloadDocx: RequestHandler = async (req, res, next) => {
   try {
     const id = idParam(req);
     const report = await prisma.report.findUnique({
@@ -89,8 +86,8 @@ export async function downloadDocx(req, res, next) {
       include: { claim: { select: { engineerId: true, accountantId: true, createdById: true } } },
     });
     if (!report || !report.docxPath) throw new AppError('DOCX not found', 404);
-    if (report.claimId !== Number(req.params.claimId)) throw new AppError('Report not found', 404);
-    assertClaimAccess(req.user, report.claim);
+    if (report.claimId !== Number(Number(req.params.claimId))) throw new AppError('Report not found', 404);
+    assertClaimAccess((req as AuthenticatedRequest).user, report.claim);
 
     const resolved = resolveFilePath(report.docxPath);
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('File not found', 404);
@@ -98,7 +95,6 @@ export async function downloadDocx(req, res, next) {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
     res.sendFile(resolved);
-  } catch (err) {
-    next(err);
+  } catch (err) { next(err as any);
   }
 }
