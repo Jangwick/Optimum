@@ -40,9 +40,12 @@
 
 ## Testing and Test-Driven Development
 
-Testing is not an afterthought. Every feature and every bug fix must be proven with a test before the implementation is considered complete.
+Testing is not an afterthought. Every feature, bug fix, and meaningful unit of behavior must be proven with a test before the implementation is considered complete, but do not overtest.
 
 - **Write a failing test first.** Before implementing any new feature or change, write a test that fails. For bug fixes, write a test that reproduces the bug and fails with the current code. A passing test on the first run proves nothing.
+- **Every feature needs a test.** Every new feature, endpoint, component, service, and non-trivial utility must have at least one automated test covering the happy path and the most important error path.
+- **Every line of code that carries behavior needs a reason to be trusted.** Trivial one-liners (passthroughs, simple constants, pure formatting) do not need their own tests. Logic with branches, calculations, side effects, or trust boundaries does.
+- **Do not overtest.** Test behavior, not implementation. Do not test framework code, third-party libraries, or that a function was called. Do not write tests that break when a harmless refactor happens.
 - **Follow the TDD cycle:** RED (failing test) → GREEN (minimal code to pass) → REFACTOR (clean up while tests still pass).
 - **Prefer state-based assertions.** Test the outcome, not internal method calls. Tests that assert on call sequences break during refactors.
 - **Prefer real implementations over mocks.** Use the simplest test double that works; reach for mocks only at slow, non-deterministic, or external boundaries (network, email, third-party APIs).
@@ -51,6 +54,34 @@ Testing is not an afterthought. Every feature and every bug fix must be proven w
 - **Do not skip or disable tests to make a suite green.** If a test fails, fix the root cause or escalate, do not silence the signal.
 - **Client tests:** use `npx vitest run <path>` or the relevant `*.test.tsx` files.
 - **Server tests:** use `npx jest --testPathPatterns=<name>` and `NODE_OPTIONS=--experimental-vm-modules` when needed.
+
+## Code Quality and Review
+
+Every change is reviewed for correctness, readability, architecture, security, and performance before it is committed or merged.
+
+### Pre-commit checklist
+
+- [ ] The change does exactly what the task or spec requires and nothing extra.
+- [ ] A failing test was written first (TDD), or a regression test was added for any bug fix.
+- [ ] Targeted tests pass: `npx vitest run <path>` for client changes, `npx jest --testPathPatterns=<name>` for server changes.
+- [ ] Lint passes in both `client` and `server`: `npm run lint`.
+- [ ] Client build succeeds: `cd client && npm run build`.
+- [ ] No secrets, passwords, or tokens in the diff.
+- [ ] No `.env`, `dist/`, `node_modules/`, or generated artifacts are staged.
+- [ ] Error paths are handled, not just the happy path.
+- [ ] User input is validated at the trust boundary.
+- [ ] The diff is small and focused; changes over ~300 lines are split or reviewed extra carefully.
+
+### Review standards
+
+- **Correctness:** edge cases and error paths are handled; the change matches the spec.
+- **Readability:** names are clear, logic is straightforward, and comments explain intent (not obvious behavior).
+- **Architecture:** the change follows existing patterns, does not leak feature logic into shared modules, and does not introduce unnecessary abstractions.
+- **Security:** trust boundaries are respected, secrets are not exposed, auth checks are in place, and external data is treated as untrusted.
+- **Performance:** no N+1 queries, unbounded loops, or unnecessary re-renders.
+- **Change size:** target ~100 lines; ~300 is acceptable for a single logical change; over ~1000 lines must be split.
+- **Review comments are labeled:** `Critical:` (blocks merge), `Required:` (must address), `Optional:` / `Consider:` (suggestion), `Nit:` (minor).
+- **Do not merge unreviewed code.** Even small changes get a quick review.
 
 ## Security & Secure Coding
 
