@@ -1,12 +1,27 @@
+import fs from 'fs';
+import type { Express } from 'express';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
-import fs from 'fs';
 import { resolveFilePath } from '../utils/file-path.js';
+import type { AuthUser } from '../middleware/auth.js';
 
-export async function getDocumentChecklist(claimId, user) {
+interface DocumentData {
+  documentCategoryId?: number | string | null;
+  description?: string | null;
+  isReceived?: string | boolean;
+}
+
+interface ChecklistGroup {
+  category: Record<string, unknown> | null;
+  isRequired: boolean;
+  uploaded: Record<string, unknown>[];
+}
+
+export async function getDocumentChecklist(claimId: number | string, user: AuthUser): Promise<ChecklistGroup[]> {
   const claim = await prisma.claim.findUnique({
     where: { id: Number(claimId) },
     include: { claimType: { include: { requirements: { include: { documentCategory: true } } } } },
@@ -24,28 +39,32 @@ export async function getDocumentChecklist(claimId, user) {
   const requirements = claim.claimType?.requirements || [];
 
   // Build a map of all categories: required ones + any with uploaded docs
-  const categoryMap = new Map();
+  const categoryMap = new Map<number, ChecklistGroup>();
   for (const req of requirements) {
-    categoryMap.set(req.documentCategoryId, {
-      category: req.documentCategory,
-      isRequired: req.isRequired,
-      uploaded: [],
-    });
+    if (req.documentCategoryId) {
+      categoryMap.set(req.documentCategoryId, {
+        category: req.documentCategory as unknown as Record<string, unknown>,
+        isRequired: req.isRequired,
+        uploaded: [],
+      });
+    }
   }
+
   // Add categories from uploaded documents that aren't in requirements
   for (const doc of documents) {
     if (doc.documentCategoryId && !categoryMap.has(doc.documentCategoryId)) {
       categoryMap.set(doc.documentCategoryId, {
-        category: doc.documentCategory,
+        category: doc.documentCategory as unknown as Record<string, unknown>,
         isRequired: false,
         uploaded: [],
       });
     }
   }
+
   // Add documents with no category to an "Uncategorized" group
   const uncategorizedDocs = documents.filter((d) => !d.documentCategoryId);
 
-  const result = Array.from(categoryMap.values()).map((group) => ({
+  const result: ChecklistGroup[] = Array.from(categoryMap.values()).map((group) => ({
     ...group,
     uploaded: documents
       .filter((d) => d.documentCategoryId && categoryMap.has(d.documentCategoryId) && categoryMap.get(d.documentCategoryId) === group)
@@ -83,39 +102,41 @@ export async function getDocumentChecklist(claimId, user) {
   return result;
 }
 
-export async function uploadDocument(claimId, file, data, user) {
+export async function uploadDocument(claimId: number | string, file: Express.Multer.File, data: DocumentData, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) {
     throw new AppError('Claim not found', 404);
   }
   assertClaimAccess(user, claim);
 
+  const createData: Prisma.DocumentUncheckedCreateInput = {
+    claimId: Number(claimId),
+    documentCategoryId: data.documentCategoryId ? Number(data.documentCategoryId) : null,
+    fileName: file.originalname,
+    originalName: file.originalname,
+    mimeType: file.mimetype,
+    path: '',
+    data: file.buffer,
+    size: file.size,
+    description: data.description ?? null,
+    uploadedById: user.id,
+    isReceived: data.isReceived === 'true' || data.isReceived === true,
+    receivedAt: data.isReceived ? new Date() : null,
+  };
+
   const doc = await prisma.document.create({
-    data: {
-      claimId: Number(claimId),
-      documentCategoryId: data.documentCategoryId ? Number(data.documentCategoryId) : null,
-      fileName: file.originalname,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      path: '',
-      data: file.buffer,
-      size: file.size,
-      description: data.description,
-      uploadedById: user.id,
-      isReceived: data.isReceived === 'true' || data.isReceived === true,
-      receivedAt: data.isReceived ? new Date() : null,
-    },
+    data: createData,
     include: { documentCategory: true },
     omit: { data: true },
   });
 
   await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, user.id, { originalName: doc.originalName, claimId });
-  await recordActivity(claimId, 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, user.id);
-  await autoAdvanceStatus(claimId, 'DOCUMENTS_PENDING', user.id);
+  await recordActivity(Number(claimId), 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, user.id);
+  await autoAdvanceStatus(Number(claimId), 'DOCUMENTS_PENDING', user.id);
   return doc;
 }
 
-export async function markDocumentReceived(claimId, id, user) {
+export async function markDocumentReceived(claimId: number | string, id: number, user: AuthUser) {
   const doc = await prisma.document.findUnique({
     where: { id },
     include: { claim: true },
@@ -135,7 +156,7 @@ export async function markDocumentReceived(claimId, id, user) {
   return updated;
 }
 
-export async function deleteDocument(claimId, id, user) {
+export async function deleteDocument(claimId: number | string, id: number, user: AuthUser) {
   const doc = await prisma.document.findUnique({
     where: { id },
     include: { claim: true },
@@ -156,7 +177,7 @@ export async function deleteDocument(claimId, id, user) {
   await prisma.document.delete({ where: { id } });
 }
 
-export async function getDocumentFile(claimId, id, user) {
+export async function getDocumentFile(claimId: number | string, id: number, user: AuthUser): Promise<Record<string, unknown>> {
   const doc = await prisma.document.findFirst({
     where: { id, claimId: Number(claimId) },
     include: { claim: true },
@@ -166,7 +187,7 @@ export async function getDocumentFile(claimId, id, user) {
 
   // Prefer BLOB data stored in the database (persistent across deploys)
   if (doc.data) {
-    return { ...doc, buffer: Buffer.from(doc.data) };
+    return { ...doc, buffer: Buffer.from(doc.data as Uint8Array) };
   }
 
   // Fall back to disk for legacy records

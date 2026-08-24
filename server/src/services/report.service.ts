@@ -1,25 +1,37 @@
+import fs from 'fs';
+import path from 'path';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
-import { logAction } from './audit.service.js';
-import { recordActivity } from './activity.service.js';
-import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
-import { resolveFilePath } from '../utils/file-path.js';
 import { config } from '../config/index.js';
 import { formatCurrency } from '../utils/currency.js';
 import { escapeHtml } from '../utils/escape-html.js';
+import { resolveFilePath } from '../utils/file-path.js';
+import { logAction } from './audit.service.js';
+import { recordActivity } from './activity.service.js';
+import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
+import type { AuthUser } from '../middleware/auth.js';
 import puppeteer from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import fs from 'fs';
-import path from 'path';
 
 const reportOutputDir = path.resolve(config.uploadDir, 'reports');
 
-function ensureDir(dir) {
+function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-export async function listReports(claimId, user) {
+interface ReportDraftData {
+  title: string;
+  notes?: string | null;
+}
+
+interface ClarificationData {
+  question?: string;
+  answer?: string;
+}
+
+export async function listReports(claimId: number | string, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
@@ -51,31 +63,35 @@ async function defaultTemplateId() {
   return template.id;
 }
 
-export async function createReportDraft(claimId, data, user) {
+export async function createReportDraft(claimId: number | string, data: ReportDraftData, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
   const templateId = await defaultTemplateId();
+  const createData: Prisma.ReportUncheckedCreateInput = {
+    claimId: Number(claimId),
+    reportTemplateId: templateId,
+    title: data.title,
+    status: 'DRAFT',
+    notes: data.notes ?? null,
+  };
   const report = await prisma.report.create({
-    data: {
-      claimId: Number(claimId),
-      reportTemplateId: templateId,
-      title: data.title,
-      status: 'DRAFT',
-      notes: data.notes,
-    },
+    data: createData,
     include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
   });
-  await recordActivity(claimId, 'REPORT_CREATED', `Report draft created: ${data.title}`, user.id);
-  await autoAdvanceStatus(claimId, 'REPORT_DRAFT', user.id);
+  await recordActivity(Number(claimId), 'REPORT_CREATED', `Report draft created: ${data.title}`, user.id);
+  await autoAdvanceStatus(Number(claimId), 'REPORT_DRAFT', user.id);
   return report;
 }
 
-export async function generateReport(claimId, id, user) {
+export async function generateReport(claimId: number | string, id: number, user: AuthUser) {
   const report = await prisma.report.findUnique({
     where: { id },
-    include: { reportTemplate: true, claim: { include: { client: true, insuranceCompany: true, claimType: true, engineer: true, status: true } } },
+    include: {
+      reportTemplate: true,
+      claim: { include: { client: true, insuranceCompany: true, claimType: true, engineer: true, status: true } },
+    },
   });
   if (!report) throw new AppError('Report not found', 404);
   if (report.claimId !== Number(claimId)) throw new AppError('Report not found', 404);
@@ -83,7 +99,7 @@ export async function generateReport(claimId, id, user) {
 
   const claim = report.claim;
 
-  const docData = {
+  const docData: Record<string, unknown> = {
     title: report.title,
     notes: report.notes || 'No summary provided.',
     generatedAt: new Date().toLocaleString(),
@@ -94,9 +110,10 @@ export async function generateReport(claimId, id, user) {
     engineerName: claim.engineer ? `${claim.engineer.firstName} ${claim.engineer.lastName}` : '—',
     statusName: claim.status?.name || '',
     dateOfLoss: claim.dateOfLoss ? new Date(claim.dateOfLoss).toLocaleDateString() : '—',
-    estimatedLoss: formatCurrency(claim.estimatedLoss),
-    reserve: formatCurrency(claim.reserve),
+    estimatedLoss: formatCurrency(claim.estimatedLoss ? Number(claim.estimatedLoss) : null),
+    reserve: formatCurrency(claim.reserve ? Number(claim.reserve) : null),
   };
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -121,8 +138,8 @@ export async function generateReport(claimId, id, user) {
     <p><strong>Type:</strong> ${escapeHtml(claim.claimType?.name)}</p>
     <p><strong>Engineer:</strong> ${claim.engineer ? escapeHtml(`${claim.engineer.firstName} ${claim.engineer.lastName}`) : '—'}</p>
     <p><strong>Status:</strong> ${escapeHtml(claim.status?.name)}</p>
-    <p><strong>Estimated Loss:</strong> ${escapeHtml(formatCurrency(claim.estimatedLoss))}</p>
-    <p><strong>Reserve:</strong> ${escapeHtml(formatCurrency(claim.reserve))}</p>
+    <p><strong>Estimated Loss:</strong> ${escapeHtml(formatCurrency(claim.estimatedLoss ? Number(claim.estimatedLoss) : null))}</p>
+    <p><strong>Reserve:</strong> ${escapeHtml(formatCurrency(claim.reserve ? Number(claim.reserve) : null))}</p>
     <p><strong>Generated:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
   </div>
   <div class="section">
@@ -138,34 +155,35 @@ export async function generateReport(claimId, id, user) {
 
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await page.setContent(html, { waitUntil: 'networkidle0' as any });
   await page.pdf({ path: filePath, format: 'A4', printBackground: true });
   await browser.close();
 
-  let docxPath = null;
+  let docxPath: string | null = null;
   if (report.reportTemplate?.path) {
     const templatePath = resolveFilePath(report.reportTemplate.path, config.uploadDir);
     if (templatePath && fs.existsSync(templatePath)) {
-    try {
-      const content = fs.readFileSync(templatePath, 'binary');
-      const zip = new PizZip(content);
-      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-      doc.setData(docData);
-      doc.render();
-      const buffer = doc.getZip().generate({ type: 'nodebuffer' });
-      const docxFileName = `report-${id}-${Date.now()}.docx`;
-      docxPath = path.join(reportOutputDir, String(claim.id), docxFileName);
-      fs.writeFileSync(docxPath, buffer);
-    } catch (err) {
-      // If DOCX generation fails, still continue with PDF
-      console.error('DOCX generation failed', err);
-    }
+      try {
+        const content = fs.readFileSync(templatePath, 'binary');
+        const zip = new PizZip(content);
+        const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+        doc.setData(docData);
+        doc.render();
+        const buffer = doc.getZip().generate({ type: 'nodebuffer' });
+        const docxFileName = `report-${id}-${Date.now()}.docx`;
+        docxPath = path.join(reportOutputDir, String(claim.id), docxFileName);
+        fs.writeFileSync(docxPath, buffer);
+      } catch (err) {
+        // If DOCX generation fails, still continue with PDF
+        console.error('DOCX generation failed', err);
+      }
     }
   }
 
   const versionCount = await prisma.reportVersion.count({ where: { reportId: id } });
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.reportVersion.create({
       data: {
         reportId: id,
@@ -179,7 +197,13 @@ export async function generateReport(claimId, id, user) {
 
     return tx.report.update({
       where: { id },
-      data: { status: 'SUBMITTED', generatedAt: new Date(), generatedById: user.id, pdfPath: filePath, docxPath },
+      data: {
+        status: 'SUBMITTED',
+        generatedAt: new Date(),
+        generatedById: user.id,
+        pdfPath: filePath,
+        docxPath,
+      },
       include: { generatedBy: { select: { firstName: true, lastName: true } }, versions: true },
     });
   });
@@ -190,7 +214,7 @@ export async function generateReport(claimId, id, user) {
   return updated;
 }
 
-export async function createClarification(claimId, reportId, data, user) {
+export async function createClarification(claimId: number | string, reportId: number | string, data: ClarificationData, user: AuthUser) {
   const report = await prisma.report.findUnique({
     where: { id: Number(reportId) },
     include: { claim: true },
@@ -202,18 +226,21 @@ export async function createClarification(claimId, reportId, data, user) {
   const cl = await prisma.clarification.create({
     data: {
       reportId: Number(reportId),
-      question: data.question,
+      question: data.question ?? '',
       askedById: user.id,
       status: 'ASKED',
     },
-    include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
+    include: {
+      askedBy: { select: { firstName: true, lastName: true } },
+      answeredBy: { select: { firstName: true, lastName: true } },
+    },
   });
   await logAction('CLARIFICATION_CREATED', 'Clarification', cl.id, user.id, { reportId });
   await recordActivity(report.claimId, 'CLARIFICATION_REQUESTED', `Clarification requested: ${data.question?.slice(0, 80)}`, user.id);
   return cl;
 }
 
-export async function answerClarification(claimId, id, data, user) {
+export async function answerClarification(claimId: number | string, id: number, data: ClarificationData, user: AuthUser) {
   const clarification = await prisma.clarification.findUnique({
     where: { id },
     include: { report: { include: { claim: true } } },
@@ -225,12 +252,15 @@ export async function answerClarification(claimId, id, data, user) {
   const cl = await prisma.clarification.update({
     where: { id },
     data: {
-      answer: data.answer,
+      answer: data.answer ?? '',
       answeredById: user.id,
       answeredAt: new Date(),
       status: 'ANSWERED',
     },
-    include: { askedBy: { select: { firstName: true, lastName: true } }, answeredBy: { select: { firstName: true, lastName: true } } },
+    include: {
+      askedBy: { select: { firstName: true, lastName: true } },
+      answeredBy: { select: { firstName: true, lastName: true } },
+    },
   });
   await logAction('CLARIFICATION_ANSWERED', 'Clarification', id, user.id, { reportId: cl.reportId });
   await recordActivity(clarification.report.claimId, 'CLARIFICATION_ANSWERED', `Clarification answered`, user.id);
