@@ -201,3 +201,37 @@ Client (`.env` / `.env.local`):
 - Keep all file paths inside `UPLOAD_DIR` and `reportDir`; use `resolveFilePath` for safe resolution.
 - Preserve the existing role and claim-access model when modifying routes or services.
 - Run targeted tests after changes; do not run the full suite unless a final check is needed.
+
+## TypeScript Migration and Tooling
+
+### Phase 0 — Stabilization
+
+- The server test suite was wired to the `server/.env` test database URL through `server/tests/setup-test-env.js` and `server/tests/globalSetup.js`. Jest now runs `prisma db push` and `prisma db seed` once before all suites.
+- Coverage was added for documents, reports, and user endpoints in `server/tests/feature-coverage.test.js`.
+- A file-upload bug was fixed: `server/src/middleware/upload.js` now returns `400` for disallowed extensions and mismatched MIME types instead of `500`.
+
+### Phase 1 — TypeScript Tooling
+
+- npm workspaces are enabled from the root `package.json` with `client`, `server`, and `packages/*`.
+- A `packages/shared-types` workspace was created for cross-package API contracts and DTOs; it builds with `tsc` and emits declarations to `dist/`.
+- Client tooling:
+  - `typescript` and `@types/react`/`@types/react-dom`/`@types/node` added.
+  - `client/tsconfig.json` and `client/tsconfig.node.json` created with `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes`.
+  - `client/vite.config.js` renamed to `client/vite.config.ts`.
+  - `client/eslint.config.js` updated with `typescript-eslint` for `.js`/`.jsx`/`.ts`/`.tsx`.
+- Server tooling:
+  - `typescript`, `tsx`, `ts-jest`, and relevant `@types/*` packages added.
+  - `server/tsconfig.json` created with `NodeNext` module resolution, `allowJs: true`, `strict`, and output to `dist/`.
+  - `server/eslint.config.js` updated with `typescript-eslint` and `.cjs`/`.mjs` support.
+  - `dev` script changed to `tsx watch src/server.js`; `build` runs `npx prisma generate && tsc`.
+
+### Verification
+
+- `npm run typecheck` passes in both `client` and `server`.
+- `npm run build` passes in both `client` and `server`.
+- `npm test` passes in both `client` and `server`.
+- `npm run lint` passes in both `client` and `server`.
+
+### Current migration status
+
+- No application source files have been renamed to `.ts`/`.tsx` yet; the tooling is in place to support module-by-module migration starting with the smallest utility modules.
