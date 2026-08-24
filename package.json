@@ -26,5 +26,14 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "allowScripts": {
+    "@prisma/engines": true,
+    "bcrypt": true,
+    "esbuild": true,
+    "msw": true,
+    "prisma": true,
+    "puppeteer": true,
+    "unrs-resolver": true
   }
 }
