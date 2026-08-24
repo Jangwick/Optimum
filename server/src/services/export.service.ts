@@ -1,8 +1,21 @@
 import ExcelJS from 'exceljs';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import type { AuthUser } from '../middleware/auth.js';
 
-export async function exportClaimsToExcel(filters, user) {
-  const where = {};
+interface ExportFilters {
+  search?: string;
+  status?: string;
+  processStatus?: string;
+  claimType?: string;
+  clientId?: number | string;
+  engineerId?: number | string;
+  insurerId?: number | string;
+  view?: 'active' | 'closed' | 'cancelled';
+}
+
+export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser) {
+  const where: Prisma.ClaimWhereInput = {};
 
   if (filters.search) {
     where.OR = [
@@ -87,7 +100,7 @@ export async function exportClaimsToExcel(filters, user) {
     { header: 'Closed', key: 'closed', width: 10 },
   ];
 
-  const fmtPHP = (v) => v ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(v)) : '';
+  const fmtPHP = (v: unknown) => v ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(v)) : '';
 
   for (const c of claims) {
     const panelText = c.insurerPanel

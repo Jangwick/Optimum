@@ -1,53 +1,80 @@
+import fs from 'fs';
+import type { Express } from 'express';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
-import fs from 'fs';
 import { resolveFilePath } from '../utils/file-path.js';
 
-export async function listInspections(claimId) {
+interface InspectionData {
+  scheduledAt?: string | null;
+  conductedAt?: string | null;
+  location?: string | null;
+  findings?: string | null;
+  notes?: string | null;
+  inspectorId?: number | string | null;
+}
+
+export async function listInspections(claimId: number | string) {
   return prisma.inspection.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { scheduledAt: 'desc' },
-    include: { photos: { select: { id: true, fileName: true, originalName: true, mimeType: true, size: true, caption: true, createdAt: true, updatedAt: true } }, inspector: { select: { id: true, firstName: true, lastName: true } } },
+    include: {
+      photos: {
+        select: {
+          id: true,
+          fileName: true,
+          originalName: true,
+          mimeType: true,
+          size: true,
+          caption: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+      inspector: { select: { id: true, firstName: true, lastName: true } },
+    },
   });
 }
 
-export async function createInspection(claimId, data, userId) {
+export async function createInspection(claimId: number | string, data: InspectionData, userId: number) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
 
+  const createData: Prisma.InspectionUncheckedCreateInput = {
+    claimId: Number(claimId),
+    scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
+    conductedAt: data.conductedAt ? new Date(data.conductedAt) : null,
+    location: data.location ?? null,
+    findings: data.findings ?? null,
+    notes: data.notes ?? null,
+    inspectorId: data.inspectorId ? Number(data.inspectorId) : null,
+  };
+
   const inspection = await prisma.inspection.create({
-    data: {
-      claimId: Number(claimId),
-      scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
-      conductedAt: data.conductedAt ? new Date(data.conductedAt) : null,
-      location: data.location,
-      findings: data.findings,
-      notes: data.notes,
-      inspectorId: data.inspectorId ? Number(data.inspectorId) : null,
-    },
+    data: createData,
     include: { photos: true },
   });
-  await recordActivity(claimId, 'INSPECTION_CREATED', `Inspection scheduled${data.location ? ` at ${data.location}` : ''}`, userId);
+  await recordActivity(Number(claimId), 'INSPECTION_CREATED', `Inspection scheduled${data.location ? ` at ${data.location}` : ''}`, userId);
 
   // Sync claim.dateInspected when an inspection has a conductedAt date
   if (data.conductedAt) {
     await prisma.claim.update({ where: { id: Number(claimId) }, data: { dateInspected: new Date(data.conductedAt) } });
-    await autoAdvanceStatus(claimId, 'INSPECTION_COMPLETED', userId);
+    await autoAdvanceStatus(Number(claimId), 'INSPECTION_COMPLETED', userId);
   } else {
-    await autoAdvanceStatus(claimId, 'INSPECTION_SCHEDULED', userId);
+    await autoAdvanceStatus(Number(claimId), 'INSPECTION_SCHEDULED', userId);
   }
 
   return inspection;
 }
 
-export async function updateInspection(id, data, userId) {
+export async function updateInspection(id: number, data: InspectionData, userId: number) {
   const inspection = await prisma.inspection.findUnique({ where: { id } });
   if (!inspection) throw new AppError('Inspection not found', 404);
 
-  const update = {};
+  const update: Prisma.InspectionUncheckedUpdateInput = {};
   if (data.scheduledAt !== undefined) update.scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
   if (data.conductedAt !== undefined) update.conductedAt = data.conductedAt ? new Date(data.conductedAt) : null;
   if (data.location !== undefined) update.location = data.location;
@@ -77,15 +104,15 @@ export async function updateInspection(id, data, userId) {
   return updated;
 }
 
-export async function deleteInspection(id, userId) {
+export async function deleteInspection(id: number, userId: number) {
   const inspection = await prisma.inspection.findUnique({ where: { id } });
   if (!inspection) throw new AppError('Inspection not found', 404);
-  const claimId = inspection.claimId;
+  const { claimId } = inspection;
   await prisma.inspection.delete({ where: { id } });
   await recordActivity(claimId, 'INSPECTION_DELETED', 'Inspection deleted', userId);
 }
 
-export async function uploadPhoto(inspectionId, file, caption, userId) {
+export async function uploadPhoto(inspectionId: number, file: Express.Multer.File, caption: string | undefined, userId: number) {
   const inspection = await prisma.inspection.findUnique({ where: { id: inspectionId } });
   if (!inspection) throw new AppError('Inspection not found', 404);
 
@@ -101,7 +128,18 @@ export async function uploadPhoto(inspectionId, file, caption, userId) {
       caption: caption || null,
       uploadedById: userId,
     },
-    select: { id: true, inspectionId: true, fileName: true, originalName: true, mimeType: true, size: true, caption: true, uploadedById: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      inspectionId: true,
+      fileName: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      caption: true,
+      uploadedById: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   await logAction('INSPECTION_PHOTO_UPLOADED', 'InspectionPhoto', photo.id, userId, { inspectionId });
@@ -115,41 +153,78 @@ const PLACEHOLDER_PNG = Buffer.from(
   'base64'
 );
 
-export async function getPhoto(photoId) {
-  const photo = await prisma.inspectionPhoto.findUnique({ where: { id: Number(photoId) } });
+type PhotoWithBuffer = Prisma.InspectionPhotoGetPayload<{
+  select: {
+    id: true;
+    inspectionId: true;
+    fileName: true;
+    originalName: true;
+    mimeType: true;
+    size: true;
+    caption: true;
+    uploadedById: true;
+    createdAt: true;
+    updatedAt: true;
+    path: true;
+    data: true;
+  };
+}> & { buffer: Buffer; isPlaceholder?: boolean };
+
+export async function getPhoto(photoId: number | string): Promise<PhotoWithBuffer> {
+  const photo = await prisma.inspectionPhoto.findUnique({
+    where: { id: Number(photoId) },
+    select: {
+      id: true,
+      inspectionId: true,
+      fileName: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      caption: true,
+      uploadedById: true,
+      createdAt: true,
+      updatedAt: true,
+      path: true,
+      data: true,
+    },
+  });
   if (!photo) throw new AppError('Photo not found', 404);
 
   // Prefer BLOB data stored in the database (persistent across deploys)
   if (photo.data) {
-    return { ...photo, buffer: Buffer.from(photo.data) };
+    return { ...photo, buffer: Buffer.from(photo.data) } as PhotoWithBuffer;
   }
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(photo.path);
   if (resolved && fs.existsSync(resolved)) {
-    return { ...photo, buffer: fs.readFileSync(resolved) };
+    return { ...photo, buffer: fs.readFileSync(resolved) } as PhotoWithBuffer;
   }
 
   // File is missing (ephemeral filesystem lost it) — return placeholder
   // so the <img> doesn't show a broken image icon
-  return { ...photo, buffer: PLACEHOLDER_PNG, mimeType: 'image/png', isPlaceholder: true };
+  return { ...photo, buffer: PLACEHOLDER_PNG, mimeType: 'image/png', isPlaceholder: true } as PhotoWithBuffer;
 }
 
-export async function deletePhoto(photoId, userId) {
+export async function deletePhoto(photoId: number | string, userId: number) {
   const photo = await prisma.inspectionPhoto.findUnique({
     where: { id: Number(photoId) },
     include: { inspection: { select: { claimId: true } } },
   });
   if (!photo) throw new AppError('Photo not found', 404);
-  const claimId = photo.inspection.claimId;
+  const { claimId } = photo.inspection;
   // Clean up legacy disk file if it exists
   if (photo.path) {
     const resolved = resolveFilePath(photo.path);
     if (resolved) {
-      try { fs.unlinkSync(resolved); } catch { /* file may already be gone */ }
+      try {
+        fs.unlinkSync(resolved);
+      } catch {
+        /* file may already be gone */
+      }
     }
   }
   await prisma.inspectionPhoto.delete({ where: { id: Number(photoId) } });
-  await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', photoId, userId, { claimId });
+  await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', Number(photoId), userId, { claimId });
   await recordActivity(claimId, 'INSPECTION_PHOTO_DELETED', `Inspection photo deleted: ${photo.originalName}`, userId);
 }
