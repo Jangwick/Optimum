@@ -2,6 +2,64 @@
 
 A greenfield React + Node.js + MySQL web application for managing insurance claims from assignment through closure.
 
+## Docker Quick Start
+
+The fastest way to run the whole stack is with Docker Compose. It starts MariaDB, the Express API, and the Vite-built client served by nginx.
+
+### Requirements
+
+- Docker Engine 20.10+
+- Docker Compose v2+
+
+### 1. Build and run
+
+```bash
+docker compose up --build -d
+```
+
+This pulls/builds three containers: `optimum_mysql`, `optimum_server`, and `optimum_client`.
+
+### 2. Wait and verify
+
+```bash
+docker compose ps
+curl http://localhost:3001/api/health
+```
+
+The server health endpoint returns `{ "status": "ok", ... }` once migrations and seeding are complete.
+
+### 3. Access the application
+
+- Client: http://localhost:8080
+- API base: http://localhost:3001/api
+- API health: http://localhost:3001/api/health
+
+### 4. Default admin
+
+After first start, log in with:
+
+- Email: `admin@optimum.com`
+- Password: `ChangeMe123!`
+
+Change the password immediately after first login.
+
+### 5. Stop and clean up
+
+```bash
+# Stop and remove containers
+docker compose down
+
+# Stop and remove containers plus the database volume
+docker compose down -v
+```
+
+### Notes
+
+- `docker-compose.yml` uses pinned base images, non-root runtime users, and healthchecks on all services.
+- The server container runs `npx prisma migrate deploy`, `node dist/prisma/seed.js`, and then `node dist/src/server.js`.
+- MariaDB data persists in a named Docker volume (`optimum_mysql_data`) across restarts unless you run `down -v`.
+- The client image bakes `VITE_API_BASE_URL=http://localhost:3001/api` at build time via the compose build arg.
+
 ## Quick Start
 
 ### Prerequisites
@@ -39,13 +97,9 @@ DATABASE_URL="mysql://root:yourpassword@localhost:3306/claims_solutions?schema=p
 
 ### 3. Start your database
 
-Create a database named `claims_solutions` and start your MySQL/MariaDB server. If you use Docker, the repo includes a compose file:
+Create a database named `claims_solutions` and start your MySQL/MariaDB server. On Windows, options include the [MySQL Installer](https://dev.mysql.com/downloads/installer/), [MariaDB Installer](https://mariadb.org/download/), or [XAMPP](https://www.apachefriends.org/).
 
-```bash
-docker compose up -d
-```
-
-On Windows without Docker, options include the [MySQL Installer](https://dev.mysql.com/downloads/installer/), [MariaDB Installer](https://mariadb.org/download/), or [XAMPP](https://www.apachefriends.org/).
+For the Docker version, see [Docker Quick Start](#docker-quick-start).
 
 ### 4. Generate the Prisma client
 
@@ -136,7 +190,7 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
 
 5. **Set a custom start command** (if not auto-detected from `railway.json`):
    ```
-   sh -c "npx prisma migrate deploy && npx prisma db seed && node src/server.js"
+   sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/server.js"
    ```
 
 6. **Deploy**:
@@ -165,17 +219,19 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
    cd client && npm run build
    ```
 
-2. Apply database migrations:
+2. Apply database migrations and seed:
    ```bash
    cd server
    npx prisma migrate deploy
-   npx prisma db seed
+   node dist/prisma/seed.js
    ```
 
-3. Start the server with PM2:
+3. Start the server with PM2 or directly:
    ```bash
    cd server
    pm2 start ecosystem.config.cjs
+   # or
+   node dist/src/server.js
    ```
 
 4. Serve the client with Nginx using the provided `nginx.conf`, or use a static host.

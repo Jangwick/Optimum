@@ -4,20 +4,36 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Claims Solutions Insurance Adjustment Management System",
+  "workspaces": [
+    "client",
+    "server",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently -k -n 'SERVER,CLIENT' -c 'cyan,magenta' \"cd server && npm run dev\" \"cd client && npm run dev\"",
     "build": "cd client && npm run build",
-    "build:full": "cd server && npx prisma generate && cd ../client && npm run build",
-    "start": "cd server && node src/server.js",
-    "start:prod": "cd server && npx prisma migrate deploy && npx prisma db seed && node src/server.js",
+    "build:server": "cd server && npm run build",
+    "build:full": "cd server && npm run build && cd ../client && npm run build",
+    "start": "cd server && npm run start",
+    "start:prod": "cd server && npm run start:prod",
     "test": "cd server && npm test && cd ../client && npm test",
     "lint": "cd server && npm run lint && cd ../client && npm run lint",
-    "format": "cd server && npm run format && cd ../client && npm run format"
+    "format": "cd server && npm run format && cd ../client && npm run format",
+    "typecheck": "cd server && npm run typecheck && cd ../client && npm run typecheck"
   },
   "devDependencies": {
     "concurrently": "10.0.4"
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "allowScripts": {
+    "@prisma/engines": true,
+    "bcrypt": true,
+    "esbuild": true,
+    "msw": true,
+    "prisma": true,
+    "puppeteer": true,
+    "unrs-resolver": true
   }
 }
