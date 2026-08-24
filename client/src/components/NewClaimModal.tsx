@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { createClaim } from '../services/claim.service.js';
 import {
   getPolicies,
@@ -10,8 +10,40 @@ import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
 import { Select } from './Select.jsx';
 import { AlertTriangle, CheckCircle, Search } from 'lucide-react';
+import { AxiosError } from 'axios';
 
-const EMPTY_FORM = {
+interface NewClaimModalProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated?: (item?: Record<string, unknown>) => void;
+}
+
+interface NewClaimForm {
+  [key: string]: string;
+  description: string;
+  dateOfLoss: string;
+  locationOfLoss: string;
+  lossReserved: string;
+  engineerId: string;
+  accountantId: string;
+  policyId: string;
+  claimNumber: string;
+  insuredName: string;
+  insurerClaimNumber: string;
+  assignedByName: string;
+  handlingAdjuster: string;
+  natureOfLoss: string;
+  clientId: string;
+  insuranceCompanyId: string;
+  claimTypeId: string;
+  policyNumber: string;
+  policyType: string;
+  policyPeriodText: string;
+  policyCoverageText: string;
+  claimedAmount: string;
+}
+
+const EMPTY_FORM: NewClaimForm = {
   description: '',
   dateOfLoss: '',
   locationOfLoss: '',
@@ -35,17 +67,17 @@ const EMPTY_FORM = {
   claimedAmount: '',
 };
 
-export function NewClaimModal({ open, onClose, onCreated }) {
-  const [policies, setPolicies] = useState([]);
-  const [policySearch, setPolicySearch] = useState('');
-  const [users, setUsers] = useState([]);
-  const [claimTypes, setClaimTypes] = useState([]);
-  const [insurers, setInsurers] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+export function NewClaimModal({ open, onClose, onCreated }: NewClaimModalProps) {
+  const [policies, setPolicies] = useState<Record<string, unknown>[]>([]);
+  const [policySearch, setPolicySearch] = useState<string>('');
+  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [claimTypes, setClaimTypes] = useState<Record<string, unknown>[]>([]);
+  const [insurers, setInsurers] = useState<Record<string, unknown>[]>([]);
+  const [clients, setClients] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<NewClaimForm>(EMPTY_FORM);
 
   useEffect(() => {
     if (!open) return;
@@ -53,17 +85,29 @@ export function NewClaimModal({ open, onClose, onCreated }) {
     setError(null);
     Promise.all([getPolicies(), getUsers(), getClaimTypes(), getInsuranceCompanies(), getClients()])
       .then(([policiesData, usersData, claimTypesData, insurersData, clientsData]) => {
-        setPolicies(policiesData.items || []);
-        setUsers(usersData.users || []);
-        setClaimTypes(claimTypesData.items || []);
-        setInsurers(insurersData.items || []);
-        setClients(clientsData.items || []);
+        setPolicies(
+          ((policiesData as Record<string, unknown>).items as Record<string, unknown>[] | undefined) ?? []
+        );
+        setUsers(
+          ((usersData as Record<string, unknown>).users as Record<string, unknown>[] | undefined) ?? []
+        );
+        setClaimTypes(
+          ((claimTypesData as Record<string, unknown>).items as Record<string, unknown>[] | undefined) ?? []
+        );
+        setInsurers(
+          ((insurersData as Record<string, unknown>).items as Record<string, unknown>[] | undefined) ?? []
+        );
+        setClients(
+          ((clientsData as Record<string, unknown>).items as Record<string, unknown>[] | undefined) ?? []
+        );
       })
       .catch(() => setError('Failed to load reference data'))
       .finally(() => setLoading(false));
   }, [open]);
 
-  const employees = users.filter((u) => u.role === 'ENGINEER' || u.role === 'ACCOUNTANT');
+  const employees = users.filter(
+    (u) => (u['role'] as string) === 'ENGINEER' || (u['role'] as string) === 'ACCOUNTANT'
+  );
   const assignedEmployee = form.engineerId
     ? `ENGINEER:${form.engineerId}`
     : form.accountantId
@@ -71,13 +115,19 @@ export function NewClaimModal({ open, onClose, onCreated }) {
       : '';
   const policySearchTerm = policySearch.trim().toLowerCase();
   const filteredPolicies = policies.filter((policy) => {
-    if (!policySearchTerm || String(policy.id) === String(form.policyId)) return true;
-    return [policy.policyNumber, policy.client?.name, policy.insuranceCompany?.name].some((value) =>
-      String(value || '').toLowerCase().includes(policySearchTerm)
-    );
+    if (!policySearchTerm || String(policy['id'] as string | number) === String(form.policyId)) return true;
+    const client = policy['client'] as Record<string, unknown> | undefined;
+    const company = policy['insuranceCompany'] as Record<string, unknown> | undefined;
+    const values = [
+      policy['policyNumber'] as string | number | undefined,
+      client?.['name'] as string | undefined,
+      company?.['name'] as string | undefined,
+    ] as (string | number | undefined)[];
+    return values.some((value) => String(value || '').toLowerCase().includes(policySearchTerm));
   });
 
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (key: string) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm({ ...form, [key]: e.target.value });
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
@@ -86,14 +136,14 @@ export function NewClaimModal({ open, onClose, onCreated }) {
     onClose();
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     const lossReserved = form.lossReserved ? Number(form.lossReserved) : 0;
-    const payload = { ...form, estimatedLoss: lossReserved, reserve: lossReserved };
-    delete payload.lossReserved;
-    payload.claimedAmount = payload.claimedAmount ? Number(payload.claimedAmount) : 0;
+    const payload: Record<string, unknown> = { ...form, estimatedLoss: lossReserved, reserve: lossReserved };
+    delete payload['lossReserved'];
+    payload['claimedAmount'] = form.claimedAmount ? Number(form.claimedAmount) : 0;
     [
       'policyId',
       'engineerId',
@@ -102,15 +152,21 @@ export function NewClaimModal({ open, onClose, onCreated }) {
       'insuranceCompanyId',
       'claimTypeId',
     ].forEach((k) => {
-      payload[k] = payload[k] ? Number(payload[k]) : null;
+      const value = payload[k] as string | undefined;
+      payload[k] = value ? Number(value) : null;
     });
     try {
       const res = await createClaim(payload);
       setForm(EMPTY_FORM);
       setPolicySearch('');
-      onCreated?.(res.item);
+      const created = (res as Record<string, unknown>).item as Record<string, unknown> | undefined;
+      onCreated?.(created);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create claim');
+      const message =
+        err instanceof AxiosError
+          ? ((err.response?.data as Record<string, unknown> | undefined)?.['error'] as string | undefined)
+          : undefined;
+      setError(message ?? 'Failed to create claim');
     } finally {
       setSaving(false);
     }
@@ -163,7 +219,7 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                   id="new-claim-policy-search"
                   type="search"
                   value={policySearch}
-                  onChange={(e) => setPolicySearch(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPolicySearch(e.target.value)}
                   className={`${inputClass} pl-9`}
                   placeholder="Search by policy number, client, or insurer"
                 />
@@ -174,35 +230,44 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 ariaLabel="Policy"
                 onChange={(v) => {
                   const policyId = String(v);
-                  const policy = policies.find((item) => String(item.id) === policyId);
+                  const policy = policies.find((item) => String(item['id'] as string | number) === policyId);
                   setForm((current) => {
                     if (!policy) return { ...current, policyId };
-                    const policyPeriod = [policy.startDate, policy.endDate]
-                      .filter(Boolean)
+                    const start = policy['startDate'] as string | number | Date | undefined;
+                    const end = policy['endDate'] as string | number | Date | undefined;
+                    const policyPeriod = [start, end]
+                      .filter((d): d is string | number | Date => Boolean(d))
                       .map((date) =>
                         new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(date))
                       )
                       .join(' – ');
+                    const client = policy['client'] as Record<string, unknown> | undefined;
+                    const insuranceCompany = policy['insuranceCompany'] as Record<string, unknown> | undefined;
+                    const claimType = policy['claimType'] as Record<string, unknown> | undefined;
+                    const coverageDetails = policy['coverageDetails'] as string | undefined;
+                    const sumInsured = policy['sumInsured'] as string | number | undefined;
+                    const clientId = client?.['id'] as string | number | undefined;
+                    const insuranceCompanyId = insuranceCompany?.['id'] as string | number | undefined;
+                    const claimTypeId = claimType?.['id'] as string | number | undefined;
                     return {
                       ...current,
                       policyId,
-                      insuredName: policy.client?.name || '',
-                      clientId: policy.client?.id ? String(policy.client.id) : '',
-                      insuranceCompanyId: policy.insuranceCompany?.id ? String(policy.insuranceCompany.id) : '',
-                      claimTypeId: policy.claimType?.id ? String(policy.claimType.id) : '',
-                      policyNumber: policy.policyNumber || '',
-                      policyType: policy.policyType || '',
+                      insuredName: (client?.['name'] as string | undefined) || '',
+                      clientId: clientId ? String(clientId) : '',
+                      insuranceCompanyId: insuranceCompanyId ? String(insuranceCompanyId) : '',
+                      claimTypeId: claimTypeId ? String(claimTypeId) : '',
+                      policyNumber: String((policy['policyNumber'] as string | number | undefined) || ''),
+                      policyType: String((policy['policyType'] as string | number | undefined) || ''),
                       policyPeriodText: policyPeriod,
-                      policyCoverageText:
-                        policy.coverageDetails || (policy.sumInsured ? String(policy.sumInsured) : ''),
+                      policyCoverageText: coverageDetails || (sumInsured ? String(sumInsured) : ''),
                     };
                   });
                 }}
                 options={[
                   { value: '', label: 'No linked policy / enter details manually' },
                   ...filteredPolicies.map((p) => ({
-                    value: p.id,
-                    label: `${p.policyNumber} · ${p.client?.name} · ${p.insuranceCompany?.name}`,
+                    value: p['id'] as string | number,
+                    label: `${p['policyNumber'] as string} · ${(p['client'] as Record<string, unknown> | undefined)?.['name'] as string} · ${(p['insuranceCompany'] as Record<string, unknown> | undefined)?.['name'] as string}`,
                   })),
                 ]}
                 placeholder="No linked policy / enter details manually"
@@ -298,10 +363,10 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                   value={form.clientId}
                   id="new-claim-client"
                   ariaLabel="Client (linked)"
-                  onChange={(v) => setForm({ ...form, clientId: v })}
+                  onChange={(v) => setForm({ ...form, clientId: String(v) })}
                   options={[
                     { value: '', label: '— Unresolved —' },
-                    ...clients.map((c) => ({ value: c.id, label: c.name })),
+                    ...clients.map((c) => ({ value: c['id'] as string | number, label: c['name'] as string })),
                   ]}
                   placeholder="— Unresolved —"
                 />
@@ -317,10 +382,10 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                   value={form.insuranceCompanyId}
                   id="new-claim-insurer"
                   ariaLabel="Insurer"
-                  onChange={(v) => setForm({ ...form, insuranceCompanyId: v })}
+                  onChange={(v) => setForm({ ...form, insuranceCompanyId: String(v) })}
                   options={[
                     { value: '', label: '— Unresolved —' },
-                    ...insurers.map((i) => ({ value: i.id, label: i.name })),
+                    ...insurers.map((i) => ({ value: i['id'] as string | number, label: i['name'] as string })),
                   ]}
                   placeholder="— Unresolved —"
                 />
@@ -336,10 +401,10 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                   value={form.claimTypeId}
                   id="new-claim-type"
                   ariaLabel="Claim Type"
-                  onChange={(v) => setForm({ ...form, claimTypeId: v })}
+                  onChange={(v) => setForm({ ...form, claimTypeId: String(v) })}
                   options={[
                     { value: '', label: '— Unresolved —' },
-                    ...claimTypes.map((t) => ({ value: t.id, label: t.name })),
+                    ...claimTypes.map((t) => ({ value: t['id'] as string | number, label: t['name'] as string })),
                   ]}
                   placeholder="— Unresolved —"
                 />
@@ -506,7 +571,7 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 id="new-claim-employee"
                 ariaLabel="Assign Employee"
                 onChange={(v) => {
-                  const [role, id = ''] = v.split(':');
+                  const [role, id = ''] = String(v).split(':');
                   setForm((current) => ({
                     ...current,
                     engineerId: role === 'ENGINEER' ? id : current.engineerId,
@@ -516,8 +581,8 @@ export function NewClaimModal({ open, onClose, onCreated }) {
                 options={[
                   { value: '', label: 'Select employee' },
                   ...employees.map((employee) => ({
-                    value: `${employee.role}:${employee.id}`,
-                    label: `${employee.fullName} — ${employee.role === 'ENGINEER' ? 'Engineer' : 'Accountant'}`,
+                    value: `${employee['role'] as string}:${employee['id'] as string | number}`,
+                    label: `${employee['fullName'] as string} — ${(employee['role'] as string) === 'ENGINEER' ? 'Engineer' : 'Accountant'}`,
                   })),
                 ]}
                 placeholder="Select employee"
