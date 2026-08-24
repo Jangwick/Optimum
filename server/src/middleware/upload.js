@@ -26,11 +26,11 @@ function fileFilter(req, file, cb) {
   const allowedMimes = ALLOWED_FILES[ext];
 
   if (!allowedMimes) {
-    return cb(new Error('File type not allowed'), false);
+    return cb(new AppError('File type not allowed', 400), false);
   }
 
   if (!allowedMimes.includes(file.mimetype)) {
-    return cb(new Error('File type does not match extension'), false);
+    return cb(new AppError('File type does not match extension', 400), false);
   }
 
   cb(null, true);
