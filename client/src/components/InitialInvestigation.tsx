@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, type ChangeEvent, type FormEvent, type DragEvent, type MouseEvent } from 'react';
 import {
   MessageSquare,
   DollarSign,
@@ -13,6 +13,7 @@ import {
   Building2,
   User,
   FileText,
+  type LucideIcon,
 } from 'lucide-react';
 import { formatCurrency } from '../utils/currency.js';
 import {
@@ -31,22 +32,51 @@ import {
 import { authUrl } from '../services/api.js';
 import { Select } from './Select.jsx';
 
-const PARTY_TYPES = [
+const PARTY_TYPES: { value: string; label: string; icon: LucideIcon }[] = [
   { value: 'INSURED', label: 'Insured', icon: User },
   { value: 'INSURER', label: 'Insurer', icon: Building2 },
   { value: 'BROKER', label: 'Broker', icon: Users },
   { value: 'INTERNAL', label: 'Internal', icon: FileText },
 ];
 
-const STEPS = [
+const STEPS: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'notes', label: 'Discussion Notes', icon: MessageSquare },
   { key: 'reserve', label: 'Loss Reserve', icon: DollarSign },
   { key: 'photos', label: 'Investigation Photos', icon: Camera },
 ];
 
-export default function InitialInvestigation({ claimId, claim, onClaimChange }) {
-  const [step, setStep] = useState(0);
-  const [refresh, setRefresh] = useState(0);
+interface InitialInvestigationProps {
+  claimId: string | number;
+  claim?: Record<string, unknown> | undefined;
+  onClaimChange?: () => void;
+}
+
+interface DiscussionNotesStepProps {
+  claimId: string | number;
+  refresh: number;
+  onChanged: () => void;
+  onNext: () => void;
+}
+
+interface ReserveStepProps {
+  claimId: string | number;
+  claim?: Record<string, unknown> | undefined;
+  refresh: number;
+  onChanged: () => void;
+  onNext: () => void;
+  onBack: () => void;
+}
+
+interface PhotosStepProps {
+  claimId: string | number;
+  refresh: number;
+  onChanged: () => void;
+  onBack: () => void;
+}
+
+export default function InitialInvestigation({ claimId, claim, onClaimChange }: InitialInvestigationProps) {
+  const [step, setStep] = useState<number>(0);
+  const [refresh, setRefresh] = useState<number>(0);
 
   return (
     <div className="space-y-6">
@@ -107,22 +137,22 @@ export default function InitialInvestigation({ claimId, claim, onClaimChange }) 
 }
 
 // ─── Step 1: Discussion Notes ───
-function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
-  const [notes, setNotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
+function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }: DiscussionNotesStepProps) {
+  const [notes, setNotes] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [form, setForm] = useState<Record<string, string>>({
     partyType: 'INSURED',
     partyName: '',
     discussedAt: new Date().toISOString().slice(0, 16),
     notes: '',
     nextAction: '',
   });
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<boolean>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getDiscussionNotes(claimId);
+      const data = (await getDiscussionNotes(claimId)) as { items?: Record<string, unknown>[] };
       setNotes(data.items || []);
     } finally {
       setLoading(false);
@@ -130,18 +160,18 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
   }, [claimId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load, refresh]);
 
-  const save = async (e) => {
+  const save = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.notes.trim()) return;
+    if (!form.notes?.trim()) return;
     setSaving(true);
     try {
       await createDiscussionNote(claimId, {
         ...form,
         discussedAt: form.discussedAt ? new Date(form.discussedAt).toISOString() : new Date().toISOString(),
-      });
+      } as Record<string, unknown>);
       setForm({ partyType: 'INSURED', partyName: '', discussedAt: new Date().toISOString().slice(0, 16), notes: '', nextAction: '' });
       onChanged();
     } finally {
@@ -149,13 +179,14 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
     }
   };
 
-  const remove = async (id) => {
+  const remove = async (id: string | number) => {
     if (!confirm('Delete this discussion note?')) return;
     await deleteDiscussionNote(claimId, id);
     onChanged();
   };
 
-  const partyMeta = (type) => PARTY_TYPES.find((p) => p.value === type) || PARTY_TYPES[3];
+  const partyMeta = (type: string) =>
+    PARTY_TYPES.find((p) => p.value === type) ?? PARTY_TYPES[3] ?? { value: 'INTERNAL', label: 'Internal', icon: FileText };
 
   return (
     <div className="space-y-6">
@@ -169,8 +200,8 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
           <div>
             <label className="block text-label-md text-outline uppercase mb-1.5">Party Type</label>
             <Select
-              value={form.partyType}
-              onChange={(v) => setForm({ ...form, partyType: v })}
+              value={form.partyType as string}
+              onChange={(v) => setForm({ ...form, partyType: v as string })}
               options={PARTY_TYPES.map((p) => ({ value: p.value, label: p.label }))}
             />
           </div>
@@ -179,7 +210,7 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
             <input
               type="text"
               value={form.partyName}
-              onChange={(e) => setForm({ ...form, partyName: e.target.value })}
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, partyName: e.target.value })}
               placeholder="Name of person contacted"
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
             />
@@ -189,7 +220,7 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
             <input
               type="datetime-local"
               value={form.discussedAt}
-              onChange={(e) => setForm({ ...form, discussedAt: e.target.value })}
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, discussedAt: e.target.value })}
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
             />
           </div>
@@ -198,7 +229,7 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
             <input
               type="text"
               value={form.nextAction}
-              onChange={(e) => setForm({ ...form, nextAction: e.target.value })}
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, nextAction: e.target.value })}
               placeholder="Agreed next step..."
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
             />
@@ -208,7 +239,7 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
           <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
           <textarea
             value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, notes: e.target.value })}
             placeholder="Discussion details..."
             rows={3}
             required
@@ -218,7 +249,7 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
         <div className="flex items-center justify-between">
           <button
             type="submit"
-            disabled={saving || !form.notes.trim()}
+            disabled={saving || !form.notes?.trim()}
             className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Plus size={16} />
@@ -248,10 +279,17 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
           </div>
         ) : (
           notes.map((note) => {
-            const meta = partyMeta(note.partyType);
+            const meta = partyMeta(note.partyType as string);
             const Icon = meta.icon;
+            const createdBy = note.createdBy as Record<string, unknown> | null | undefined;
+            const createdByName = createdBy
+              ? `${(createdBy.firstName as string)} ${(createdBy.lastName as string)}`
+              : 'System';
+            const partyName = note.partyName as string | null | undefined;
+            const nextAction = note.nextAction as string | null | undefined;
+            const noteText = note.notes as string | undefined;
             return (
-              <div key={note.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+              <div key={String(note.id)} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -261,13 +299,13 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary">
                         {meta.label}
                       </span>
-                      {note.partyName && (
-                        <span className="ml-2 text-body-sm font-medium text-on-surface">{note.partyName}</span>
+                      {partyName && (
+                        <span className="ml-2 text-body-sm font-medium text-on-surface">{partyName}</span>
                       )}
                     </div>
                   </div>
                   <button
-                    onClick={() => remove(note.id)}
+                    onClick={(_e: MouseEvent<HTMLButtonElement>) => { void remove(note.id as string | number); }}
                     className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
                     title="Delete note"
                   >
@@ -275,15 +313,15 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
                   </button>
                 </div>
                 <div className="p-3 space-y-2">
-                  <p className="text-body-sm text-on-surface">{note.notes}</p>
-                  {note.nextAction && (
+                  <p className="text-body-sm text-on-surface">{noteText}</p>
+                  {nextAction && (
                     <div>
                       <span className="text-label-md text-outline uppercase">Next Action</span>
-                      <p className="text-body-sm text-on-surface-variant mt-0.5">{note.nextAction}</p>
+                      <p className="text-body-sm text-on-surface-variant mt-0.5">{nextAction}</p>
                     </div>
                   )}
                   <p className="text-label-sm text-outline font-mono pt-1 border-t border-surface-border">
-                    {new Date(note.discussedAt).toLocaleString()} · {note.createdBy ? `${note.createdBy.firstName} ${note.createdBy.lastName}` : 'System'}
+                    {new Date(note.discussedAt as string).toLocaleString()} · {createdByName}
                   </p>
                 </div>
               </div>
@@ -296,37 +334,37 @@ function DiscussionNotesStep({ claimId, refresh, onChanged, onNext }) {
 }
 
 // ─── Step 2: Loss Reserve ───
-function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
-  const [reserveValue, setReserveValue] = useState(claim?.estimatedLoss || '');
-  const [suggestion, setSuggestion] = useState(null);
-  const [calculating, setCalculating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }: ReserveStepProps) {
+  const [reserveValue, setReserveValue] = useState<string | number>((claim?.estimatedLoss as string | number | undefined) || '');
+  const [suggestion, setSuggestion] = useState<Record<string, unknown> | null>(null);
+  const [calculating, setCalculating] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [saved, setSaved] = useState<boolean>(false);
 
   useEffect(() => {
-    setReserveValue(claim?.estimatedLoss || '');
+    setReserveValue((claim?.estimatedLoss as string | number | undefined) || '');
   }, [claim, refresh]);
 
   const calculate = async () => {
     setCalculating(true);
     try {
-      const result = await getAutoReserve(claimId);
+      const result = (await getAutoReserve(claimId)) as Record<string, unknown>;
       setSuggestion(result);
-      setReserveValue(result.suggestedReserve);
+      setReserveValue((result.suggestedReserve as string | number | null | undefined) ?? '');
       setSaved(false);
     } finally {
       setCalculating(false);
     }
   };
 
-  const save = async (e) => {
+  const save = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const value = Number(reserveValue);
     if (Number.isNaN(value)) return;
     setSaving(true);
     setSaved(false);
     try {
-      await updateClaim(claimId, { estimatedLoss: value, reserve: value });
+      await updateClaim(claimId, { estimatedLoss: value, reserve: value } as Record<string, unknown>);
       setSaved(true);
       onChanged();
     } finally {
@@ -346,11 +384,11 @@ function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-surface-container-low rounded-lg p-4">
             <span className="text-label-md text-outline uppercase">Current Estimated Loss</span>
-            <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss)}</p>
+            <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss as string | number | undefined)}</p>
           </div>
           <div className="bg-surface-container-low rounded-lg p-4">
             <span className="text-label-md text-outline uppercase">Current Reserve</span>
-            <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.reserve)}</p>
+            <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.reserve as string | number | undefined)}</p>
           </div>
         </div>
 
@@ -372,17 +410,17 @@ function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
               {calculating ? 'Calculating...' : 'Calculate'}
             </button>
           </div>
-          {suggestion && (
+          {suggestion ? (
             <div className="mt-3 pt-3 border-t border-primary/20">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-label-md text-outline uppercase">Basis</span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary capitalize">
-                  {suggestion.basis}
+                  {suggestion.basis as string | undefined}
                 </span>
               </div>
-              <p className="text-body-sm text-on-surface-variant font-mono mt-1">{suggestion.calculation}</p>
+              <p className="text-body-sm text-on-surface-variant font-mono mt-1">{suggestion.calculation as string | undefined}</p>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Edit + Save */}
@@ -396,7 +434,7 @@ function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
                 step="0.01"
                 min="0"
                 value={reserveValue}
-                onChange={(e) => { setReserveValue(e.target.value); setSaved(false); }}
+                onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setReserveValue(e.target.value); setSaved(false); }}
                 className="w-full h-10 pl-8 pr-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 placeholder="0.00"
               />
@@ -445,17 +483,17 @@ function ReserveStep({ claimId, claim, refresh, onChanged, onNext, onBack }) {
 }
 
 // ─── Step 3: Investigation Photos ───
-function PhotosStep({ claimId, refresh, onChanged, onBack }) {
-  const [inspections, setInspections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [captions, setCaptions] = useState({});
-  const fileInputRef = useRef(null);
+function PhotosStep({ claimId, refresh, onChanged, onBack }: PhotosStepProps) {
+  const [inspections, setInspections] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [captions, setCaptions] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getInspections(claimId);
+      const data = (await getInspections(claimId)) as { items?: Record<string, unknown>[] };
       setInspections(data.items || []);
     } finally {
       setLoading(false);
@@ -463,21 +501,21 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
   }, [claimId]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load, refresh]);
 
-  const allPhotos = inspections.flatMap((insp) =>
-    (insp.photos || []).map((photo) => ({ ...photo, inspectionId: insp.id }))
+  const allPhotos: Record<string, unknown>[] = inspections.flatMap((insp) =>
+    ((insp.photos as Record<string, unknown>[] | null | undefined) || []).map((photo) => ({ ...photo, inspectionId: insp.id }))
   );
 
-  const handleFiles = async (files) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      const inspection = await ensureInspection(claimId);
+      const inspection = (await ensureInspection(claimId)) as Record<string, unknown>;
       for (const file of files) {
         const caption = captions[file.name] || '';
-        await uploadInspectionPhoto(claimId, inspection.id, file, caption);
+        await uploadInspectionPhoto(claimId, inspection.id as string | number, file, caption);
       }
       setCaptions({});
       onChanged();
@@ -487,14 +525,14 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     handleFiles(e.dataTransfer.files);
   };
 
-  const removePhoto = async (photo) => {
+  const removePhoto = async (photo: Record<string, unknown>) => {
     if (!confirm('Delete this photo?')) return;
-    await deleteInspectionPhoto(claimId, photo.id);
+    await deleteInspectionPhoto(claimId, photo.id as string | number);
     onChanged();
   };
 
@@ -509,7 +547,7 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
         {/* Upload area */}
         <div
           onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={(e: DragEvent<HTMLDivElement>) => e.preventDefault()}
           className="border-2 border-dashed border-outline rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
           onClick={() => fileInputRef.current?.click()}
         >
@@ -518,7 +556,7 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
             type="file"
             accept="image/*"
             multiple
-            onChange={(e) => handleFiles(e.target.files)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => handleFiles(e.target.files)}
             className="hidden"
           />
           <Upload size={32} className="mx-auto text-outline mb-3" />
@@ -538,31 +576,34 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {allPhotos.map((photo) => (
-              <figure key={photo.id} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
-                <div className="relative group">
-                  <img
-                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id}`)}
-                    alt={photo.originalName}
-                    className="w-full h-48 object-cover bg-surface-container-high"
-                  />
-                  <button
-                    onClick={() => removePhoto(photo)}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Delete photo"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <figcaption className="p-3 text-body-sm">
-                  <p className="font-medium text-on-surface break-words">{photo.originalName}</p>
-                  {photo.caption && <p className="text-on-surface-variant mt-1">{photo.caption}</p>}
-                  <p className="text-label-sm text-outline mt-1 font-mono">
-                    {new Date(photo.createdAt).toLocaleDateString()}
-                  </p>
-                </figcaption>
-              </figure>
-            ))}
+            {allPhotos.map((photo) => {
+              const caption = photo.caption as string | null | undefined;
+              return (
+                <figure key={String(photo.id)} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
+                  <div className="relative group">
+                    <img
+                      src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id as string | number}`)}
+                      alt={photo.originalName as string | undefined}
+                      className="w-full h-48 object-cover bg-surface-container-high"
+                    />
+                    <button
+                      onClick={(_e: MouseEvent<HTMLButtonElement>) => { void removePhoto(photo); }}
+                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-error/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete photo"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <figcaption className="p-3 text-body-sm">
+                    <p className="font-medium text-on-surface break-words">{photo.originalName as string | undefined}</p>
+                    {caption && <p className="text-on-surface-variant mt-1">{caption}</p>}
+                    <p className="text-label-sm text-outline mt-1 font-mono">
+                      {new Date(photo.createdAt as string).toLocaleDateString()}
+                    </p>
+                  </figcaption>
+                </figure>
+              );
+            })}
           </div>
         )}
 
