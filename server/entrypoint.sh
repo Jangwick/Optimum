@@ -1,10 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "=== Startup Script ==="
-echo "Available environment variables:"
-env | grep -iE "MYSQL|DATABASE|DB_|PG_|POSTGRES" || echo "(none found)"
-echo "======================="
+echo "=== Optimum startup ==="
 
 # Try to construct DATABASE_URL from any available source
 if [ -z "$DATABASE_URL" ]; then
@@ -42,6 +39,11 @@ fi
 
 echo "DATABASE_URL is set (scheme: $(echo $DATABASE_URL | cut -d: -f1))"
 
-# Start the server — it handles schema sync and seeding itself
+echo "Running database migrations..."
+npx prisma migrate deploy
+
+echo "Seeding database (idempotent)..."
+node dist/prisma/seed.js
+
 echo "Starting server..."
-exec node src/server.js
+exec node dist/src/server.js

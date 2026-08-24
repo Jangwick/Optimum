@@ -1,36 +1,62 @@
-# ---- Builder: client only ----
-FROM node:22-slim AS client-builder
+# syntax=docker/dockerfile:1
 
-WORKDIR /app/client
-
-COPY client/package.json client/package-lock.json* ./
-RUN rm -f package-lock.json && npm install --legacy-peer-deps
-
-COPY client/ .
-RUN npm run build
-
-# ---- Builder: prisma generate only ----
-FROM node:22-slim AS prisma-builder
-
-WORKDIR /app/server
+# ---- Dependencies: install all workspace dependencies (dev + prod) ----
+FROM node:22-slim AS deps
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY client/package.json client/
+COPY server/package.json server/
+COPY packages/shared-types/package.json packages/shared-types/
+
+RUN npm ci --include-workspace-root --legacy-peer-deps
+
+# ---- Build: shared types, client, Prisma client, and server ----
+FROM node:22-slim AS build
+
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV NODE_ENV=production
+ENV VITE_API_BASE_URL=/api
 ENV DATABASE_URL="mysql://dummy:dummy@localhost:3306/dummy"
 
-# Only install what prisma generate needs (not puppeteer, bcrypt, express, etc.)
-COPY server/package.json server/package-lock.json* ./
-RUN rm -f package-lock.json && npm install --legacy-peer-deps --omit=optional \
-    prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@^7.9.1 dotenv
+WORKDIR /app
 
-COPY server/prisma ./prisma
-COPY server/prisma.config.js .
-RUN npx prisma generate
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+COPY client/package.json client/
+COPY server/package.json server/
+COPY packages/shared-types/package.json packages/shared-types/
 
-# ---- Production stage ----
+COPY client/ ./client/
+COPY server/ ./server/
+COPY packages/shared-types/ ./packages/shared-types/
+
+# Build shared types first, then client, then compile server TypeScript.
+# The generated Prisma client is copied into dist so relative imports resolve.
+RUN if [ -f packages/shared-types/src/index.ts ]; then \
+      npm run build -w @optimum/shared-types; \
+    fi && \
+    npm run build -w client && \
+    cd server && \
+    npx prisma generate && \
+    npx tsc && \
+    node -e "require('fs').cpSync('generated/prisma', 'dist/generated/prisma', { recursive: true, force: true })"
+
+# ---- Production: minimal runtime image with Chromium ----
 FROM node:22-slim AS production
 
-# Install Chromium for Puppeteer
-RUN apt-get update && apt-get install -y --no-install-recommends \
+ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install Chromium and runtime deps required by Puppeteer
+RUN apt-get update && apt-get install -y --no-install-suggests --no-install-recommends \
     chromium \
     libglib2.0-0 \
     libnss3 \
@@ -50,34 +76,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
 WORKDIR /app
 
-# Copy server package files and install production deps (prisma now a regular dep)
-COPY server/package.json server/package-lock.json* ./server/
-RUN cd server && rm -f package-lock.json && npm install --omit=dev --legacy-peer-deps --omit=optional
+# Install production dependencies only
+COPY package*.json ./
+COPY client/package.json client/
+COPY server/package.json server/
+COPY packages/shared-types/package.json packages/shared-types/
 
-# Copy server source
-COPY server/src ./server/src
+RUN npm ci --workspace=server --include-workspace-root --legacy-peer-deps --omit=dev
+
+# Copy runtime artifacts
 COPY server/prisma ./server/prisma
-COPY server/prisma.config.js ./server/
-COPY server/entrypoint.sh ./server/
+COPY server/prisma.config.js ./server/prisma.config.js
+COPY server/entrypoint.sh ./server/entrypoint.sh
+COPY --from=build /app/server/dist ./server/dist
 
-# Copy generated Prisma client from builder
-COPY --from=prisma-builder /app/server/generated ./server/generated
+# Copy built client so the Express server can serve the SPA
+COPY --from=build /app/client/dist ./client/dist
 
-# Copy built client from builder
-COPY --from=client-builder /app/client/dist ./client/dist
+# Create runtime directories and switch to non-root user
+RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/server/templates && \
+    chown -R node:node /app/server
 
-# Create directories
-RUN mkdir -p /app/server/uploads /app/server/reports /app/server/logs /app/server/templates
+USER node
 
-EXPOSE ${PORT:-3001}
-
-# Run migrations, seed, then start via entrypoint script
 WORKDIR /app/server
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
+
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+
 CMD ["sh", "entrypoint.sh"]

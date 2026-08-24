@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "test": "cross-env DATABASE_URL=mysql://root:@localhost:3306/claims_solutions_test?schema=public NODE_OPTIONS=--experimental-vm-modules jest",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "start:prod": "npx prisma migrate deploy && node dist/src/server.js",
+    "prebuild": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npx prisma generate && tsc && node -e \"require('fs').cpSync('generated/prisma', 'dist/generated/prisma', { recursive: true, force: true })\"",
+    "typecheck": "tsc --noEmit",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint .",
     "format": "prettier --write .",
     "db:migrate": "prisma migrate dev",
@@ -14,7 +18,7 @@
     "db:studio": "prisma studio"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.1",
@@ -42,28 +46,48 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@optimum/shared-types": "^0.1.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.2",
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.15.30",
+    "@types/supertest": "^6.0.3",
     "cross-env": "10.1.0",
     "eslint": "9.39.5",
     "globals": "17.9.0",
     "jest": "30.4.2",
-    "nodemon": "3.1.14",
     "pino-pretty": "13.1.3",
     "prettier": "3.9.6",
-    "supertest": "7.2.2"
+    "supertest": "7.2.2",
+    "ts-jest": "^29.3.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
   },
   "jest": {
+    "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
+    "testTimeout": 30000,
+    "maxWorkers": 1,
+    "testPathIgnorePatterns": ["<rootDir>/dist/"],
+    "modulePathIgnorePatterns": ["<rootDir>/dist/", "<rootDir>/generated/"],
+    "moduleFileExtensions": ["js", "ts", "mjs", "cjs", "json", "node"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.[jt]sx?$": ["ts-jest", { "useESM": true }]
+    },
+    "extensionsToTreatAsEsm": [".ts"],
     "coverageDirectory": "coverage",
+    "globalSetup": "<rootDir>/tests/globalSetup.js",
+    "setupFiles": ["<rootDir>/tests/setup-test-env.cjs"],
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
+      "src/**/*.{js,ts}",
+      "!src/server.ts"
     ]
-  },
-  "allowScripts": {
-    "@prisma/engines@7.9.1": true,
-    "bcrypt@6.0.0": true,
-    "prisma@7.9.1": true,
-    "puppeteer@25.5.0": true,
-    "unrs-resolver@1.12.2": true
   }
 }
