@@ -1,10 +1,47 @@
+import type { Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db/client.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
 
-function formatUser(user) {
+export interface TokenPayload {
+  userId: number;
+  role: string;
+  email: string;
+}
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string | null;
+  employeeNumber: string | null;
+  department: string | null;
+  designation: string | null;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+}
+
+interface UserWithRole {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  employeeNumber: string | null;
+  department: string | null;
+  designation: string | null;
+  isActive: boolean;
+  lastLoginAt: Date | null;
+  role: { name: string };
+  passwordHash: string;
+}
+
+function formatUser(user: UserWithRole): UserProfile {
   return {
     id: user.id,
     email: user.email,
@@ -17,15 +54,15 @@ function formatUser(user) {
     designation: user.designation,
     role: user.role.name,
     isActive: user.isActive,
-    lastLoginAt: user.lastLoginAt,
+    lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
   };
 }
 
-export async function login(email, password) {
+export async function login(email: string, password: string): Promise<{ token: string; user: UserProfile }> {
   const user = await prisma.user.findUnique({
     where: { email },
     include: { role: true },
-  });
+  }) as UserWithRole | null;
 
   if (!user || !user.isActive) {
     throw new AppError('Invalid credentials', 401);
@@ -41,28 +78,30 @@ export async function login(email, password) {
     data: { lastLoginAt: new Date() },
   });
 
+  const signOptions: jwt.SignOptions = {
+    expiresIn: config.jwtExpiresIn as NonNullable<jwt.SignOptions['expiresIn']>,
+  };
+
   const token = jwt.sign(
     { userId: user.id, role: user.role.name, email: user.email },
     config.jwtSecret,
-    { expiresIn: config.jwtExpiresIn }
+    signOptions
   );
 
-  return {
-    token,
-    user: formatUser(user),
-  };
+  return { token, user: formatUser(user) };
 }
 
-export async function updateProfile(userId, data) {
+export async function updateProfile(userId: number, data: { firstName?: string; lastName?: string; phone?: string }): Promise<UserProfile> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { role: true },
-  });
+  }) as UserWithRole | null;
+
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  const allowed = {};
+  const allowed: { firstName?: string; lastName?: string; phone?: string } = {};
   if (data.firstName !== undefined) allowed.firstName = data.firstName;
   if (data.lastName !== undefined) allowed.lastName = data.lastName;
   if (data.phone !== undefined) allowed.phone = data.phone;
@@ -71,12 +110,12 @@ export async function updateProfile(userId, data) {
     where: { id: userId },
     data: allowed,
     include: { role: true },
-  });
+  }) as UserWithRole;
 
   return formatUser(updated);
 }
 
-export function setAuthCookie(res, token) {
+export function setAuthCookie(res: Response, token: string): void {
   res.cookie('token', token, {
     httpOnly: true,
     secure: config.nodeEnv === 'production',
@@ -85,7 +124,7 @@ export function setAuthCookie(res, token) {
   });
 }
 
-export function clearAuthCookie(res) {
+export function clearAuthCookie(res: Response): void {
   res.clearCookie('token', {
     httpOnly: true,
     secure: config.nodeEnv === 'production',
@@ -94,16 +133,16 @@ export function clearAuthCookie(res) {
   });
 }
 
-export function verifyToken(token) {
+export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, config.jwtSecret);
+    return jwt.verify(token, config.jwtSecret) as TokenPayload;
   } catch {
     return null;
   }
 }
 
-export async function changePassword(userId, currentPassword, newPassword) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+export async function changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+  const user = await prisma.user.findUnique({ where: { id: userId } }) as UserWithRole | null;
   if (!user) {
     throw new AppError('User not found', 404);
   }
