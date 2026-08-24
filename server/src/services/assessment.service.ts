@@ -4,26 +4,40 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 
+interface AssessmentItemInput {
+  description: string;
+  quantity?: number | string;
+  unitCost?: number | string;
+  amount?: number | string;
+}
+
+interface AssessmentInput {
+  assessmentDate?: string | Date;
+  items?: AssessmentItemInput[];
+  depreciation?: number | string;
+  notes?: string;
+}
+
 // Sync the latest assessment total to the claim's estimatedLoss and reserve
-async function syncAssessmentToClaim(claimId) {
+async function syncAssessmentToClaim(claimId: number) {
   const latest = await prisma.lossAssessment.findFirst({
-    where: { claimId: Number(claimId) },
+    where: { claimId },
     orderBy: { assessmentDate: 'desc' },
   });
   if (latest) {
     await prisma.claim.update({
-      where: { id: Number(claimId) },
+      where: { id: claimId },
       data: { estimatedLoss: latest.totalAmount, reserve: latest.totalAmount },
     });
   } else {
     await prisma.claim.update({
-      where: { id: Number(claimId) },
+      where: { id: claimId },
       data: { estimatedLoss: null, reserve: null },
     });
   }
 }
 
-export async function getAssessments(claimId) {
+export async function getAssessments(claimId: number | string) {
   return prisma.lossAssessment.findMany({
     where: { claimId: Number(claimId) },
     include: {
@@ -34,7 +48,7 @@ export async function getAssessments(claimId) {
   });
 }
 
-export async function getAssessment(id) {
+export async function getAssessment(id: number) {
   const item = await prisma.lossAssessment.findUnique({
     where: { id },
     include: {
@@ -46,7 +60,7 @@ export async function getAssessment(id) {
   return item;
 }
 
-function computeItems(items) {
+function computeItems(items: AssessmentItemInput[]) {
   return items.map((it) => {
     const qty = Number(it.quantity || 0);
     const unit = Number(it.unitCost || 0);
@@ -60,7 +74,7 @@ function computeItems(items) {
   });
 }
 
-export async function createAssessment(claimId, data, userId) {
+export async function createAssessment(claimId: number | string, data: AssessmentInput, userId: number) {
   const items = computeItems(data.items || []);
   const totalAmount = items.reduce((sum, it) => sum + it.amount, 0);
 
@@ -71,7 +85,7 @@ export async function createAssessment(claimId, data, userId) {
       assessmentDate: data.assessmentDate ? new Date(data.assessmentDate) : new Date(),
       totalAmount,
       depreciation: data.depreciation ? Number(data.depreciation) : 0,
-      notes: data.notes,
+      notes: data.notes ?? null,
 
       items: {
         create: items,
@@ -83,14 +97,14 @@ export async function createAssessment(claimId, data, userId) {
     },
   });
 
-  await syncAssessmentToClaim(claimId);
-  await logAction('ASSESSMENT_CREATED', 'LossAssessment', item.id, userId, { claimId, totalAmount });
-  await recordActivity(claimId, 'ASSESSMENT_CREATED', `Assessment created for ${totalAmount.toFixed(2)}`, userId);
-  await autoAdvanceStatus(claimId, 'ASSESSMENT', userId);
+  await syncAssessmentToClaim(Number(claimId));
+  await logAction('ASSESSMENT_CREATED', 'LossAssessment', item.id, userId, { claimId: Number(claimId), totalAmount });
+  await recordActivity(Number(claimId), 'ASSESSMENT_CREATED', `Assessment created for ${totalAmount.toFixed(2)}`, userId);
+  await autoAdvanceStatus(Number(claimId), 'ASSESSMENT', userId);
   return item;
 }
 
-export async function updateAssessment(id, data, _userId) {
+export async function updateAssessment(id: number, data: AssessmentInput, userId: number) {
   const assessment = await prisma.lossAssessment.findUnique({
     where: { id },
     include: { items: true },
@@ -118,15 +132,15 @@ export async function updateAssessment(id, data, _userId) {
   });
 
   await syncAssessmentToClaim(assessment.claimId);
-  await logAction('ASSESSMENT_UPDATED', 'LossAssessment', id, _userId, { claimId: assessment.claimId, totalAmount });
-  await recordActivity(assessment.claimId, 'ASSESSMENT_UPDATED', `Assessment updated to ${totalAmount.toFixed(2)}`, _userId);
+  await logAction('ASSESSMENT_UPDATED', 'LossAssessment', id, userId, { claimId: assessment.claimId, totalAmount });
+  await recordActivity(assessment.claimId, 'ASSESSMENT_UPDATED', `Assessment updated to ${totalAmount.toFixed(2)}`, userId);
   return item;
 }
 
-export async function deleteAssessment(id, userId) {
+export async function deleteAssessment(id: number, userId: number) {
   const assessment = await prisma.lossAssessment.findUnique({ where: { id } });
   if (!assessment) throw new AppError('Assessment not found', 404);
-  const claimId = assessment.claimId;
+  const { claimId } = assessment;
   await prisma.lossAssessment.delete({ where: { id } });
   await syncAssessmentToClaim(claimId);
   await logAction('ASSESSMENT_DELETED', 'LossAssessment', id, userId, { claimId });
