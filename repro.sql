@@ -1,7 +1,0 @@
-USE test_maria;
-DROP TABLE IF EXISTS tidx;
-CREATE TABLE tidx (id INT PRIMARY KEY, code VARCHAR(50));
-CREATE UNIQUE INDEX IF NOT EXISTS `u_code` ON tidx(code);
-CREATE UNIQUE INDEX IF NOT EXISTS `u_code` ON tidx(code);
-DROP INDEX IF EXISTS `u_code` ON tidx;
-DROP INDEX IF EXISTS `u_code` ON tidx;
