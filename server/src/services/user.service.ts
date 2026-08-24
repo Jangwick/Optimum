@@ -1,78 +1,64 @@
 import bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
+import type { AuthUser } from '../middleware/auth.js';
 
-export async function getUsers(filters = {}) {
-  const { role, search, page, limit, sortField, sortOrder } = filters;
-  const where = {};
-
-  if (role) {
-    where.role = { name: role };
-  }
-
-  if (search) {
-    where.OR = [
-      { email: { contains: search } },
-      { firstName: { contains: search } },
-      { lastName: { contains: search } },
-      { employeeNumber: { contains: search } },
-    ];
-  }
-
-  const orderBy = {};
-  if (sortField === 'fullName') {
-    orderBy.firstName = sortOrder || 'asc';
-  } else if (sortField === 'role') {
-    orderBy.role = { name: sortOrder || 'asc' };
-  } else if (sortField) {
-    orderBy[sortField] = sortOrder || 'asc';
-  } else {
-    orderBy.lastName = 'asc';
-  }
-
-  const hasPagination = page != null && limit != null;
-  const findManyArgs = { where, include: { role: true }, orderBy };
-  if (hasPagination) {
-    findManyArgs.skip = (page - 1) * limit;
-    findManyArgs.take = limit;
-  }
-
-  const [users, count] = await Promise.all([
-    prisma.user.findMany(findManyArgs),
-    prisma.user.count({ where }),
-  ]);
-
-  return {
-    users: users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      firstName: u.firstName,
-      lastName: u.lastName,
-      fullName: `${u.firstName} ${u.lastName}`,
-      phone: u.phone,
-      employeeNumber: u.employeeNumber,
-      department: u.department,
-      designation: u.designation,
-      role: u.role.name,
-      isActive: u.isActive,
-      lastLoginAt: u.lastLoginAt,
-    })),
-    count,
-  };
+export interface UserProfile {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string | null;
+  employeeNumber: string | null;
+  department: string | null;
+  designation: string | null;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: Date | null;
 }
 
-export async function getUserById(id) {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    include: { role: true },
-  });
+type UserWithRole = Prisma.UserGetPayload<{ include: { role: true } }>;
 
-  if (!user) {
-    throw new AppError('User not found', 404);
-  }
+interface UserFilters {
+  role?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortField?: string;
+  sortOrder?: string;
+}
 
+interface CreateUserInput {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  employeeNumber?: string;
+  department?: string;
+  designation?: string;
+  role: string;
+  isActive?: boolean;
+}
+
+interface UpdateUserInput {
+  email?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  employeeNumber?: string;
+  department?: string;
+  designation?: string;
+  role?: string;
+  isActive?: boolean;
+}
+
+function formatUser(user: UserWithRole): UserProfile {
   return {
     id: user.id,
     email: user.email,
@@ -89,7 +75,71 @@ export async function getUserById(id) {
   };
 }
 
-export async function createUser(data) {
+function generatePassword(): string {
+  // URL-safe base64url; 12 bytes produces a 16-character string with
+  // mixed-case letters, digits, and '-' / '_'.
+  return randomBytes(12).toString('base64url');
+}
+
+export async function getUsers(filters: UserFilters = {}) {
+  const { role, search, page, limit, sortField, sortOrder } = filters;
+  const where: { role?: { name: string }; OR?: object[] } = {};
+
+  if (role) {
+    where.role = { name: role };
+  }
+
+  if (search) {
+    where.OR = [
+      { email: { contains: search } },
+      { firstName: { contains: search } },
+      { lastName: { contains: search } },
+      { employeeNumber: { contains: search } },
+    ];
+  }
+
+  const orderBy: Record<string, string | object> = {};
+  if (sortField === 'fullName') {
+    orderBy.firstName = sortOrder || 'asc';
+  } else if (sortField === 'role') {
+    orderBy.role = { name: sortOrder || 'asc' };
+  } else if (sortField) {
+    orderBy[sortField] = sortOrder || 'asc';
+  } else {
+    orderBy.lastName = 'asc';
+  }
+
+  const hasPagination = page != null && limit != null;
+  const [users, count] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: { role: true },
+      orderBy,
+      ...(hasPagination ? { skip: (page - 1) * limit, take: limit } : {}),
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users: users.map(formatUser),
+    count,
+  };
+}
+
+export async function getUserById(id: number) {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: { role: true },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  return formatUser(user);
+}
+
+export async function createUser(data: CreateUserInput) {
   const role = await prisma.role.findUnique({ where: { name: data.role } });
   if (!role) {
     throw new AppError('Invalid role', 400);
@@ -109,10 +159,10 @@ export async function createUser(data) {
       passwordHash,
       firstName: data.firstName,
       lastName: data.lastName,
-      phone: data.phone,
-      employeeNumber: data.employeeNumber,
-      department: data.department,
-      designation: data.designation,
+      phone: data.phone ?? null,
+      employeeNumber: data.employeeNumber ?? null,
+      department: data.department ?? null,
+      designation: data.designation ?? null,
       roleId: role.id,
       isActive: data.isActive ?? true,
     },
@@ -124,7 +174,7 @@ export async function createUser(data) {
 
 const PROTECTED_USER_FIELDS = ['role', 'roleId', 'isActive', 'email', 'password', 'passwordHash', 'id'];
 
-export async function updateUser(id, data, requester) {
+export async function updateUser(id: number, data: UpdateUserInput, requester?: AuthUser) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
     throw new AppError('User not found', 404);
@@ -137,7 +187,7 @@ export async function updateUser(id, data, requester) {
     throw new AppError('Forbidden', 403);
   }
 
-  const updateData = { ...data };
+  const updateData: Record<string, unknown> = { ...data };
 
   if (isAdmin) {
     if (data.role) {
@@ -165,23 +215,23 @@ export async function updateUser(id, data, requester) {
 
   const updated = await prisma.user.update({
     where: { id },
-    data: updateData,
+    data: updateData as Prisma.UserUpdateInput,
     include: { role: true },
   });
 
   return formatUser(updated);
 }
 
-export async function deactivateUser(id, requester) {
+export async function deactivateUser(id: number, requester?: AuthUser) {
   return updateUser(id, { isActive: false }, requester);
 }
 
-export async function activateUser(id, requester) {
+export async function activateUser(id: number, requester?: AuthUser) {
   return updateUser(id, { isActive: true }, requester);
 }
 
-export async function resetPassword(id) {
-  const user = await prisma.user.findUnique({ where: { id } });
+export async function resetPassword(id: number) {
+  const user = await prisma.user.findUnique({ where: { id }, include: { role: true } });
   if (!user) {
     throw new AppError('User not found', 404);
   }
@@ -194,27 +244,4 @@ export async function resetPassword(id) {
   });
 
   return { user: formatUser(user), plainPassword: password };
-}
-
-function formatUser(user) {
-  return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    fullName: `${user.firstName} ${user.lastName}`,
-    phone: user.phone,
-    employeeNumber: user.employeeNumber,
-    department: user.department,
-    designation: user.designation,
-    role: user.role.name,
-    isActive: user.isActive,
-    lastLoginAt: user.lastLoginAt,
-  };
-}
-
-function generatePassword() {
-  // URL-safe base64url; 12 bytes produces a 16-character string with
-  // mixed-case letters, digits, and '-' / '_'.
-  return randomBytes(12).toString('base64url');
 }
