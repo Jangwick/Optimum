@@ -34,7 +34,7 @@
 
 ## Security & Secure Coding
 
-Security is a constraint on every line that touches user data, authentication, files, or external input. Follow these principles on every change. Current hardening plan: `C:\Users\mikmikk03\.devin\plans\plan-security-hardening.md`.
+Security is a constraint on every line that touches user data, authentication, files, or external input. Follow these principles on every change.
 
 This checklist aligns with the OWASP Top 10:2025 and common defensive practices for this Express + React stack.
 
