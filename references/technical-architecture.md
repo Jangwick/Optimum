@@ -249,6 +249,7 @@ Client (`.env` / `.env.local`):
   - `server/src/services/audit.service.ts`
   - `server/src/services/activity.service.ts`
   - `server/src/services/notification.service.ts`
+  - `server/src/services/user.service.ts`
 - Jest was configured with `maxWorkers: 1` to avoid claim-number generation races across parallel integration suites sharing the same test database.
 - `server/package.json` Jest config updated to `ts-jest/presets/default-esm` with `moduleNameMapper` so existing `.js` imports resolve to renamed `.ts` source files and tests still run without editing every import path.
 
