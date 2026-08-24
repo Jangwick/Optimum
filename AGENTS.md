@@ -36,6 +36,8 @@
 
 Security is a constraint on every line that touches user data, authentication, files, or external input. Follow these principles on every change.
 
+For a curated list of external references and a per-change verification checklist, see `references/security-checklist.md`.
+
 This checklist aligns with the OWASP Top 10:2025 and common defensive practices for this Express + React stack.
 
 ### Input validation and trust boundaries
