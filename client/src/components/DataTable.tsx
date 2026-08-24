@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 
-interface Column {
+export interface Column {
   key: string;
   title: string;
   sortable?: boolean;

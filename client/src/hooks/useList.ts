@@ -21,7 +21,7 @@ interface UseListState {
   setFilters: Dispatch<SetStateAction<UseListFilters>>;
   applyFilters: (next: UseListFilters) => void;
   sortField: string;
-  sortOrder: string;
+  sortOrder: 'asc' | 'desc';
   onSort: (field: string) => void;
   refresh: number;
   reload: () => void;
@@ -33,7 +33,7 @@ export function useList({ initialPage = 1, initialLimit = 25 }: UseListOptions =
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<UseListFilters>({});
   const [sortField, setSortField] = useState('');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [refresh, setRefresh] = useState(0);
 
   const onSort = useCallback((field: string) => {

@@ -1,53 +1,85 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent, type ChangeEvent } from 'react';
 import { updateClaim } from '../services/claim.service.js';
 import { getUsers } from '../services/user.service.js';
 import { Modal } from './Modal.jsx';
 import { Select } from './Select.jsx';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AxiosError } from 'axios';
 
-export function AssignClaimModal({ open, onClose, claim, onSaved }) {
-  const [form, setForm] = useState({ engineerId: '', accountantId: '', assignedByName: '' });
-  const [users, setUsers] = useState([]);
+interface User {
+  id: number;
+  fullName: string;
+  role: string;
+}
+
+interface Claim {
+  id: number;
+  engineerId?: number | null;
+  accountantId?: number | null;
+  assignedByName?: string | null;
+}
+
+interface AssignForm {
+  engineerId: string;
+  accountantId: string;
+  assignedByName: string;
+}
+
+interface AssignClaimModalProps {
+  open: boolean;
+  onClose: () => void;
+  claim: Claim | null;
+  onSaved?: () => void;
+}
+
+export function AssignClaimModal({ open, onClose, claim, onSaved }: AssignClaimModalProps) {
+  const [form, setForm] = useState<AssignForm>({ engineerId: '', accountantId: '', assignedByName: '' });
+  const [users, setUsers] = useState<User[]>([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!open || !claim) return;
     setForm({
-      engineerId: claim.engineerId || '',
-      accountantId: claim.accountantId || '',
+      engineerId: claim.engineerId ? String(claim.engineerId) : '',
+      accountantId: claim.accountantId ? String(claim.accountantId) : '',
       assignedByName: claim.assignedByName || '',
     });
     setError(null);
     setSuccess(false);
     getUsers()
-      .then((data) => setUsers(data.users || []))
+      .then((data) => setUsers((data as { users: User[] }).users || []))
       .catch(() => setError('Failed to load users'));
   }, [open, claim]);
 
   const engineers = users.filter((u) => u.role === 'ENGINEER');
   const accountants = users.filter((u) => u.role === 'ACCOUNTANT');
 
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (key: keyof AssignForm) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm({ ...form, [key]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!claim) return;
     setSaving(true);
     setError(null);
     try {
       await updateClaim(claim.id, {
-        engineerId: form.engineerId || null,
-        accountantId: form.accountantId || null,
+        engineerId: form.engineerId ? Number(form.engineerId) : null,
+        accountantId: form.accountantId ? Number(form.accountantId) : null,
         assignedByName: form.assignedByName,
       });
       setSuccess(true);
       setTimeout(() => {
         onSaved?.();
-        onClose?.();
+        onClose();
       }, 600);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to update assignment');
+      setError(
+        (err instanceof AxiosError && err.response?.data?.error) ||
+        (err instanceof Error ? err.message : 'Failed to update assignment')
+      );
     } finally {
       setSaving(false);
     }
@@ -76,7 +108,7 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }) {
           <label className="block text-label-md text-outline uppercase mb-1.5">Engineer</label>
           <Select
             value={form.engineerId}
-            onChange={(v) => setForm({ ...form, engineerId: v })}
+            onChange={(v) => setForm({ ...form, engineerId: String(v) })}
             options={[
               { value: '', label: '— None —' },
               ...engineers.map((u) => ({ value: u.id, label: u.fullName })),
@@ -89,7 +121,7 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }) {
           <label className="block text-label-md text-outline uppercase mb-1.5">Accountant</label>
           <Select
             value={form.accountantId}
-            onChange={(v) => setForm({ ...form, accountantId: v })}
+            onChange={(v) => setForm({ ...form, accountantId: String(v) })}
             options={[
               { value: '', label: '— None —' },
               ...accountants.map((u) => ({ value: u.id, label: u.fullName })),
@@ -100,14 +132,28 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }) {
 
         <div>
           <label className="block text-label-md text-outline uppercase mb-1.5">Assigned By</label>
-          <input type="text" value={form.assignedByName} onChange={set('assignedByName')} className={inputClass} placeholder="Name of person assigning this claim" />
+          <input
+            type="text"
+            value={form.assignedByName}
+            onChange={set('assignedByName')}
+            className={inputClass}
+            placeholder="Name of person assigning this claim"
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onClose} className="h-10 px-4 rounded border border-outline text-on-surface-variant hover:bg-surface-container-high transition-colors text-body-md font-medium">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 px-4 rounded border border-outline text-on-surface-variant hover:bg-surface-container-high transition-colors text-body-md font-medium"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="h-10 px-4 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors text-body-md disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={saving}
+            className="h-10 px-4 bg-primary text-white font-semibold rounded hover:bg-primary-container transition-colors text-body-md disabled:opacity-50"
+          >
             {saving ? 'Saving...' : 'Save Assignment'}
           </button>
         </div>

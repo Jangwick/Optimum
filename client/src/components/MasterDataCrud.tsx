@@ -1,14 +1,36 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { DataTable } from './DataTable.jsx';
+import { z, type ZodTypeAny } from 'zod';
+import { DataTable, type Column } from './DataTable.jsx';
 import { Pagination } from './Pagination.jsx';
 import { Modal } from './Modal.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { Select } from './Select.jsx';
 import { useList } from '../hooks/useList.js';
 import { Plus, Pencil, Trash2, Search, Database, X } from 'lucide-react';
+
+interface MasterDataField {
+  key: string;
+  label: string;
+  type?: 'text' | 'email' | 'number' | 'select' | 'date';
+  required?: boolean;
+  options?: Array<{ value: string; label: string }>;
+}
+
+interface MasterDataCrudProps {
+  title: string;
+  entityLabel?: string;
+  list: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  create: (payload: Record<string, unknown>) => Promise<unknown>;
+  update: (id: number, payload: Record<string, unknown>) => Promise<unknown>;
+  remove: (id: number) => Promise<unknown>;
+  fields: MasterDataField[];
+  columns: Column[];
+  defaultValues: Record<string, unknown>;
+  transformIn?: (row: Record<string, unknown>) => Record<string, unknown>;
+  transformOut?: (values: Record<string, unknown>) => Record<string, unknown>;
+}
 
 export function MasterDataCrud({
   title,
@@ -22,18 +44,18 @@ export function MasterDataCrud({
   defaultValues,
   transformIn,
   transformOut,
-}) {
+}: MasterDataCrudProps) {
   const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList();
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [confirm, setConfirm] = useState(null);
+  const [editing, setEditing] = useState<Record<string, unknown> | null>(null);
+  const [confirm, setConfirm] = useState<{ id: number; name: string } | null>(null);
 
   const schema = z.object(
-    fields.reduce((acc, f) => {
-      let validator = f.required ? z.string().min(1, 'Required') : z.string().optional();
+    fields.reduce<Record<string, ZodTypeAny>>((acc, f) => {
+      let validator: ZodTypeAny = f.required ? z.string().min(1, 'Required') : z.string().optional();
       if (f.type === 'email') validator = f.required ? z.string().email() : z.string().email().optional();
       if (f.type === 'number') validator = f.required ? z.coerce.number() : z.coerce.number().optional();
       if (f.type === 'select') validator = f.required ? z.string().min(1) : z.string().optional();
@@ -56,8 +78,9 @@ export function MasterDataCrud({
     setLoading(true);
     list({ page, limit, search, sortField, sortOrder })
       .then((res) => {
-        setItems(res.items || []);
-        setCount(res.count || 0);
+        const result = res as { items?: Record<string, unknown>[]; count?: number };
+        setItems(result.items || []);
+        setCount(result.count || 0);
       })
       .finally(() => setLoading(false));
   }, [list, page, limit, search, sortField, sortOrder, refresh]);
@@ -68,17 +91,17 @@ export function MasterDataCrud({
     setModalOpen(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = (row: Record<string, unknown>) => {
     setEditing(row);
     const values = transformIn ? transformIn(row) : row;
-    reset(values);
+    reset(values as Record<string, unknown>);
     setModalOpen(true);
   };
 
-  const onSubmit = async (values) => {
+  const onSubmit = async (values: Record<string, unknown>) => {
     const payload = transformOut ? transformOut(values) : values;
     if (editing) {
-      await update(editing.id, payload);
+      await update(editing.id as number, payload);
     } else {
       await create(payload);
     }
@@ -87,6 +110,7 @@ export function MasterDataCrud({
   };
 
   const doDelete = async () => {
+    if (!confirm) return;
     await remove(confirm.id);
     setConfirm(null);
     reload();
@@ -94,16 +118,17 @@ export function MasterDataCrud({
 
   const hasActiveFilters = search;
 
-  // Group fields into rows of 2 for the form
-  const fieldRows = fields.reduce((acc, f, i) => {
-    if (i % 2 === 0) acc.push([f]);
-    else acc[acc.length - 1].push(f);
+  const fieldRows = fields.reduce<MasterDataField[][]>((acc, f, i) => {
+    if (i % 2 === 0) {
+      acc.push([f]);
+    } else {
+      acc[acc.length - 1]?.push(f);
+    }
     return acc;
   }, []);
 
   return (
     <div>
-      {/* Section Header */}
       <div className="flex justify-between items-end mb-4">
         <div>
           <h3 className="text-headline-sm font-semibold text-primary">{title}</h3>
@@ -120,7 +145,6 @@ export function MasterDataCrud({
         </button>
       </div>
 
-      {/* Filter Bar */}
       <div className="bg-surface border border-surface-border rounded-lg shadow-sm p-4 mb-4">
         <div className="flex gap-3">
           <div className="relative flex-1 max-w-md">
@@ -147,7 +171,6 @@ export function MasterDataCrud({
         </div>
       </div>
 
-      {/* Data Table */}
       <DataTable
         columns={[
           ...columns,
@@ -156,21 +179,21 @@ export function MasterDataCrud({
             title: '',
             sortable: false,
             align: 'right',
-            render: (row) => (
+            render: (row: Record<string, unknown>) => (
               <div className="flex items-center justify-end gap-1">
                 <button
                   onClick={() => openEdit(row)}
                   className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors"
                   title="Edit"
-                  aria-label={`Edit ${row.name || row.policyNumber || row.code}`}
+                  aria-label={`Edit ${(row.name || row.policyNumber || row.code) as string}`}
                 >
                   <Pencil size={16} />
                 </button>
                 <button
-                  onClick={() => setConfirm({ id: row.id, name: row.name || row.policyNumber || row.code })}
+                  onClick={() => setConfirm({ id: row.id as number, name: (row.name || row.policyNumber || row.code) as string })}
                   className="p-1.5 text-outline hover:text-error hover:bg-error/10 rounded transition-colors"
                   title="Delete"
-                  aria-label={`Delete ${row.name || row.policyNumber || row.code}`}
+                  aria-label={`Delete ${(row.name || row.policyNumber || row.code) as string}`}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -183,7 +206,7 @@ export function MasterDataCrud({
         sortField={sortField}
         sortOrder={sortOrder}
         onSort={onSort}
-        keyExtractor={(row) => row.id}
+        keyExtractor={(row) => row.id as string | number}
         emptyState={
           <div className="p-12 text-center">
             <Database size={40} className="mx-auto text-outline mb-3" />
@@ -208,7 +231,6 @@ export function MasterDataCrud({
 
       <Pagination page={page} limit={limit} total={count} onPageChange={setPage} onLimitChange={setLimit} />
 
-      {/* Create/Edit Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? `Edit ${entityLabel || title}` : `Add ${entityLabel || title}`}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {fieldRows.map((rowFields, rowIdx) => (
@@ -221,11 +243,11 @@ export function MasterDataCrud({
                   </label>
                   {f.type === 'select' ? (
                     <Select
-                      value={watch(f.key) || ''}
+                      value={String(watch(f.key) || '')}
                       onChange={(v) => setValue(f.key, v, { shouldValidate: true })}
                       options={[
                         { value: '', label: '— Select —' },
-                        ...f.options.map((o) => ({ value: o.value, label: o.label })),
+                        ...(f.options || []).map((o) => ({ value: o.value, label: o.label })),
                       ]}
                       placeholder="— Select —"
                     />
@@ -237,7 +259,7 @@ export function MasterDataCrud({
                       className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                     />
                   )}
-                  {errors[f.key] && <p className="text-body-sm text-error mt-1">{errors[f.key].message}</p>}
+                  {errors[f.key] && <p className="text-body-sm text-error mt-1">{String(errors[f.key]?.message)}</p>}
                 </div>
               ))}
             </div>
