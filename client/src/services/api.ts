@@ -1,8 +1,8 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-function getToken() {
+function getToken(): string | null {
   try {
     return localStorage.getItem('token');
   } catch {
@@ -10,7 +10,7 @@ function getToken() {
   }
 }
 
-export const api = axios.create({
+export const api: AxiosInstance = axios.create({
   baseURL,
   withCredentials: true,
   headers: {
@@ -18,7 +18,7 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -27,8 +27,8 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
     const isAuth = error.config?.url?.startsWith('/auth');
     const onLogin = window.location.pathname === '/login';
     if (error.response?.status === 401 && !isAuth && !onLogin) {
@@ -43,7 +43,7 @@ api.interceptors.response.use(
  * that are loaded via <img>, <a download>, etc. and cannot send
  * Authorization headers. Appends the JWT as a query parameter.
  */
-export function authUrl(path) {
+export function authUrl(path: string): string {
   const token = getToken();
   const sep = path.includes('?') ? '&' : '?';
   return token ? `${path}${sep}token=${encodeURIComponent(token)}` : path;
