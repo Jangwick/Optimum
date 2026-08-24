@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import { config } from '../config/index.js';
 import { loginHandler, logoutHandler, meHandler, changePasswordHandler, updateProfileHandler } from '../controllers/auth.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 
@@ -8,6 +9,7 @@ const authRateLimit = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (_req) => config.nodeEnv !== 'production',
   message: { success: false, error: 'Too many attempts, please try again later.' },
 });
 
