@@ -104,8 +104,26 @@ app.use('/api/process-statuses', processStatusRoutes);
 app.use('/api/claims', activityRoutes);
 app.use('/api/search', searchRoutes);
 
+const CLIENT_DIST_CANDIDATES = [
+  process.env.CLIENT_DIST_PATH,
+  path.resolve(__dirname, '../../client/dist'),
+  path.resolve(__dirname, '../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve(process.cwd(), '../client/dist'),
+].filter(Boolean);
+
+function resolveClientDist() {
+  for (const candidate of CLIENT_DIST_CANDIDATES) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  // Return the first/default for the warning message even if missing
+  return CLIENT_DIST_CANDIDATES[0];
+}
+
 // Serve built client (works in production and when client/dist exists)
-const clientDist = path.resolve(__dirname, '../../client/dist');
+const clientDist = resolveClientDist();
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
   // SPA fallback: serve index.html for non-API, non-file routes
@@ -116,7 +134,7 @@ if (fs.existsSync(clientDist)) {
   });
 } else {
   // eslint-disable-next-line no-console
-  console.warn(`client/dist not found at ${clientDist}`);
+  console.warn(`client/dist not found at ${clientDist}. Checked: ${CLIENT_DIST_CANDIDATES.join(', ')}`);
 }
 
 app.use((req, res) => {

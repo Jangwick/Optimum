@@ -3,10 +3,8 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let policyId;
 let engineerId;
 let accountantId;
-let claimId;
 
 describe('Search endpoints', () => {
   let adminId;
@@ -39,6 +37,7 @@ describe('Search endpoints', () => {
       update: {},
       create: { email: 'accountant@optimum.com', passwordHash, firstName: 'Senior', lastName: 'Accountant', employeeNumber: 'ACC-001', roleId: accountantRole.id, isActive: true },
     });
+    accountantId = accountant.id;
 
     const insurer = await prisma.insuranceCompany.upsert({
       where: { code: 'TEST-INS' },
@@ -73,15 +72,13 @@ describe('Search endpoints', () => {
         policyType: 'Property',
       },
     });
-    policyId = policy.id;
-
     const newStatus = await prisma.claimStatus.upsert({
       where: { code: 'NEW' },
       update: {},
       create: { name: 'New', code: 'NEW' },
     });
 
-    const claim = await prisma.claim.upsert({
+    await prisma.claim.upsert({
       where: { claimNumber: 'CS-SEARCH-0001' },
       update: {},
       create: {
@@ -100,7 +97,6 @@ describe('Search endpoints', () => {
         createdById: adminId,
       },
     });
-    claimId = claim.id;
   });
 
   afterAll(async () => {
