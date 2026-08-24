@@ -1,25 +1,29 @@
-import { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
-/**
- * Custom Select component that always opens downwards.
- * Drop-in replacement for native <select> with consistent styling.
- *
- * The listbox is rendered via a React portal at the document body level,
- * so it escapes any ancestor overflow-hidden / overflow-auto containers
- * and is never clipped or overlapped by surrounding content.
- *
- * Props:
- *   value: string | number          — current selected value
- *   onChange: (value) => void       — called with the new value
- *   options: [{ value, label }]     — dropdown options
- *   placeholder: string             — shown when value is empty
- *   ariaLabel: string               — accessibility label
- *   id: string                      — optional id for the trigger button (for <label htmlFor>)
- *   className: string               — additional classes for the trigger
- *   disabled: bool
- */
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
+interface SelectProps {
+  value: string | number;
+  onChange: (value: string | number) => void;
+  options?: SelectOption[];
+  placeholder?: string;
+  ariaLabel?: string;
+  id?: string;
+  className?: string;
+  disabled?: boolean;
+}
+
+interface ListboxPosition {
+  left: number;
+  top: number;
+  width: number;
+}
+
 export function Select({
   value,
   onChange,
@@ -29,25 +33,23 @@ export function Select({
   id,
   className = '',
   disabled = false,
-}) {
+}: SelectProps) {
   const [open, setOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const containerRef = useRef(null);
-  const listRef = useRef(null);
-  const [listboxPos, setListboxPos] = useState(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [listboxPos, setListboxPos] = useState<ListboxPosition | null>(null);
 
-  // Compute listbox position relative to the trigger button
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setListboxPos({
       left: rect.left,
-      top: rect.bottom + 4, // 4px gap below trigger
+      top: rect.bottom + 4,
       width: rect.width,
     });
   }, [open]);
 
-  // Track scroll/resize to keep the listbox aligned while open
   useEffect(() => {
     if (!open) return;
     const update = () => {
@@ -63,12 +65,11 @@ export function Select({
     };
   }, [open]);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target) &&
-          listRef.current && !listRef.current.contains(e.target)) {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node) &&
+          listRef.current && !listRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
@@ -76,7 +77,6 @@ export function Select({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Reset highlighted index when opening
   useEffect(() => {
     if (open) {
       const idx = options.findIndex((o) => String(o.value) === String(value));
@@ -84,7 +84,6 @@ export function Select({
     }
   }, [open, options, value]);
 
-  // Scroll highlighted option into view
   useEffect(() => {
     if (!open || highlightedIndex < 0) return;
     const list = listRef.current;
@@ -98,7 +97,7 @@ export function Select({
   const selectedOption = options.find((o) => String(o.value) === String(value));
 
   const handleKeyDown = useCallback(
-    (e) => {
+    (e: KeyboardEvent<HTMLButtonElement>) => {
       if (!open) {
         if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
           e.preventDefault();
@@ -122,9 +121,12 @@ export function Select({
         case 'Enter':
         case ' ':
           e.preventDefault();
-          if (highlightedIndex >= 0) {
-            onChange(options[highlightedIndex].value);
-            setOpen(false);
+          if (highlightedIndex >= 0 && highlightedIndex < options.length) {
+            const option = options[highlightedIndex];
+            if (option) {
+              onChange(option.value);
+              setOpen(false);
+            }
           }
           break;
         default:
@@ -171,7 +173,7 @@ export function Select({
               const isHighlighted = idx === highlightedIndex;
               return (
                 <li
-                  key={opt.value}
+                  key={String(opt.value)}
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => {

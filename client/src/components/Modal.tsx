@@ -1,8 +1,23 @@
+import { type ReactNode } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { X } from 'lucide-react';
 
-export function Modal({ open, onClose, title, children, size = 'md' }) {
-  const sizeConfig = {
+interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string | undefined;
+  children: ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+}
+
+interface SizeConfig {
+  panel: string;
+  padding: string;
+  scroll: boolean;
+}
+
+export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+  const sizeConfig: SizeConfig = {
     sm: { panel: 'max-w-[95vw] sm:max-w-md', padding: 'p-6', scroll: true },
     md: { panel: 'max-w-[95vw] sm:max-w-lg', padding: 'p-6', scroll: true },
     lg: { panel: 'max-w-[95vw] sm:max-w-2xl', padding: 'p-6', scroll: true },

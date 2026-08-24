@@ -1,7 +1,44 @@
+import { type ReactNode } from 'react';
 import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 
-export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort, rowActions, keyExtractor, onRowClick, emptyState, bare }) {
+interface Column {
+  key: string;
+  title: string;
+  sortable?: boolean;
+  align?: 'left' | 'right';
+  className?: string;
+  monospace?: boolean;
+  render?: (row: Record<string, unknown>) => ReactNode;
+}
+
+interface DataTableProps {
+  columns: Column[];
+  rows: Record<string, unknown>[];
+  loading?: boolean;
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+  onSort?: (field: string) => void;
+  rowActions?: (row: Record<string, unknown>) => ReactNode;
+  keyExtractor?: (row: Record<string, unknown>, index: number) => string | number;
+  onRowClick?: (row: Record<string, unknown>) => void;
+  emptyState?: ReactNode;
+  bare?: boolean;
+}
+
+export function DataTable({
+  columns,
+  rows,
+  loading,
+  sortField,
+  sortOrder,
+  onSort,
+  rowActions,
+  keyExtractor,
+  onRowClick,
+  emptyState,
+  bare,
+}: DataTableProps) {
   const containerClass = bare ? '' : 'bg-surface border border-surface-border rounded shadow-sm overflow-hidden';
 
   if (loading) {
@@ -24,7 +61,7 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
     );
   }
 
-  const sortIcon = (field) => {
+  const sortIcon = (field: string) => {
     if (!onSort) return null;
     if (sortField !== field) return <ArrowUpDown size={14} className="text-outline" />;
     return sortOrder === 'asc' ? <ArrowUp size={14} className="text-primary" /> : <ArrowDown size={14} className="text-primary" />;
@@ -54,7 +91,7 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
           <tbody className="divide-y divide-surface-border text-body-md">
             {rows.map((row, idx) => (
               <tr
-                key={keyExtractor ? keyExtractor(row, idx) : row.id}
+                key={keyExtractor ? keyExtractor(row, idx) : (row.id as string | number)}
                 className={cn('hover:bg-surface-container-low', onRowClick && 'cursor-pointer')}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
@@ -68,7 +105,7 @@ export function DataTable({ columns, rows, loading, sortField, sortOrder, onSort
                       col.monospace ? 'font-mono' : ''
                     )}
                   >
-                    {col.render ? col.render(row) : row[col.key]}
+                    {col.render ? col.render(row) : (row[col.key] as ReactNode)}
                   </td>
                 ))}
                 {rowActions && <td className="px-3 py-2 sm:px-4 sm:py-3 text-right whitespace-nowrap">{rowActions(row)}</td>}

@@ -1,9 +1,13 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 
-// Maps URL path segments to human-readable labels.
-const SEGMENT_LABELS = {
+interface Crumb {
+  label: string;
+  path: string;
+}
+
+const SEGMENT_LABELS: Record<string, string> = {
   claims: 'Claims',
   new: 'New Claim',
   employees: 'Employees',
@@ -12,33 +16,30 @@ const SEGMENT_LABELS = {
   reports: 'Reports & Analytics',
 };
 
-// When a dynamic segment (e.g. an ID) follows one of these parents,
-// show this label instead of the raw ID.
-const DYNAMIC_LABELS = {
+const DYNAMIC_LABELS: Record<string, string> = {
   claims: 'Claim Details',
 };
 
-function buildBreadcrumbs(pathname, dynamicLabel) {
+function buildBreadcrumbs(pathname: string, dynamicLabel: string | null): Crumb[] {
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs = [{ label: 'Overview', path: '/' }];
+  const crumbs: Crumb[] = [{ label: 'Overview', path: '/' }];
 
   if (segments.length === 0) return crumbs;
 
   let currentPath = '';
   for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
+    const seg = segments[i]!;
     currentPath += `/${seg}`;
 
     if (SEGMENT_LABELS[seg]) {
       crumbs.push({ label: SEGMENT_LABELS[seg], path: currentPath });
     } else {
-      const parent = segments[i - 1];
+      const parent = i > 0 ? segments[i - 1]! : undefined;
       const isLast = i === segments.length - 1;
-      // If the page set a dynamic label and this is the last segment, use it
       if (isLast && dynamicLabel) {
         crumbs.push({ label: dynamicLabel, path: currentPath });
       } else {
-        const dynamicFallback = DYNAMIC_LABELS[parent];
+        const dynamicFallback = parent ? DYNAMIC_LABELS[parent] : undefined;
         if (dynamicFallback) {
           crumbs.push({ label: dynamicFallback, path: currentPath });
         } else if (seg.length <= 20) {
@@ -53,21 +54,22 @@ function buildBreadcrumbs(pathname, dynamicLabel) {
   return crumbs;
 }
 
-// Context that lets pages set a dynamic label for the last breadcrumb
-// (e.g. ClaimDetail can set the actual claim number).
-const BreadcrumbContext = createContext(null);
+const BreadcrumbContext = createContext<((label: string) => void) | null>(null);
 
-export function useBreadcrumb(label) {
+export function useBreadcrumb(label: string) {
   const setter = useContext(BreadcrumbContext);
   useEffect(() => {
     if (setter) setter(label);
   }, [label, setter]);
 }
 
-export function BreadcrumbProvider({ children }) {
+interface BreadcrumbProviderProps {
+  children: ReactNode;
+}
+
+export function BreadcrumbProvider({ children }: BreadcrumbProviderProps) {
   const location = useLocation();
 
-  // Reset dynamic label on route change
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('breadcrumb-label', { detail: null }));
   }, [location.pathname]);
@@ -81,16 +83,14 @@ export function BreadcrumbProvider({ children }) {
 
 export function Breadcrumbs() {
   const location = useLocation();
-  const [dynamicLabel, setDynamicLabel] = useState(null);
+  const [dynamicLabel, setDynamicLabel] = useState<string | null>(null);
 
-  // Listen for dynamic label updates from pages via a simple event
   useEffect(() => {
-    const handler = (e) => setDynamicLabel(e.detail);
+    const handler = (e: Event) => setDynamicLabel((e as CustomEvent<string | null>).detail);
     window.addEventListener('breadcrumb-label', handler);
     return () => window.removeEventListener('breadcrumb-label', handler);
   }, []);
 
-  // Reset on route change
   useEffect(() => {
     setDynamicLabel(null);
   }, [location.pathname]);
@@ -126,7 +126,6 @@ export function Breadcrumbs() {
   );
 }
 
-// Helper for pages to set their breadcrumb label
-export function setBreadcrumbLabel(label) {
+export function setBreadcrumbLabel(label: string) {
   window.dispatchEvent(new CustomEvent('breadcrumb-label', { detail: label }));
 }

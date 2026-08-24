@@ -1,7 +1,15 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select } from './Select.jsx';
 
-export function Pagination({ page, limit, total, onPageChange, onLimitChange }) {
+interface PaginationProps {
+  page: number;
+  limit: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
+}
+
+export function Pagination({ page, limit, total, onPageChange, onLimitChange }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const start = total === 0 ? 0 : (page - 1) * limit + 1;
   const end = Math.min(page * limit, total);
