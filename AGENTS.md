@@ -34,14 +34,62 @@
 
 ## Security & Secure Coding
 
-Security is a constraint on every line that touches user data, authentication, files, or external input. Current hardening plan: `C:\Users\mikmikk03\.devin\plans\plan-security-hardening.md`.
+Security is a constraint on every line that touches user data, authentication, files, or external input. Follow these principles on every change. Current hardening plan: `C:\Users\mikmikk03\.devin\plans\plan-security-hardening.md`.
 
-- **Treat all external input as untrusted.** Validate route parameters and body fields at the boundary; cast `id` params with `Number` and reject `NaN`; never trust client-supplied mimetypes or file extensions.
-- **Contain all file paths.** Resolve stored paths only under `UPLOAD_DIR` and `REPORT_DIR`; reject absolute paths and `..` traversal before `fs.readFileSync` or `res.sendFile`.
-- **Authenticate and authorize every route.** Use `authMiddleware` on all `/api` routes except `/api/health`; apply `requireRole` or a `canAccessClaim(user, claimId)` check before mutating nested resources.
-- **Keep secrets out of code and logs.** Use environment variables for `JWT_SECRET`, `DATABASE_URL`, and bcrypt rounds; do not log tokens, passwords, or full request bodies.
-- **Use cryptographically secure randomness.** Use `crypto.randomBytes` or the installed `nanoid` for passwords, tokens, and nonces; never use `Math.random()` for security-sensitive values.
-- **Secure the auth cookie.** The `token` cookie must be `httpOnly`, `secure` in production, and `sameSite='lax'`; clear it with the same options and `maxAge: 0`. Avoid returning the JWT in JSON or storing it in `localStorage`; if a query-string token is required for binary downloads, restrict it to those specific GET routes.
-- **Rate-limit auth endpoints.** Apply `express-rate-limit` to `POST /api/auth/login` and `POST /api/auth/me/password` with a stricter limit than the global API rate limit.
-- **Escape output before rendering.** HTML-escape all user-controlled values before inserting them into report PDF templates or DOCX placeholders; encode filenames in `Content-Disposition` headers.
-- **Run targeted tests.** After security changes, run only the relevant test files (e.g., `auth.test.js`, `claim.test.js`, `discussion-note.test.js`) instead of the full suite.
+This checklist aligns with the OWASP Top 10:2025 and common defensive practices for this Express + React stack.
+
+### Input validation and trust boundaries
+- **Treat all external input as untrusted**, including HTTP bodies, query params, route params, headers, cookies, file uploads, and data from third-party APIs or LLMs.
+- Validate and sanitize at the API boundary. Cast numeric IDs with `Number` and reject `NaN`. Prefer Zod schemas for complex request bodies.
+- Never trust client-supplied MIME types or file extensions. Verify uploads with an allowlist and magic-byte content checks.
+
+### Authentication and authorization (A01, A07)
+- Authenticate every `/api` route except `/api/health` with `authMiddleware`.
+- Authorize every action. Use `requireRole` for role checks and `assertClaimAccess` / `canAccessClaim` for claim-scoped resources. Default to **deny**.
+- Enforce least privilege: users should only see and mutate data they own, are assigned to, or are explicitly allowed to manage.
+
+### Output encoding and injection prevention (A05)
+- Use parameterized queries via Prisma; never concatenate user input into SQL.
+- HTML-escape user-controlled values before building report PDF HTML or any server-rendered output. Avoid `innerHTML` and `dangerouslySetInnerHTML` with user data.
+- Encode `Content-Disposition` filenames and other headers that carry user data.
+
+### Cryptography and session management (A04, A07)
+- Hash passwords with bcrypt (≥12 rounds). Use `crypto.randomBytes` or the installed `nanoid` for tokens, nonces, and generated passwords; never `Math.random()`.
+- Keep `JWT_SECRET`, `DATABASE_URL`, and bcrypt rounds in environment variables, not code.
+- Auth cookies must be `httpOnly`, `secure` in production, and `sameSite='lax'`. Clear them with matching options and `maxAge: 0`.
+- Avoid returning JWTs in JSON or storing them in `localStorage`. If a query-string token is required for binary downloads, restrict it to those specific GET routes.
+
+### File and path safety (A01, A08)
+- Resolve stored file paths only under `UPLOAD_DIR` and `REPORT_DIR` using `resolveFilePath`. Reject absolute paths and `..` traversal before `fs` calls or `res.sendFile`.
+- Do not serve the `uploads` directory as a public static mount. Files are served only through authenticated API endpoints.
+
+### Configuration and hardening (A02)
+- Use helmet for security headers and review defaults before relaxing them.
+- Keep CORS and CSP tight. Do not rely on wildcard (`*`) origins in production unless the deployment explicitly requires it.
+- Remove or protect public static mounts, default accounts, and debug endpoints.
+
+### Rate limiting and availability (A10)
+- Apply `express-rate-limit` to auth and expensive endpoints. Auth limits must be stricter than the global API limit.
+- Cap upload size and JSON/URL-encoded body size. Handle abnormal conditions gracefully and **fail closed**, not open.
+
+### Logging and monitoring (A09)
+- Log security events (login, logout, failed auth, privilege changes, file access, claim mutations) through `audit.service` or an equivalent audit trail.
+- Ensure audit failures do not break business logic, but do not swallow security errors silently.
+- Keep sensitive data out of logs: no tokens, passwords, hashes, or PII.
+
+### Errors and exceptions (A10)
+- Return generic, non-revealing error messages to clients. Use `AppError` with safe messages and log the real details server-side.
+- Handle edge cases explicitly: missing resources, invalid IDs, validation failures, and authorization denials should all lead to deterministic, safe states.
+
+### Supply chain and dependencies (A03, A06)
+- Maintain one authoritative lockfile and package manager. Review new dependencies before adding them; avoid install scripts unless inspected.
+- Run `npm audit` against the lockfile before release and triage findings by reachability and exploitability. Do not run `npm audit fix --force` blindly; review breaking changes first.
+
+### Secure design (A06)
+- Threat-model new features: identify assets, trust boundaries, and how an attacker would misuse the feature.
+- Build allowlists, not denylists, for file types, URL schemes, hosts, and actions.
+- Avoid SSRF: never fetch user-supplied URLs without an allowlist of schemes and hosts, and reject private/reserved IPs.
+
+### Testing
+- After security changes, run targeted tests (e.g., `auth.test.js`, `claim.test.js`, `file-path.test.js`) instead of the full suite unless a broader check is required.
+- Add or update a focused regression test for non-trivial security logic.
