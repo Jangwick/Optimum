@@ -232,6 +232,18 @@ Client (`.env` / `.env.local`):
 - `npm test` passes in both `client` and `server`.
 - `npm run lint` passes in both `client` and `server`.
 
+### Phase 2 — Module-by-Module Migration
+
+- Migrated server utility modules first:
+  - `server/src/utils/escape-html.ts`
+  - `server/src/utils/file-path.ts`
+- Migrated shared server infrastructure:
+  - `server/src/config/index.ts`
+  - `server/src/middleware/error.ts`
+- `server/package.json` Jest config updated to `ts-jest/presets/default-esm` with `moduleNameMapper` so existing `.js` imports resolve to renamed `.ts` source files and tests still run without editing every import path.
+
 ### Current migration status
 
-- No application source files have been renamed to `.ts`/`.tsx` yet; the tooling is in place to support module-by-module migration starting with the smallest utility modules.
+- Server: `utils/escape-html.ts`, `utils/file-path.ts`, `config/index.ts`, and `middleware/error.ts` are TypeScript; all other source files are still JavaScript and are imported with `.js` extensions.
+- Client: no source files renamed to `.tsx` yet; tooling only.
+- No `.js` files have been removed before their `.ts`/`.tsx` replacements are working.
