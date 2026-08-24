@@ -16,7 +16,9 @@ export function DashboardMetricCard({ title, subtitle, value, icon: Icon, cap, i
           <Icon size={22} />
         </div>
       </div>
-      <h3 className="text-display-lg font-bold text-on-surface tabular-nums">{value}</h3>
+      <h3 className="text-[clamp(1.75rem,2.4vw,2.25rem)] font-bold text-on-surface break-words leading-tight tabular-nums">
+        {value}
+      </h3>
     </div>
   );
 }
@@ -65,7 +67,7 @@ export function OpenTasksList({ tasks, overdueCount, userRole }) {
                   className="text-left w-full p-3 rounded-lg hover:bg-surface-container-low transition-colors border border-surface-border/50"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-body-sm font-medium text-on-surface truncate">{t.title}</p>
+                    <p className="text-body-sm font-medium text-on-surface line-clamp-2">{t.title}</p>
                     {isOverdue && (
                       <span className="shrink-0 px-2 py-0.5 rounded-full text-label-sm font-medium bg-error/10 text-error">
                         Overdue
