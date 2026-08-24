@@ -4,23 +4,88 @@ A greenfield React + Node.js + MySQL web application for managing insurance clai
 
 ## Quick Start
 
+### Prerequisites
+
+- [Node.js 22+](https://nodejs.org/)
+- MySQL 8 or MariaDB (local install, XAMPP, WampServer, or any MySQL-compatible server)
+- Git
+
+### 1. Clone and install
+
 ```bash
-# Start MySQL (requires Docker)
-docker compose up -d
-
-# Install dependencies
+git clone https://github.com/Jangwick/Optimum.git
+cd Optimum
 npm install
-cd server && npm install && npx prisma migrate dev && npx prisma db seed
+cd server && npm install
 cd ../client && npm install
+cd ..
+```
 
-# Run both servers
+### 2. Configure environment
+
+Copy the example environment files and update values, especially `DATABASE_URL` in `server/.env`:
+
+```bash
+cp .env.example .env
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
+Edit `server/.env` to point at your local database, for example:
+
+```env
+DATABASE_URL="mysql://root:yourpassword@localhost:3306/claims_solutions?schema=public"
+```
+
+### 3. Start your database
+
+Create a database named `claims_solutions` and start your MySQL/MariaDB server. If you use Docker, the repo includes a compose file:
+
+```bash
+docker compose up -d
+```
+
+On Windows without Docker, options include the [MySQL Installer](https://dev.mysql.com/downloads/installer/), [MariaDB Installer](https://mariadb.org/download/), or [XAMPP](https://www.apachefriends.org/).
+
+### 4. Generate the Prisma client
+
+The server imports the generated Prisma client from a custom output path, so it must be generated before the server can start:
+
+```bash
+cd server
+npx prisma generate
+```
+
+### 5. Apply migrations and seed
+
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
+
+### 6. Run the dev servers
+
+```bash
 cd ..
 npm run dev
 ```
 
+This runs the API (`npm run dev` in `server/`) and the Vite client (`npm run dev` in `client/`) concurrently.
+
 - Client: http://localhost:5173
 - API: http://localhost:3001
 - API health: http://localhost:3001/api/health
+
+You can also run them in separate terminals:
+
+```bash
+cd server && npm run dev
+cd client && npm run dev
+```
+
+### Note on `client/dist not found`
+
+In development the Express server may print `client/dist not found`. This is expected — the dev client runs separately on port 5173. The server only serves the built client from `client/dist` when it exists, such as after `npm run build` in the client or in production.
 
 ## Project Structure
 

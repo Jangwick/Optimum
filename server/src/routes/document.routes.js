@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, validateUpload } from '../middleware/upload.js';
 import {
   getChecklist,
   uploadDocument,
@@ -15,7 +15,7 @@ const router = Router({ mergeParams: true });
 router.use(authMiddleware);
 
 router.get('/', getChecklist);
-router.post('/', upload.single('file'), uploadDocument);
+router.post('/', upload.single('file'), validateUpload, uploadDocument);
 router.put('/:id/received', markReceived);
 router.get('/:id/download', downloadDocument);
 router.get('/:id/preview', previewDocument);

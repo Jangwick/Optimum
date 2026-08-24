@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { prisma } from '../db/client.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
@@ -126,26 +127,43 @@ export async function createUser(data) {
   return { ...formatUser(user), plainPassword: data.password ? undefined : password };
 }
 
-export async function updateUser(id, data) {
+const PROTECTED_USER_FIELDS = ['role', 'roleId', 'isActive', 'email', 'password', 'passwordHash', 'id'];
+
+export async function updateUser(id, data, requester) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  const updateData = { ...data };
+  const isAdmin = requester?.role === 'ADMIN';
+  const isSelf = requester?.id === id;
 
-  if (data.role) {
-    const role = await prisma.role.findUnique({ where: { name: data.role } });
-    if (!role) {
-      throw new AppError('Invalid role', 400);
-    }
-    updateData.roleId = role.id;
-    delete updateData.role;
+  if (!isAdmin && !isSelf) {
+    throw new AppError('Forbidden', 403);
   }
 
-  if (data.password) {
-    updateData.passwordHash = await bcrypt.hash(data.password, config.bcryptRounds);
-    delete updateData.password;
+  const updateData = { ...data };
+
+  if (isAdmin) {
+    if (data.role) {
+      const role = await prisma.role.findUnique({ where: { name: data.role } });
+      if (!role) {
+        throw new AppError('Invalid role', 400);
+      }
+      updateData.roleId = role.id;
+      delete updateData.role;
+    }
+
+    if (data.password) {
+      updateData.passwordHash = await bcrypt.hash(data.password, config.bcryptRounds);
+      delete updateData.password;
+    }
+  }
+
+  if (!isAdmin) {
+    for (const key of PROTECTED_USER_FIELDS) {
+      delete updateData[key];
+    }
   }
 
   delete updateData.id;
@@ -159,12 +177,12 @@ export async function updateUser(id, data) {
   return formatUser(updated);
 }
 
-export async function deactivateUser(id) {
-  return updateUser(id, { isActive: false });
+export async function deactivateUser(id, requester) {
+  return updateUser(id, { isActive: false }, requester);
 }
 
-export async function activateUser(id) {
-  return updateUser(id, { isActive: true });
+export async function activateUser(id, requester) {
+  return updateUser(id, { isActive: true }, requester);
 }
 
 export async function resetPassword(id) {
@@ -201,5 +219,7 @@ function formatUser(user) {
 }
 
 function generatePassword() {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  // URL-safe base64url; 12 bytes produces a 16-character string with
+  // mixed-case letters, digits, and '-' / '_'.
+  return randomBytes(12).toString('base64url');
 }

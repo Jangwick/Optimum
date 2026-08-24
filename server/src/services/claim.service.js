@@ -4,6 +4,15 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 
+export function assertClaimAccess(user, claim) {
+  if (!claim) throw new AppError('Claim not found', 404);
+  if (user.role === 'ADMIN') return;
+  if (user.role === 'ENGINEER' && claim.engineerId === user.id) return;
+  if (user.role === 'ACCOUNTANT' && claim.accountantId === user.id) return;
+  if (claim.createdById === user.id) return;
+  throw new AppError('Forbidden', 403);
+}
+
 export const statusTransitions = {
   NEW: ['ASSIGNED'],
   ASSIGNED: ['INVESTIGATION'],

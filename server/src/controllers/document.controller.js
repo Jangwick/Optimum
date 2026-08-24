@@ -9,7 +9,7 @@ function idParam(req) {
 
 export async function getChecklist(req, res, next) {
   try {
-    const items = await documentService.getDocumentChecklist(req.params.claimId);
+    const items = await documentService.getDocumentChecklist(req.params.claimId, req.user);
     res.json({ success: true, items });
   } catch (err) {
     next(err);
@@ -19,7 +19,7 @@ export async function getChecklist(req, res, next) {
 export async function uploadDocument(req, res, next) {
   try {
     if (!req.file) throw new AppError('No file uploaded', 400);
-    const item = await documentService.uploadDocument(req.params.claimId, req.file, req.body, req.user.id);
+    const item = await documentService.uploadDocument(req.params.claimId, req.file, req.body, req.user);
     res.status(201).json({ success: true, item });
   } catch (err) {
     next(err);
@@ -28,7 +28,7 @@ export async function uploadDocument(req, res, next) {
 
 export async function markReceived(req, res, next) {
   try {
-    const item = await documentService.markDocumentReceived(idParam(req), req.user.id);
+    const item = await documentService.markDocumentReceived(req.params.claimId, idParam(req), req.user);
     res.json({ success: true, item });
   } catch (err) {
     next(err);
@@ -38,7 +38,7 @@ export async function markReceived(req, res, next) {
 async function sendDocumentFile(req, res, next, disposition) {
   try {
     const id = idParam(req);
-    const doc = await documentService.getDocumentFile(id, req.params.claimId);
+    const doc = await documentService.getDocumentFile(req.params.claimId, id, req.user);
 
     res.setHeader(
       'Content-Disposition',
@@ -61,7 +61,7 @@ export async function previewDocument(req, res, next) {
 
 export async function deleteDocument(req, res, next) {
   try {
-    await documentService.deleteDocument(idParam(req), req.user.id);
+    await documentService.deleteDocument(req.params.claimId, idParam(req), req.user);
     res.json({ success: true });
   } catch (err) {
     next(err);

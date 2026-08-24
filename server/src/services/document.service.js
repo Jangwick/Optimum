@@ -2,16 +2,17 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
-import { autoAdvanceStatus } from './claim.service.js';
+import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import fs from 'fs';
 import { resolveFilePath } from '../utils/file-path.js';
 
-export async function getDocumentChecklist(claimId) {
+export async function getDocumentChecklist(claimId, user) {
   const claim = await prisma.claim.findUnique({
     where: { id: Number(claimId) },
     include: { claimType: { include: { requirements: { include: { documentCategory: true } } } } },
   });
   if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
 
   const documents = await prisma.document.findMany({
     where: { claimId: Number(claimId) },
@@ -82,11 +83,12 @@ export async function getDocumentChecklist(claimId) {
   return result;
 }
 
-export async function uploadDocument(claimId, file, data, userId) {
+export async function uploadDocument(claimId, file, data, user) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) {
     throw new AppError('Claim not found', 404);
   }
+  assertClaimAccess(user, claim);
 
   const doc = await prisma.document.create({
     data: {
@@ -99,7 +101,7 @@ export async function uploadDocument(claimId, file, data, userId) {
       data: file.buffer,
       size: file.size,
       description: data.description,
-      uploadedById: userId,
+      uploadedById: user.id,
       isReceived: data.isReceived === 'true' || data.isReceived === true,
       receivedAt: data.isReceived ? new Date() : null,
     },
@@ -107,41 +109,60 @@ export async function uploadDocument(claimId, file, data, userId) {
     omit: { data: true },
   });
 
-  await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, userId, { originalName: doc.originalName, claimId });
-  await recordActivity(claimId, 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, userId);
-  await autoAdvanceStatus(claimId, 'DOCUMENTS_PENDING', userId);
+  await logAction('DOCUMENT_UPLOADED', 'Document', doc.id, user.id, { originalName: doc.originalName, claimId });
+  await recordActivity(claimId, 'DOCUMENT_UPLOADED', `Document uploaded: ${doc.originalName}`, user.id);
+  await autoAdvanceStatus(claimId, 'DOCUMENTS_PENDING', user.id);
   return doc;
 }
 
-export async function markDocumentReceived(id, userId) {
-  const doc = await prisma.document.update({
+export async function markDocumentReceived(claimId, id, user) {
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    include: { claim: true },
+  });
+  if (!doc) throw new AppError('Document not found', 404);
+  if (doc.claimId !== Number(claimId)) throw new AppError('Document not found', 404);
+  assertClaimAccess(user, doc.claim);
+
+  const updated = await prisma.document.update({
     where: { id },
     data: { isReceived: true, receivedAt: new Date() },
     include: { documentCategory: true },
   });
-  await logAction('DOCUMENT_RECEIVED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
-  await recordActivity(doc.claimId, 'DOCUMENT_RECEIVED', `Document marked received: ${doc.originalName}`, userId);
-  await autoAdvanceStatus(doc.claimId, 'DOCUMENTS_RECEIVED', userId);
-  return doc;
+  await logAction('DOCUMENT_RECEIVED', 'Document', id, user.id, { originalName: updated.originalName, claimId: updated.claimId });
+  await recordActivity(updated.claimId, 'DOCUMENT_RECEIVED', `Document marked received: ${updated.originalName}`, user.id);
+  await autoAdvanceStatus(updated.claimId, 'DOCUMENTS_RECEIVED', user.id);
+  return updated;
 }
 
-export async function deleteDocument(id, userId) {
-  const doc = await prisma.document.findUnique({ where: { id } });
+export async function deleteDocument(claimId, id, user) {
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    include: { claim: true },
+  });
   if (!doc) throw new AppError('Document not found', 404);
+  if (doc.claimId !== Number(claimId)) throw new AppError('Document not found', 404);
+  assertClaimAccess(user, doc.claim);
+
   // Clean up legacy disk file if it exists
   if (doc.path) {
-    try { fs.unlinkSync(resolveFilePath(doc.path)); } catch { /* file may already be gone */ }
+    const resolved = resolveFilePath(doc.path);
+    if (resolved) {
+      try { fs.unlinkSync(resolved); } catch { /* file may already be gone */ }
+    }
   }
-  await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
-  await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, userId);
+  await logAction('DOCUMENT_DELETED', 'Document', id, user.id, { originalName: doc.originalName, claimId: doc.claimId });
+  await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, user.id);
   await prisma.document.delete({ where: { id } });
 }
 
-export async function getDocumentFile(id, claimId) {
+export async function getDocumentFile(claimId, id, user) {
   const doc = await prisma.document.findFirst({
     where: { id, claimId: Number(claimId) },
+    include: { claim: true },
   });
   if (!doc) throw new AppError('Document not found', 404);
+  assertClaimAccess(user, doc.claim);
 
   // Prefer BLOB data stored in the database (persistent across deploys)
   if (doc.data) {
@@ -150,7 +171,7 @@ export async function getDocumentFile(id, claimId) {
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(doc.path);
-  if (fs.existsSync(resolved)) {
+  if (resolved && fs.existsSync(resolved)) {
     return { ...doc, buffer: fs.readFileSync(resolved) };
   }
 
