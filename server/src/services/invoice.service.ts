@@ -4,14 +4,28 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus } from './claim.service.js';
 
-async function generateInvoiceNumber() {
+interface InvoiceInput {
+  feeIds?: (number | string)[];
+  dueDate?: string | Date | null;
+  notes?: string;
+}
+
+interface PaymentInput {
+  amount: number | string;
+  paymentDate?: string | Date;
+  method?: string;
+  reference?: string;
+  notes?: string;
+}
+
+async function generateInvoiceNumber(): Promise<string> {
   const now = new Date();
   const year = now.getFullYear();
   const count = await prisma.invoice.count({ where: { createdAt: { gte: new Date(year, 0, 1) } } });
   return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
 }
 
-export async function listInvoices(claimId) {
+export async function listInvoices(claimId: number | string) {
   return prisma.invoice.findMany({
     where: { claimId: Number(claimId) },
     include: {
@@ -23,7 +37,7 @@ export async function listInvoices(claimId) {
   });
 }
 
-export async function createInvoice(claimId, data, userId) {
+export async function createInvoice(claimId: number | string, data: InvoiceInput, userId: number) {
   const feeIds = (data.feeIds || []).map(Number);
   const fees = await prisma.fee.findMany({
     where: { id: { in: feeIds }, claimId: Number(claimId), isInvoiced: false },
@@ -45,7 +59,7 @@ export async function createInvoice(claimId, data, userId) {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         totalAmount,
         status: 'ISSUED',
-        notes: data.notes,
+        notes: data.notes ?? null,
         createdById: userId,
       },
     });
@@ -63,13 +77,15 @@ export async function createInvoice(claimId, data, userId) {
     include: { fees: true, payments: true, createdBy: { select: { firstName: true, lastName: true } } },
   });
 
-  await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId, totalAmount: invoice.totalAmount });
-  await recordActivity(claimId, 'INVOICE_CREATED', `Invoice created: ${invoice.invoiceNumber} — ${Number(invoice.totalAmount || 0).toFixed(2)}`, userId);
-  await autoAdvanceStatus(claimId, 'FEE_INVOICED', userId);
+  if (!invoice) throw new AppError('Invoice not found after creation', 500);
+
+  await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId: Number(claimId), totalAmount: invoice.totalAmount });
+  await recordActivity(Number(claimId), 'INVOICE_CREATED', `Invoice created: ${invoice.invoiceNumber} — ${Number(invoice.totalAmount || 0).toFixed(2)}`, userId);
+  await autoAdvanceStatus(Number(claimId), 'FEE_INVOICED', userId);
   return invoice;
 }
 
-export async function recordPayment(invoiceId, data, _userId) {
+export async function recordPayment(invoiceId: number | string, data: PaymentInput, userId: number) {
   const invoice = await prisma.invoice.findUnique({ where: { id: Number(invoiceId) } });
   if (!invoice) throw new AppError('Invoice not found', 404);
 
@@ -89,9 +105,9 @@ export async function recordPayment(invoiceId, data, _userId) {
       invoiceId: invoice.id,
       amount,
       paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
-      method: data.method,
-      reference: data.reference,
-      notes: data.notes,
+      method: data.method ?? null,
+      reference: data.reference ?? null,
+      notes: data.notes ?? null,
     },
   });
 
@@ -99,13 +115,13 @@ export async function recordPayment(invoiceId, data, _userId) {
   const status = newPaid >= Number(invoice.totalAmount) ? 'PAID' : 'PARTIAL';
   await prisma.invoice.update({ where: { id: invoice.id }, data: { status } });
 
-  await logAction('PAYMENT_RECORDED', 'Payment', payment.id, _userId, { invoiceId: invoice.id, claimId: invoice.claimId, amount });
-  await recordActivity(invoice.claimId, 'PAYMENT_RECORDED', `Payment recorded: ${Number(amount || 0).toFixed(2)} for ${invoice.invoiceNumber}`, _userId);
-  await autoAdvanceStatus(invoice.claimId, 'PAYMENT_RECEIVED', _userId);
+  await logAction('PAYMENT_RECORDED', 'Payment', payment.id, userId, { invoiceId: invoice.id, claimId: invoice.claimId, amount });
+  await recordActivity(invoice.claimId, 'PAYMENT_RECORDED', `Payment recorded: ${Number(amount || 0).toFixed(2)} for ${invoice.invoiceNumber}`, userId);
+  await autoAdvanceStatus(invoice.claimId, 'PAYMENT_RECEIVED', userId);
   return payment;
 }
 
-export async function getInvoice(id) {
+export async function getInvoice(id: number) {
   const item = await prisma.invoice.findUnique({
     where: { id },
     include: {
