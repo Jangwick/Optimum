@@ -30,6 +30,7 @@ interface MasterDataCrudProps {
   defaultValues: Record<string, unknown>;
   transformIn?: (row: Record<string, unknown>) => Record<string, unknown>;
   transformOut?: (values: Record<string, unknown>) => Record<string, unknown>;
+  initialSearch?: string;
 }
 
 export function MasterDataCrud({
@@ -44,8 +45,9 @@ export function MasterDataCrud({
   defaultValues,
   transformIn,
   transformOut,
+  initialSearch = '',
 }: MasterDataCrudProps) {
-  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList();
+  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList({ initialSearch });
   const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);

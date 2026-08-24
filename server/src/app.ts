@@ -32,6 +32,7 @@ import exportRoutes from './routes/export.routes.js';
 import processStatusRoutes from './routes/process-status.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 import discussionNoteRoutes from './routes/discussion-note.routes.js';
+import searchRoutes from './routes/search.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -101,6 +102,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/process-statuses', processStatusRoutes);
 app.use('/api/claims', activityRoutes);
+app.use('/api/search', searchRoutes);
 
 // Serve built client (works in production and when client/dist exists)
 const clientDist = path.resolve(__dirname, '../../client/dist');

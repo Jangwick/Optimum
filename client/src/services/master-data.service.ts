@@ -15,8 +15,8 @@ export async function getDocumentCategories(): Promise<unknown> {
   return data;
 }
 
-export async function getClients(): Promise<unknown> {
-  const { data } = await api.get('/master-data/clients');
+export async function getClients(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/clients', { params });
   return data;
 }
 
@@ -35,8 +35,8 @@ export async function deleteClient(id: string | number): Promise<unknown> {
   return data;
 }
 
-export async function getInsuranceCompanies(): Promise<unknown> {
-  const { data } = await api.get('/master-data/insurance-companies');
+export async function getInsuranceCompanies(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/insurance-companies', { params });
   return data;
 }
 
@@ -58,8 +58,8 @@ export async function deleteInsuranceCompany(id: string | number): Promise<unkno
   return data;
 }
 
-export async function getPolicies(): Promise<unknown> {
-  const { data } = await api.get('/master-data/policies');
+export async function getPolicies(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/policies', { params });
   return data;
 }
 

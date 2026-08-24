@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout.jsx';
 import { MasterDataCrud } from '../components/MasterDataCrud.jsx';
 
@@ -89,8 +90,16 @@ const TAB_CONFIG: { key: string; label: string; short: string; icon: LucideIcon 
   { key: 'documentCategories', label: 'Document Categories', short: 'Doc Categories', icon: FolderOpen },
 ];
 
+const VALID_TABS = ['companies', 'clients', 'policies', 'claimTypes', 'documentCategories'];
+
 export default function MasterData() {
-  const [tab, setTab] = useState('companies');
+  const [searchParams] = useSearchParams();
+  const initialTab = useMemo(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'companies';
+  }, [searchParams]);
+  const initialSearch = useMemo(() => searchParams.get('search') || '', [searchParams]);
+  const [tab, setTab] = useState(initialTab);
 
   const renderSection = (): ReactNode => {
     switch (tab) {
@@ -125,6 +134,7 @@ export default function MasterData() {
             remove={deleteClient}
             fields={baseFields['client']!}
             defaultValues={{ name: '', code: '', contactPerson: '', email: '', phone: '', address: '' }}
+            initialSearch={initialSearch}
             columns={[
               { key: 'name', title: 'Name' },
               { key: 'code', title: 'Code', className: 'font-mono' },
@@ -144,6 +154,7 @@ export default function MasterData() {
             update={updatePolicy}
             remove={deletePolicy}
             fields={baseFields['policy']!}
+            initialSearch={initialSearch}
             defaultValues={{
               policyNumber: '',
               insuranceCompanyId: '',
