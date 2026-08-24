@@ -42,6 +42,8 @@
 
 Testing is not an afterthought. Every feature, bug fix, and meaningful unit of behavior must be proven with a test before the implementation is considered complete, but do not overtest.
 
+Follow the test pyramid: a solid base of fast, small unit tests; fewer integration tests at boundaries (API, database, file system); and very few end-to-end tests only for the most critical user flows. Avoid the inverted "ice-cream cone" with lots of slow UI tests and few unit tests.
+
 - **Write a failing test first.** Before implementing any new feature or change, write a test that fails. For bug fixes, write a test that reproduces the bug and fails with the current code. A passing test on the first run proves nothing.
 - **Every feature needs a test.** Every new feature, endpoint, component, service, and non-trivial utility must have at least one automated test covering the happy path and the most important error path.
 - **Every line of code that carries behavior needs a reason to be trusted.** Trivial one-liners (passthroughs, simple constants, pure formatting) do not need their own tests. Logic with branches, calculations, side effects, or trust boundaries does.
@@ -52,6 +54,7 @@ Testing is not an afterthought. Every feature, bug fix, and meaningful unit of b
 - **Follow Arrange-Act-Assert.** Set up the scenario, perform the action, verify the result. Keep one concept per test.
 - **Run targeted, relevant tests.** After a change, run only the test files that cover the affected code. Do not run the entire suite unless a final check is needed.
 - **Do not skip or disable tests to make a suite green.** If a test fails, fix the root cause or escalate, do not silence the signal.
+- **Classify tests by size.** Small tests run in a single process with no network or database. Medium tests use localhost services (test DB, file system). Large tests touch external systems or a real browser. Most tests should be small.
 - **Client tests:** use `npx vitest run <path>` or the relevant `*.test.tsx` files.
 - **Server tests:** use `npx jest --testPathPatterns=<name>` and `NODE_OPTIONS=--experimental-vm-modules` when needed.
 
@@ -81,7 +84,29 @@ Every change is reviewed for correctness, readability, architecture, security, a
 - **Performance:** no N+1 queries, unbounded loops, or unnecessary re-renders.
 - **Change size:** target ~100 lines; ~300 is acceptable for a single logical change; over ~1000 lines must be split.
 - **Review comments are labeled:** `Critical:` (blocks merge), `Required:` (must address), `Optional:` / `Consider:` (suggestion), `Nit:` (minor).
+- **Dependency discipline.** Before adding a dependency: check the existing stack, check bundle size and license, check that it is maintained, and run `npm audit`. Upgrade one dependency at a time, read its changelog, and review the lockfile diff.
 - **Do not merge unreviewed code.** Even small changes get a quick review.
+
+## TypeScript and Type Boundaries
+
+Type safety is an architectural seam, not just decoration. Types should model the domain, enforce trust boundaries, and prevent drift between client and server.
+
+- **Design domain types intentionally.** Do not mirror API response shapes or auto-generated database types directly into business logic. Map external data into a stable domain model at the boundary.
+- **Avoid `any`.** Use `unknown` for data that has not yet been validated, then narrow with Zod or a type guard. Every `any` is a hole in the contract and must have a path to removal.
+- **Enable strictness plus the two high-value flags.** `strict: true` is the starting point; `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` catch the `undefined` and optional-property bugs that `strict` misses.
+- **Keep public types minimal and stable.** The `packages/shared-types` package owns cross-cutting API contracts. Do not export implementation details. Version breaking changes and document them.
+- **Internal types stay local.** Client components and server services should not import each other's internal type directories. Shared types are the only cross-workspace dependency.
+
+## Docker and Containerization
+
+Docker is a production boundary, not a local-only convenience. Build images as if they will run in a restricted Kubernetes or cloud environment.
+
+- **Multi-stage builds.** Separate dependency installation, build, and runtime into distinct stages so the final image contains only what runs.
+- **Use `npm ci`, not `npm install`.** `npm ci` is deterministic and respects the lockfile. In the runtime stage use `npm ci --omit=dev`.
+- **Run as non-root.** The server container should use a non-root `USER`. The client container should use an unprivileged nginx image or run on an unprivileged port.
+- **Add `HEALTHCHECK`.** The server image should expose `/api/health` and a Docker `HEALTHCHECK` that verifies it. `docker-compose.yml` should wait for healthy dependents, not just `depends_on`.
+- **Do not bake secrets or environment files.** Keep `.env`, certificates, and build secrets out of image layers. Pass them at runtime and add them to `.dockerignore`.
+- **Pin base image tags.** Prefer exact version tags or digests (e.g., `node:22-slim@sha256:...`) for reproducible, auditable builds.
 
 ## Security & Secure Coding
 
