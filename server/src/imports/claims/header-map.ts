@@ -1,3 +1,4 @@
+import type { Worksheet } from 'exceljs';
 import { normalizeCellText } from './value-parser.js';
 
 const HEADER_ALIASES = {
@@ -32,9 +33,11 @@ const HEADER_ALIASES = {
   latestStatus: ['LATEST STATUS', 'STATUS'],
   letterFollowUp: ['FOR FOLLOW UP OF LETTER REQUEST', 'LETTER REQUEST FOLLOW UP', 'FOLLOW UP LETTER REQUEST'],
   paymentAdvice: ['PAYMENT ADVICE', 'PAYMENT STATUS'],
-};
+} as const;
 
-function normalizeHeader(value) {
+export type ClaimHeader = keyof typeof HEADER_ALIASES;
+
+function normalizeHeader(value: unknown): string {
   return normalizeCellText(value)
     .toUpperCase()
     .replace(/[().]/g, ' ')
@@ -42,11 +45,12 @@ function normalizeHeader(value) {
     .trim();
 }
 
-export function mapHeaders(values) {
+export function mapHeaders(values: unknown[]): Partial<Record<ClaimHeader, number>> {
   const normalized = values.map(normalizeHeader);
-  const result = {};
+  const result: Partial<Record<ClaimHeader, number>> = {};
 
-  for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
+  for (const field of Object.keys(HEADER_ALIASES) as ClaimHeader[]) {
+    const aliases = HEADER_ALIASES[field];
     const index = normalized.findIndex((header) => aliases.some((alias) => header.includes(alias)));
     if (index >= 0) result[field] = index + 1;
   }
@@ -54,10 +58,13 @@ export function mapHeaders(values) {
   return result;
 }
 
-export function findHeaderRow(worksheet, maxRows = 15) {
+export function findHeaderRow(worksheet: Worksheet, maxRows = 15): number | null {
   for (let rowNumber = 1; rowNumber <= Math.min(worksheet.rowCount, maxRows); rowNumber += 1) {
     const row = worksheet.getRow(rowNumber);
-    const values = Array.from({ length: worksheet.columnCount }, (_, index) => row.getCell(index + 1).value);
+    const values: unknown[] = Array.from(
+      { length: worksheet.columnCount },
+      (_, index) => row.getCell(index + 1).value,
+    );
     if (values.some((value) => normalizeHeader(value).includes('ITEM NO'))) return rowNumber;
   }
   return null;

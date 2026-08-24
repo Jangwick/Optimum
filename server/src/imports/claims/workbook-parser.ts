@@ -1,13 +1,25 @@
 import ExcelJS from 'exceljs';
+import type { Row, Worksheet } from 'exceljs';
 import { findHeaderRow, mapHeaders } from './header-map.js';
+import type { ClaimHeader } from './header-map.js';
 import { normalizeCellText, parseMoney, parsePolicyPeriod, parseWorkbookDate } from './value-parser.js';
 import { parseInsurerPanel } from './panel-parser.js';
+import type { InsurerPanelMember } from './panel-parser.js';
 import { parseTimeline } from './timeline-parser.js';
+import type { TimelineEvent } from './timeline-parser.js';
 import { inferProcessStatus } from './status-inference.js';
+import type { ImportStatus, ProcessStatus, StatusConfidence } from './status-inference.js';
 
 const MAX_SHEETS = 50;
 const MAX_ROWS_PER_SHEET = 10000;
 const MAX_COLUMNS_PER_SHEET = 100;
+
+export type SheetType = 'ACTIVE' | 'CLOSED' | 'CANCELLED' | 'LOOKUP' | 'IGNORE';
+
+interface SheetClassification {
+  type: SheetType;
+  year: number | null;
+}
 
 // Classify a sheet name into a type and extract the year if present.
 // Returns { type, year } where type is one of:
@@ -16,20 +28,23 @@ const MAX_COLUMNS_PER_SHEET = 100;
 //   CANCELLED — cancelled register sheets
 //   LOOKUP    — reference/lookup sheets (status lists, report types)
 //   IGNORE    — anything else
-function classifySheet(name) {
+function classifySheet(name: string): SheetClassification {
   const trimmed = name.trim();
 
   if (/cancelled/i.test(trimmed)) {
     const match = trimmed.match(/(20\d{2})/);
-    return { type: 'CANCELLED', year: match ? Number(match[1]) : null };
+    const year = match?.[1];
+    return { type: 'CANCELLED', year: year ? Number(year) : null };
   }
   if (/closed/i.test(trimmed)) {
     const match = trimmed.match(/(20\d{2})/);
-    return { type: 'CLOSED', year: match ? Number(match[1]) : null };
+    const year = match?.[1];
+    return { type: 'CLOSED', year: year ? Number(year) : null };
   }
   const assignMatch = trimmed.match(/^assignment\s*(20\d{2})$/i);
   if (assignMatch) {
-    return { type: 'ACTIVE', year: Number(assignMatch[1]) };
+    const year = assignMatch[1];
+    return { type: 'ACTIVE', year: year ? Number(year) : null };
   }
   if (/^sheet/i.test(trimmed)) {
     return { type: 'LOOKUP', year: null };
@@ -38,21 +53,90 @@ function classifySheet(name) {
 }
 
 // Sheet types that contain importable claim rows.
-const IMPORTABLE_SHEET_TYPES = new Set(['ACTIVE', 'CLOSED', 'CANCELLED']);
+const IMPORTABLE_SHEET_TYPES = new Set<SheetType>(['ACTIVE', 'CLOSED', 'CANCELLED']);
 
-function cell(row, column) {
+interface MappedHeaders extends Partial<Record<ClaimHeader, number>> {
+  headerRow: number;
+}
+
+function cell(row: Row, column: number | undefined): string {
   return column ? normalizeCellText(row.getCell(column).value).trim() : '';
 }
 
-function iso(value) {
+function iso(value: unknown): string | null {
   return parseWorkbookDate(value)?.toISOString() || null;
 }
 
-function combineTimeline(values) {
+function combineTimeline(values: string[]): string {
   return values.filter(Boolean).join('; ');
 }
 
-function parseRow(worksheet, sourceRow, headers, sheetType, year) {
+export interface ClaimImportRow {
+  sourceSheet: string;
+  sourceRow: number;
+  sheetType: SheetType;
+  year: number | null;
+  itemNumber: string;
+  dateAssigned: string | null;
+  insuredName: string;
+  insurers: InsurerPanelMember[];
+  insurersRaw: string;
+  insurerClaimNumber: string;
+  assignedBy: string;
+  brokerRaw: string;
+  ocsReference: string;
+  handlingAdjuster: string;
+  dateOfLoss: string | null;
+  natureOfLoss: string;
+  locationOfLoss: string;
+  contactRaw: string;
+  policyNumber: string;
+  policyPeriodRaw: string;
+  policyStartDate: string | null;
+  policyEndDate: string | null;
+  policyType: string;
+  policyCoverage: string;
+  dateInspected: string | null;
+  letterRequestDate: string | null;
+  denialLetterDate: string | null;
+  latestReport: string;
+  latestReportDate: string | null;
+  claimedAmount: string | null;
+  claimedAmountRaw: string;
+  reserve: string | null;
+  reserveRaw: string;
+  proposedSettlement: string | null;
+  proposedSettlementRaw: string;
+  agreedSettlement: string | null;
+  agreedSettlementRaw: string;
+  remarks: string;
+  latestStatus: string;
+  letterFollowUp: string;
+  paymentAdvice: string;
+  suggestedProcessStatus: ProcessStatus;
+  suggestedImportStatus: ImportStatus;
+  statusConfidence: StatusConfidence;
+  statusReason: string;
+  isReadOnly: boolean;
+  isCancelled: boolean;
+  timeline: TimelineEvent[];
+  issues: string[];
+  rawData: Record<string, unknown>;
+}
+
+interface SheetSummary {
+  name: string;
+  type: SheetType;
+  year: number | null;
+  rowCount: number;
+}
+
+export interface ParsedWorkbook {
+  sheets: SheetSummary[];
+  rows: ClaimImportRow[];
+}
+
+function parseRow(worksheet: Worksheet, sourceRow: number, headers: MappedHeaders, sheetType: SheetType, year: number | null): ClaimImportRow {
   const row = worksheet.getRow(sourceRow);
   const claimed = parseMoney(cell(row, headers.claimedAmount));
   const reserve = parseMoney(cell(row, headers.reserve));
@@ -76,7 +160,7 @@ function parseRow(worksheet, sourceRow, headers, sheetType, year) {
   if (status.confidence === 'LOW') issues.push('LOW_CONFIDENCE_STATUS');
   for (const amount of [claimed, reserve, proposed, agreed]) issues.push(...amount.issues);
 
-  const rawData = {};
+  const rawData: Record<string, unknown> = {};
   for (let column = 1; column <= worksheet.columnCount; column += 1) {
     const header = normalizeCellText(worksheet.getRow(headers.headerRow).getCell(column).value).trim() || `COLUMN_${column}`;
     rawData[header] = normalizeCellText(row.getCell(column).value);
@@ -136,13 +220,13 @@ function parseRow(worksheet, sourceRow, headers, sheetType, year) {
   };
 }
 
-export async function parseClaimWorkbook(input) {
+export async function parseClaimWorkbook(input: Buffer): Promise<ParsedWorkbook> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(input);
+  await workbook.xlsx.load(new Uint8Array(input).buffer);
   if (workbook.worksheets.length > MAX_SHEETS) throw new Error('Workbook has too many sheets');
 
-  const rows = [];
-  const sheets = [];
+  const rows: ClaimImportRow[] = [];
+  const sheets: SheetSummary[] = [];
 
   for (const worksheet of workbook.worksheets) {
     const { type, year } = classifySheet(worksheet.name);
@@ -152,11 +236,11 @@ export async function parseClaimWorkbook(input) {
 
     const headerRow = findHeaderRow(worksheet);
     if (!headerRow) throw new Error(`Could not find headers in ${worksheet.name}`);
-    const headerValues = Array.from(
+    const headerValues: unknown[] = Array.from(
       { length: worksheet.columnCount },
-      (_, index) => worksheet.getRow(headerRow).getCell(index + 1).value
+      (_, index) => worksheet.getRow(headerRow).getCell(index + 1).value,
     );
-    const headers = { ...mapHeaders(headerValues), headerRow };
+    const headers: MappedHeaders = { ...mapHeaders(headerValues), headerRow };
     if (!headers.itemNumber || !headers.ocsReference) throw new Error(`Required headers missing in ${worksheet.name}`);
 
     let rowCount = 0;
