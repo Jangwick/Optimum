@@ -74,7 +74,7 @@ export async function downloadReport(req, res, next) {
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('PDF not found', 404);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved)}"`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
     res.sendFile(resolved);
   } catch (err) {
     next(err);
@@ -96,7 +96,7 @@ export async function downloadDocx(req, res, next) {
     if (!resolved || !fs.existsSync(resolved)) throw new AppError('File not found', 404);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved)}"`);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
     res.sendFile(resolved);
   } catch (err) {
     next(err);
