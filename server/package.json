@@ -16,7 +16,7 @@
     "db:studio": "prisma studio"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "tsx prisma/seed.js"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.1",

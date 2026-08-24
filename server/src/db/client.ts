@@ -2,10 +2,24 @@ import 'dotenv/config';
 import { PrismaClient } from '../../generated/prisma/client.js';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
-function parseUrl(url) {
+interface DbConnectionConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+  connectionLimit: number;
+  idleTimeout: number;
+  acquireTimeout: number;
+  connectTimeout: number;
+  reconnect: true;
+}
+
+function parseUrl(url: string | undefined): DbConnectionConfig {
   if (!url) {
     throw new Error('DATABASE_URL is not set');
   }
+
   // mysql://user:pass@host:port/database?options
   const parsed = new URL(url);
   return {
@@ -23,6 +37,6 @@ function parseUrl(url) {
 }
 
 const config = parseUrl(process.env.DATABASE_URL);
-const adapter = new PrismaMariaDb(config);
+const adapter = new PrismaMariaDb(config as unknown as ConstructorParameters<typeof PrismaMariaDb>[0]);
 
 export const prisma = new PrismaClient({ adapter });
