@@ -29,8 +29,8 @@ The client is served as a static SPA. In production the same Express process als
 
 ### Entry point
 
-- `server/src/server.js` starts the Express app, reads `PORT` from config, and auto-runs `prisma db push` and `prisma/seed.js` on startup.
-- `server/src/app.js` wires middleware, routes, static serving, and the 404/error handlers.
+- `server/src/server.ts` starts the Express app, reads `PORT` from config, and auto-runs `prisma db push` and `prisma/seed.ts` on startup.
+- `server/src/app.ts` wires middleware, routes, static serving, and the 404/error handlers.
 
 ### Middleware stack
 
@@ -44,7 +44,7 @@ The client is served as a static SPA. In production the same Express process als
 
 ### Route layout
 
-Routes are grouped by domain and mounted in `app.js`:
+Routes are grouped by domain and mounted in `app.ts`:
 
 - `/api/auth` — login, logout, current user, password change
 - `/api/users` — user management
@@ -62,17 +62,17 @@ A typical request goes: `Route` → `authMiddleware` / `rbac` → `Controller` (
 
 ### Key services
 
-- `claim.service.js` — core claim CRUD, assignment, scoping
-- `document.service.js` — file upload, storage, access control
-- `report.service.js` — report drafts, PDF/DOCX generation, file containment
-- `user.service.js` — user CRUD and password/role management
-- `auth.service.js` — JWT issue/verify and cookie handling
-- `audit.service.js` — audit log writes
+- `claim.service.ts` — core claim CRUD, assignment, scoping
+- `document.service.ts` — file upload, storage, access control
+- `report.service.ts` — report drafts, PDF/DOCX generation, file containment
+- `user.service.ts` — user CRUD and password/role management
+- `auth.service.ts` — JWT issue/verify and cookie handling
+- `audit.service.ts` — audit log writes
 
 ### File handling
 
 - Files are uploaded with Multer into memory, then validated and stored in `server/uploads` (or DB BLOB in newer paths).
-- File paths are resolved through `server/src/utils/file-path.js` to prevent traversal; all paths must be under `UPLOAD_DIR`.
+- File paths are resolved through `server/src/utils/file-path.ts` to prevent traversal; all paths must be under `UPLOAD_DIR`.
 - Reports are generated into `server/uploads/reports/<claimId>/<filename>`.
 - Documents and report previews are served through authenticated API endpoints, not a public static mount.
 
@@ -80,8 +80,8 @@ A typical request goes: `Route` → `authMiddleware` / `rbac` → `Controller` (
 
 - Login returns a JWT signed with `JWT_SECRET` and sets it as an `httpOnly`, `secure` (production), `sameSite='lax'` cookie.
 - `authMiddleware` verifies the cookie or `Authorization: Bearer <token>` header. Query-string tokens are only accepted for the document preview/download GET routes.
-- `rbac.js` enforces role checks.
-- `claim.service.js` or `auth.js` assert claim access: admin, assigned engineer, assigned accountant, or claim creator.
+- `rbac.ts` enforces role checks.
+- `claim.service.ts` or `auth.service.ts` assert claim access: admin, assigned engineer, assigned accountant, or claim creator.
 
 ### Database
 
@@ -93,21 +93,21 @@ A typical request goes: `Route` → `authMiddleware` / `rbac` → `Controller` (
 
 ### Entry point
 
-- `client/src/main.jsx` mounts `App` inside `StrictMode`, `QueryClientProvider`, `BrowserRouter`, and `AuthProvider`.
-- `client/src/App.jsx` declares all routes and a `ProtectedRoute` wrapper that checks `useAuth` and optional allowed roles.
+- `client/src/main.tsx` mounts `App` inside `StrictMode`, `QueryClientProvider`, `BrowserRouter`, and `AuthProvider`.
+- `client/src/App.tsx` declares all routes and a `ProtectedRoute` wrapper that checks `useAuth` and optional allowed roles.
 
 ### State and data fetching
 
-- Global auth state lives in `client/src/context/AuthContext.jsx`.
-- Server data is fetched with TanStack Query through service functions in `client/src/services/*.js`.
-- The `api.js` file creates an Axios instance that attaches the JWT from `localStorage` and redirects to `/login` on 401.
+- Global auth state lives in `client/src/context/AuthContext.tsx`.
+- Server data is fetched with TanStack Query through service functions in `client/src/services/*.ts`.
+- The `api.ts` file creates an Axios instance that attaches the JWT from `localStorage` and redirects to `/login` on 401.
 
 ### Page and component structure
 
-- `client/src/pages/*.jsx` — top-level routes (Dashboard, Claims, ClaimDetail, NewClaim, Reports, etc.).
-- `client/src/components/*.jsx` — reusable UI (DataTable, Modal, Select, TopBar, Sidebar, form inputs, dashboard widgets).
-- `client/src/hooks/useList.js` — shared list pagination/filtering hook.
-- `client/src/lib/utils.js` and `client/src/utils/currency.js` — formatting helpers.
+- `client/src/pages/*.tsx` — top-level routes (Dashboard, Claims, ClaimDetail, NewClaim, Reports, etc.).
+- `client/src/components/*.tsx` — reusable UI (DataTable, Modal, Select, TopBar, Sidebar, form inputs, dashboard widgets).
+- `client/src/hooks/useList.ts` — shared list pagination/filtering hook.
+- `client/src/lib/utils.ts` and `client/src/utils/currency.ts` — formatting helpers.
 
 ### Styling
 
@@ -124,8 +124,8 @@ A typical request goes: `Route` → `authMiddleware` / `rbac` → `Controller` (
 
 1. User fills `NewClaim` form.
 2. React Hook Form validates with Zod.
-3. `claim.service.js` POSTs to `POST /api/claims`.
-4. `claim.controller.js` calls `claim.service.js`.
+3. `claim.service.ts` POSTs to `POST /api/claims`.
+4. `claim.controller.ts` calls `claim.service.ts`.
 5. Service creates the claim in Prisma and records an activity.
 6. Response returns the new claim.
 7. TanStack Query caches the result; UI navigates to the claim detail.
@@ -206,9 +206,9 @@ Client (`.env` / `.env.local`):
 
 ### Phase 0 — Stabilization
 
-- The server test suite was wired to the `server/.env` test database URL through `server/tests/setup-test-env.js` and `server/tests/globalSetup.js`. Jest now runs `prisma db push` and `prisma db seed` once before all suites.
-- Coverage was added for documents, reports, and user endpoints in `server/tests/feature-coverage.test.js`.
-- A file-upload bug was fixed: `server/src/middleware/upload.js` now returns `400` for disallowed extensions and mismatched MIME types instead of `500`.
+- The server test suite was wired to the `server/.env` test database URL through `server/tests/setup-test-env.cjs` and `server/tests/globalSetup.js`. Jest now runs `prisma db push` and `prisma db seed` once before all suites.
+- Coverage was added for documents, reports, and user endpoints in `server/tests/feature-coverage.test.ts`.
+- A file-upload bug was fixed: `server/src/middleware/upload.ts` now returns `400` for disallowed extensions and mismatched MIME types instead of `500`.
 
 ### Phase 1 — TypeScript Tooling
 
@@ -223,7 +223,7 @@ Client (`.env` / `.env.local`):
   - `typescript`, `tsx`, `ts-jest`, and relevant `@types/*` packages added.
   - `server/tsconfig.json` created with `NodeNext` module resolution, `allowJs: true`, `strict`, and output to `dist/`.
   - `server/eslint.config.js` updated with `typescript-eslint` and `.cjs`/`.mjs` support.
-  - `dev` script changed to `tsx watch src/server.js`; `build` runs `npx prisma generate && tsc`.
+  - `dev` script changed to `tsx watch src/server.ts`; `build` runs `npx prisma generate && tsc`.
 
 ### Verification
 
@@ -263,6 +263,8 @@ Client (`.env` / `.env.local`):
 
 ### Current migration status
 
-- Server: `utils/escape-html.ts`, `utils/file-path.ts`, `config/index.ts`, and `middleware/error.ts` are TypeScript; all other source files are still JavaScript and are imported with `.js` extensions.
-- Client: no source files renamed to `.tsx` yet; tooling only.
-- No `.js` files have been removed before their `.ts`/`.tsx` replacements are working.
+- Client: all pages and components are `.tsx` and services/hooks/utilities are `.ts`.
+- Server: all source under `server/src` is `.ts` (ESM with `.js` import specifiers for NodeNext compatibility).
+- `server/prisma/seed.ts` is TypeScript.
+- Client tests use `.test.tsx`; server tests use `.test.ts`.
+- Old `.jsx` and `.js` source files have been removed after their `.ts`/`.tsx` replacements are working.
