@@ -49,31 +49,33 @@ export function RecentClaims({ claims }) {
             {claims.map((c) => (
               <div
                 key={c.id}
-                className="p-4 hover:bg-surface-container-low transition-colors rounded-lg flex gap-4 items-center cursor-pointer border-b border-surface-border/50 last:border-b-0"
+                className="p-4 hover:bg-surface-container-low transition-colors rounded-lg flex gap-4 items-start sm:items-center cursor-pointer border-b border-surface-border/50 last:border-b-0"
                 onClick={() => navigate(`/claims/${c.id}`)}
               >
                 <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <FileText size={22} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-md font-medium text-on-surface font-mono truncate">
-                    {c.claimNumber}
-                  </p>
-                  <p className="text-body-sm text-on-surface-variant truncate mt-0.5">
-                    {c.client || '— Unresolved —'}
-                  </p>
+                <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-body-md font-medium text-on-surface font-mono truncate">
+                      {c.claimNumber}
+                    </p>
+                    <p className="text-body-sm text-on-surface-variant truncate mt-0.5">
+                      {c.client || '— Unresolved —'}
+                    </p>
+                  </div>
+                  {c.processStatus && (
+                    <span
+                      className="self-start sm:self-auto px-3 py-1 rounded-full text-body-sm font-medium shrink-0"
+                      style={{
+                        backgroundColor: `${c.processStatus.color}1a`,
+                        color: c.processStatus.color,
+                      }}
+                    >
+                      {c.processStatus.name}
+                    </span>
+                  )}
                 </div>
-                {c.processStatus && (
-                  <span
-                    className="px-3 py-1 rounded-full text-body-sm font-medium shrink-0"
-                    style={{
-                      backgroundColor: `${c.processStatus.color}1a`,
-                      color: c.processStatus.color,
-                    }}
-                  >
-                    {c.processStatus.name}
-                  </span>
-                )}
               </div>
             ))}
           </div>
