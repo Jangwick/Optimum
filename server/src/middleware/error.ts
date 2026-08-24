@@ -1,6 +1,14 @@
+import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../config/logger.js';
 
-export function errorHandler(err, req, res, next) {
+interface AppErrorLike extends Error {
+  statusCode?: number;
+  status?: number;
+  code?: string;
+  meta?: Record<string, unknown>;
+}
+
+export function errorHandler(err: AppErrorLike, req: Request, res: Response, next: NextFunction) {
   logger.error({ err: err.message, stack: err.stack }, 'Unhandled error');
 
   if (res.headersSent) {
@@ -28,7 +36,9 @@ export function errorHandler(err, req, res, next) {
 }
 
 export class AppError extends Error {
-  constructor(message, statusCode = 500) {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number = 500) {
     super(message);
     this.statusCode = statusCode;
   }
