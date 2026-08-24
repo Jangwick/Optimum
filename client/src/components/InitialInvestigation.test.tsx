@@ -31,7 +31,7 @@ vi.mock('../services/investigation.service.js', () => ({
 }));
 
 vi.mock('../utils/currency.js', () => ({
-  formatCurrency: (v) => `₱${Number(v || 0).toFixed(2)}`,
+  formatCurrency: (v: unknown) => `₱${Number(v || 0).toFixed(2)}`,
 }));
 
 afterEach(cleanup);
@@ -60,16 +60,18 @@ describe('InitialInvestigation', () => {
 
   it('creates a discussion note on submit', async () => {
     const { createDiscussionNote } = await import('../services/discussion-note.service.js');
+    const mockedCreate = vi.mocked(createDiscussionNote);
     render(<InitialInvestigation {...defaultProps} />);
 
     const notesField = screen.getByPlaceholderText('Discussion details...');
     fireEvent.change(notesField, { target: { value: 'Test discussion' } });
 
     const form = notesField.closest('form');
+    if (!form) throw new Error('Form not found');
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(createDiscussionNote).toHaveBeenCalledWith('1', expect.objectContaining({
+      expect(mockedCreate).toHaveBeenCalledWith('1', expect.objectContaining({
         notes: 'Test discussion',
       }));
     });
@@ -77,6 +79,7 @@ describe('InitialInvestigation', () => {
 
   it('navigates to step 2 (Reserve) and auto-calculates', async () => {
     const { getAutoReserve } = await import('../services/discussion-note.service.js');
+    const mockedGetAutoReserve = vi.mocked(getAutoReserve);
     render(<InitialInvestigation {...defaultProps} />);
 
     // Click step 2
@@ -89,7 +92,7 @@ describe('InitialInvestigation', () => {
     fireEvent.click(screen.getByText('Calculate'));
 
     await waitFor(() => {
-      expect(getAutoReserve).toHaveBeenCalledWith('1');
+      expect(mockedGetAutoReserve).toHaveBeenCalledWith('1');
     });
   });
 

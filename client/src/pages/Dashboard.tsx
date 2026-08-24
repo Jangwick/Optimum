@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode, type ComponentProps } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { type LucideIcon } from 'lucide-react';
 import { AppLayout } from '../components/AppLayout.jsx';
 import { NewClaimModal } from '../components/NewClaimModal.jsx';
 import {
@@ -26,7 +27,16 @@ import {
   Clock,
 } from 'lucide-react';
 
-const METRICS = [
+interface Metric {
+  key: string;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  iconTint: string;
+  cap: string;
+}
+
+const METRICS: Metric[] = [
   {
     key: 'active',
     title: 'Total Active Claims',
@@ -63,7 +73,7 @@ const METRICS = [
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNewClaim, setShowNewClaim] = useState(false);
   const navigate = useNavigate();
@@ -71,18 +81,32 @@ export default function Dashboard() {
   useEffect(() => {
     api
       .get('/dashboard')
-      .then((res) => setData(res.data))
+      .then((res) => setData(res.data as Record<string, unknown>))
       .finally(() => setLoading(false));
   }, []);
 
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
 
-  const metricValues = {
-    active: data?.counts?.active ?? 0,
-    pendingInspections: data?.counts?.pendingInspections ?? 0,
-    estimated: data?.counts?.estimated ? formatCurrency(data.counts.estimated) : '₱0.00',
-    settledMTD: data?.counts?.settledMTD ? formatCurrency(data.counts.settledMTD) : '₱0.00',
+  const counts = data ? (data['counts'] as Record<string, unknown> | undefined) : undefined;
+  const metricValues: Record<string, ReactNode> = {
+    active: (counts?.['active'] as number | undefined) ?? 0,
+    pendingInspections: (counts?.['pendingInspections'] as number | undefined) ?? 0,
+    estimated: counts?.['estimated']
+      ? formatCurrency(counts['estimated'] as string | number)
+      : '₱0.00',
+    settledMTD: counts?.['settledMTD']
+      ? formatCurrency(counts['settledMTD'] as string | number)
+      : '₱0.00',
   };
+
+  const monthlyVolume = (data?.['monthlyVolume'] as Record<string, unknown>[] | undefined) ?? [];
+  const weeklyVolume = (data?.['weeklyVolume'] as Record<string, unknown>[] | undefined) ?? [];
+  const statusBreakdown = (data?.['statusBreakdown'] as Record<string, unknown>[] | undefined) ?? [];
+  const agingBuckets = (data?.['agingBuckets'] as Record<string, unknown>[] | undefined) ?? [];
+  const openTasksList = (data?.['openTasksList'] as Record<string, unknown>[] | undefined) ?? [];
+  const recentClaims = (data?.['recentClaims'] as Record<string, unknown>[] | undefined) ?? [];
+  const recentActivity = (data?.['recentActivity'] as Record<string, unknown>[] | undefined) ?? [];
+  const overdueTasks = (counts?.['overdueTasks'] as number | undefined) ?? 0;
 
   return (
     <>
@@ -132,7 +156,7 @@ export default function Dashboard() {
                   key={m.key}
                   title={m.title}
                   subtitle={m.subtitle}
-                  value={metricValues[m.key]}
+                  value={metricValues[m.key] as ReactNode}
                   icon={m.icon}
                   iconTint={m.iconTint}
                   cap={m.cap}
@@ -144,7 +168,10 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <DashboardSection title="Claim Volume Over Time" icon={BarChart3}>
-                  <VolumeChart monthlyData={data.monthlyVolume} weeklyData={data.weeklyVolume} />
+                  <VolumeChart
+                    monthlyData={monthlyVolume as unknown as ComponentProps<typeof VolumeChart>['monthlyData']}
+                    weeklyData={weeklyVolume as unknown as ComponentProps<typeof VolumeChart>['weeklyData']}
+                  />
                 </DashboardSection>
               </div>
               <div className="lg:col-span-1">
@@ -153,9 +180,9 @@ export default function Dashboard() {
                   icon={ClipboardList}
                 >
                   <OpenTasksList
-                    tasks={data.openTasksList || []}
-                    overdueCount={data.counts?.overdueTasks || 0}
-                    userRole={user?.role}
+                    tasks={openTasksList as unknown as ComponentProps<typeof OpenTasksList>['tasks']}
+                    overdueCount={overdueTasks}
+                    userRole={user?.role ?? ''}
                   />
                 </DashboardSection>
               </div>
@@ -176,21 +203,29 @@ export default function Dashboard() {
                   </button>
                 }
               >
-                <StatusBarChart data={data.statusBreakdown || []} />
+                <StatusBarChart
+                  data={statusBreakdown as unknown as ComponentProps<typeof StatusBarChart>['data']}
+                />
               </DashboardSection>
 
               <DashboardSection title="Claim Aging" icon={Clock}>
-                <AgingBarChart data={data.agingBuckets || []} />
+                <AgingBarChart
+                  data={agingBuckets as unknown as ComponentProps<typeof AgingBarChart>['data']}
+                />
               </DashboardSection>
             </div>
 
             {/* Recent Claims + Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <RecentClaims claims={data.recentClaims} />
+                <RecentClaims
+                  claims={recentClaims as unknown as ComponentProps<typeof RecentClaims>['claims']}
+                />
               </div>
               <div className="lg:col-span-1">
-                <RecentActivity activity={data.recentActivity} />
+                <RecentActivity
+                  activity={recentActivity as unknown as ComponentProps<typeof RecentActivity>['activity']}
+                />
               </div>
             </div>
           </div>
@@ -201,7 +236,9 @@ export default function Dashboard() {
         onClose={() => setShowNewClaim(false)}
         onCreated={(claim) => {
           setShowNewClaim(false);
-          navigate(`/claims/${claim.id}`);
+          if (claim) {
+            navigate(`/claims/${claim['id'] as string | number}`);
+          }
         }}
       />
     </>

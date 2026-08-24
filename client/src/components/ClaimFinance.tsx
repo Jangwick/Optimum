@@ -1,21 +1,35 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type FormEvent, type ChangeEvent } from 'react';
 import { getFees, createFee, getInvoices, createInvoice, recordPayment } from '../services/fee.service.js';
 import { getUsers } from '../services/user.service.js';
 import { formatCurrency } from '../utils/currency.js';
 import { Select } from './Select.jsx';
-import { Wallet, FileText, Plus, CheckCircle, DollarSign, AlertTriangle, Receipt } from 'lucide-react';
+import { Wallet, FileText, Plus, CheckCircle, DollarSign, AlertTriangle, Receipt, type LucideIcon } from 'lucide-react';
 
 const FEE_TYPES = ['INSPECTION', 'INVESTIGATION', 'ASSESSMENT', 'REPORT', 'TRAVEL', 'CONSULTATION', 'OTHER'];
 
-const INVOICE_STATUS_COLORS = {
+interface StatusColors {
+  bg: string;
+  text: string;
+  dot: string;
+}
+
+const INVOICE_STATUS_COLORS: Record<string, StatusColors> = {
   ISSUED: { bg: 'bg-accent-orange/10', text: 'text-accent-orange', dot: 'bg-accent-orange' },
   PARTIAL: { bg: 'bg-primary/10', text: 'text-primary', dot: 'bg-primary' },
   PAID: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
   OVERDUE: { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
 };
 
-function StatusPill({ status }) {
-  const colors = INVOICE_STATUS_COLORS[status] || { bg: 'bg-surface-container-high', text: 'text-on-surface-variant', dot: 'bg-outline' };
+interface StatusPillProps {
+  status: string;
+}
+
+function StatusPill({ status }: StatusPillProps) {
+  const colors = INVOICE_STATUS_COLORS[status] ?? {
+    bg: 'bg-surface-container-high',
+    text: 'text-on-surface-variant',
+    dot: 'bg-outline',
+  };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label-md font-medium whitespace-nowrap ${colors.bg} ${colors.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${colors.dot} shrink-0`} />
@@ -24,15 +38,46 @@ function StatusPill({ status }) {
   );
 }
 
-export default function ClaimFinance({ claimId, onClaimChange }) {
-  const [tab, setTab] = useState('fees');
-  const [fees, setFees] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [refresh, setRefresh] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+interface TabItem {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface FeeForm {
+  feeType: string;
+  amount: string;
+  description: string;
+  userId: string | number;
+}
+
+interface InvoiceForm {
+  feeIds: (string | number)[];
+  dueDate: string;
+  notes: string;
+}
+
+interface PaymentForm {
+  amount?: string;
+  paymentDate?: string;
+  method?: string;
+  reference?: string;
+}
+
+interface ClaimFinanceProps {
+  claimId: string | number;
+  onClaimChange?: () => void;
+}
+
+export default function ClaimFinance({ claimId, onClaimChange }: ClaimFinanceProps) {
+  const [tab, setTab] = useState<string>('fees');
+  const [fees, setFees] = useState<Record<string, unknown>[]>([]);
+  const [invoices, setInvoices] = useState<Record<string, unknown>[]>([]);
+  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [refresh, setRefresh] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,9 +88,12 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
         getInvoices(claimId),
         getUsers().catch(() => ({ users: [] })),
       ]);
-      setFees(f.items || []);
-      setInvoices(inv.items || []);
-      setUsers(u.users || []);
+      const feeData = f as Record<string, unknown>;
+      const invData = inv as Record<string, unknown>;
+      const userData = u as Record<string, unknown>;
+      setFees((feeData.items as Record<string, unknown>[] | undefined) ?? []);
+      setInvoices((invData.items as Record<string, unknown>[] | undefined) ?? []);
+      setUsers((userData.users as Record<string, unknown>[] | undefined) ?? []);
     } catch {
       setError('Failed to load finance data');
     } finally {
@@ -57,16 +105,21 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
     load();
   }, [claimId, refresh, load]);
 
-  const [feeForm, setFeeForm] = useState({ feeType: 'INSPECTION', amount: '', description: '', userId: '' });
-  const [invoiceForm, setInvoiceForm] = useState({ feeIds: [], dueDate: '', notes: '' });
-  const [payment, setPayment] = useState({});
+  const [feeForm, setFeeForm] = useState<FeeForm>({
+    feeType: 'INSPECTION',
+    amount: '',
+    description: '',
+    userId: '',
+  });
+  const [invoiceForm, setInvoiceForm] = useState<InvoiceForm>({ feeIds: [], dueDate: '', notes: '' });
+  const [payment, setPayment] = useState<Record<string, PaymentForm | undefined>>({});
 
-  const saveFee = async (e) => {
+  const saveFee = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      await createFee(claimId, feeForm);
+      await createFee(claimId, feeForm as unknown as Record<string, unknown>);
       setFeeForm({ feeType: 'INSPECTION', amount: '', description: '', userId: '' });
       setRefresh((r) => r + 1);
       onClaimChange?.();
@@ -77,7 +130,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
     }
   };
 
-  const saveInvoice = async (e) => {
+  const saveInvoice = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (invoiceForm.feeIds.length === 0) {
       setError('Select at least one fee to invoice');
@@ -86,7 +139,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
     setSaving(true);
     setError(null);
     try {
-      await createInvoice(claimId, invoiceForm);
+      await createInvoice(claimId, invoiceForm as unknown as Record<string, unknown>);
       setInvoiceForm({ feeIds: [], dueDate: '', notes: '' });
       setRefresh((r) => r + 1);
       onClaimChange?.();
@@ -97,14 +150,14 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
     }
   };
 
-  const payInvoice = async (invoiceId) => {
-    const p = payment[invoiceId];
+  const payInvoice = async (invoiceId: string | number) => {
+    const p = payment[invoiceId as string];
     if (!p?.amount) return;
     setSaving(true);
     setError(null);
     try {
-      await recordPayment(claimId, invoiceId, p);
-      setPayment({ ...payment, [invoiceId]: {} });
+      await recordPayment(claimId, invoiceId, p as unknown as Record<string, unknown>);
+      setPayment({ ...payment, [invoiceId as string]: {} as PaymentForm });
       setRefresh((r) => r + 1);
       onClaimChange?.();
     } catch {
@@ -114,22 +167,36 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
     }
   };
 
-  const toggleFee = (id) => {
+  const toggleFee = (id: string | number) => {
     const next = new Set(invoiceForm.feeIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setInvoiceForm({ ...invoiceForm, feeIds: Array.from(next) });
   };
 
-  const unbilledFees = fees.filter((f) => !f.isInvoiced);
-  const totalFees = fees.reduce((sum, f) => sum + Number(f.amount || 0), 0);
-  const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+  const unbilledFees = fees.filter((f) => !(f.isInvoiced as boolean | undefined));
+  const totalFees = fees.reduce(
+    (sum, f) => sum + Number((f.amount as number | string | undefined) ?? 0),
+    0,
+  );
+  const totalInvoiced = invoices.reduce(
+    (sum, inv) => sum + Number((inv.totalAmount as number | string | undefined) ?? 0),
+    0,
+  );
   const totalPaid = invoices.reduce((sum, inv) => {
-    const paid = (inv.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
+    const paid = ((inv.payments as Record<string, unknown>[] | undefined) ?? []).reduce(
+      (s, p) => s + Number((p.amount as number | string | undefined) ?? 0),
+      0,
+    );
     return sum + paid;
   }, 0);
 
-  const tabs = [
+  const selectedTotal = invoiceForm.feeIds.reduce<number>((sum, id) => {
+    const found = fees.find((f) => (f.id as string | number) === id);
+    return sum + Number((found?.amount as number | string | undefined) ?? 0);
+  }, 0);
+
+  const tabs: TabItem[] = [
     { key: 'fees', label: 'Fees', icon: Wallet },
     { key: 'invoices', label: 'Invoices', icon: FileText },
   ];
@@ -203,7 +270,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                 <label className="block text-label-md text-outline uppercase mb-1.5">Fee Type</label>
                 <Select
                   value={feeForm.feeType}
-                  onChange={(v) => setFeeForm({ ...feeForm, feeType: v })}
+                  onChange={(v) => setFeeForm({ ...feeForm, feeType: v as string })}
                   options={FEE_TYPES.map((t) => ({ value: t, label: t }))}
                 />
               </div>
@@ -214,7 +281,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                   step="0.01"
                   min="0"
                   value={feeForm.amount}
-                  onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFeeForm({ ...feeForm, amount: e.target.value })}
                   placeholder="0.00"
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   required
@@ -226,7 +293,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
               <input
                 type="text"
                 value={feeForm.description}
-                onChange={(e) => setFeeForm({ ...feeForm, description: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setFeeForm({ ...feeForm, description: e.target.value })}
                 placeholder="Fee description..."
                 className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               />
@@ -235,10 +302,13 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
               <label className="block text-label-md text-outline uppercase mb-1.5">Linked User</label>
               <Select
                 value={feeForm.userId}
-                onChange={(v) => setFeeForm({ ...feeForm, userId: v })}
+                onChange={(v) => setFeeForm({ ...feeForm, userId: v as string | number })}
                 options={[
                   { value: '', label: users.length === 0 ? 'No users available' : 'Select user' },
-                  ...users.map((u) => ({ value: u.id, label: u.fullName })),
+                  ...users.map((u) => ({
+                    value: u.id as string | number,
+                    label: (u.fullName as string | undefined) ?? '',
+                  })),
                 ]}
                 placeholder={users.length === 0 ? 'No users available' : 'Select user'}
                 disabled={users.length === 0}
@@ -267,40 +337,43 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
             </div>
           ) : (
             <div className="space-y-3">
-              {fees.map((f) => (
-                <div key={f.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <Wallet size={16} />
+              {fees.map((f) => {
+                const user = f.user as Record<string, unknown> | undefined;
+                return (
+                  <div key={f.id as string | number} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Wallet size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-body-md font-semibold text-on-surface">{f.feeType as string | undefined}</p>
+                          {!!user && (
+                            <p className="text-label-sm text-on-surface-variant">
+                              {user.firstName as string | undefined} {user.lastName as string | undefined}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-body-md font-semibold text-on-surface">{f.feeType}</p>
-                        {f.user && (
-                          <p className="text-label-sm text-on-surface-variant">
-                            {f.user.firstName} {f.user.lastName}
-                          </p>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <p className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(f.amount as number | string | undefined)}</p>
+                        {Boolean(f.isInvoiced as boolean | undefined) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium bg-primary/10 text-primary">
+                            <CheckCircle size={10} />
+                            Invoiced
+                          </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <p className="font-mono text-headline-sm font-semibold text-primary">{formatCurrency(f.amount)}</p>
-                      {f.isInvoiced && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-label-sm font-medium bg-primary/10 text-primary">
-                          <CheckCircle size={10} />
-                          Invoiced
-                        </span>
-                      )}
-                    </div>
+                    {!!(f.description as string | undefined) && (
+                      <div className="p-3">
+                        <span className="text-label-md text-outline uppercase">Description</span>
+                        <p className="text-body-sm text-on-surface mt-0.5">{f.description as string}</p>
+                      </div>
+                    )}
                   </div>
-                  {f.description && (
-                    <div className="p-3">
-                      <span className="text-label-md text-outline uppercase">Description</span>
-                      <p className="text-body-sm text-on-surface mt-0.5">{f.description}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -324,18 +397,18 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                 <div className="mt-2 space-y-1">
                   {unbilledFees.map((f) => (
                     <label
-                      key={f.id}
+                      key={f.id as string | number}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-container-low cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
-                        checked={invoiceForm.feeIds.includes(f.id)}
-                        onChange={() => toggleFee(f.id)}
+                        checked={invoiceForm.feeIds.includes(f.id as string | number)}
+                        onChange={() => toggleFee(f.id as string | number)}
                         className="rounded border-outline"
                       />
-                      <span className="text-body-sm text-on-surface flex-1">{f.feeType}</span>
-                      {f.description && <span className="text-body-sm text-on-surface-variant truncate">— {f.description}</span>}
-                      <span className="font-mono text-body-sm font-medium text-primary">{formatCurrency(f.amount)}</span>
+                      <span className="text-body-sm text-on-surface flex-1">{f.feeType as string | undefined}</span>
+                      {!!(f.description as string | undefined) && <span className="text-body-sm text-on-surface-variant truncate">— {f.description as string}</span>}
+                      <span className="font-mono text-body-sm font-medium text-primary">{formatCurrency(f.amount as number | string | undefined)}</span>
                     </label>
                   ))}
                 </div>
@@ -343,9 +416,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
             </div>
             {invoiceForm.feeIds.length > 0 && (
               <p className="text-body-md font-mono font-semibold text-primary">
-                Selected Total: {formatCurrency(
-                  invoiceForm.feeIds.reduce((sum, id) => sum + Number(fees.find((f) => f.id === id)?.amount || 0), 0)
-                )}
+                Selected Total: {formatCurrency(selectedTotal)}
               </p>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -354,7 +425,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                 <input
                   type="date"
                   value={invoiceForm.dueDate}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
               </div>
@@ -363,7 +434,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                 <input
                   type="text"
                   value={invoiceForm.notes}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setInvoiceForm({ ...invoiceForm, notes: e.target.value })}
                   placeholder="Invoice notes..."
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
@@ -393,10 +464,16 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
           ) : (
             <div className="space-y-4">
               {invoices.map((inv) => {
-                const paid = (inv.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
-                const balance = Number(inv.totalAmount || 0) - paid;
+                const paymentsArray = (inv.payments as Record<string, unknown>[] | undefined) ?? [];
+                const paid = paymentsArray.reduce(
+                  (s, p) => s + Number((p.amount as number | string | undefined) ?? 0),
+                  0,
+                );
+                const balance = Number((inv.totalAmount as number | string | undefined) ?? 0) - paid;
+                const feesArray = (inv.fees as Record<string, unknown>[] | undefined) ?? [];
+                const createdBy = inv.createdBy as Record<string, unknown> | undefined;
                 return (
-                  <div key={inv.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+                  <div key={inv.id as string | number} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 bg-surface-container-low border-b border-surface-border">
                       <div className="flex items-center gap-3 min-w-0">
@@ -404,35 +481,35 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                           <Receipt size={20} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-body-md font-semibold text-on-surface font-mono">{inv.invoiceNumber}</p>
+                          <p className="text-body-md font-semibold text-on-surface font-mono">{inv.invoiceNumber as string | undefined}</p>
                           <p className="text-label-sm text-outline font-mono mt-0.5">
-                            Issued: {new Date(inv.issueDate).toLocaleDateString()}
-                            {inv.dueDate && ` · Due: ${new Date(inv.dueDate).toLocaleDateString()}`}
-                            {inv.createdBy && ` · ${inv.createdBy.firstName} ${inv.createdBy.lastName}`}
+                            Issued: {new Date(inv.issueDate as string).toLocaleDateString()}
+                            {!!(inv.dueDate as string | undefined) && ` · Due: ${new Date(inv.dueDate as string).toLocaleDateString()}`}
+                            {!!createdBy && ` · ${createdBy.firstName as string | undefined} ${createdBy.lastName as string | undefined}`}
                           </p>
                         </div>
                       </div>
-                      <StatusPill status={inv.status} />
+                      <StatusPill status={inv.status as string} />
                     </div>
 
                     {/* Body */}
                     <div className="p-4 space-y-3">
-                      {inv.notes && (
+                      {!!(inv.notes as string | undefined) && (
                         <div>
                           <span className="text-label-md text-outline uppercase">Notes</span>
-                          <p className="text-body-sm text-on-surface mt-0.5">{inv.notes}</p>
+                          <p className="text-body-sm text-on-surface mt-0.5">{inv.notes as string}</p>
                         </div>
                       )}
 
                       {/* Line items (fees) */}
-                      {inv.fees?.length > 0 && (
+                      {feesArray.length > 0 && (
                         <div>
                           <span className="text-label-md text-outline uppercase">Fees</span>
                           <ul className="mt-1 divide-y divide-surface-border text-body-sm">
-                            {inv.fees.map((f) => (
-                              <li key={f.id} className="py-2 flex justify-between items-center gap-3">
-                                <span className="text-on-surface truncate">{f.feeType}</span>
-                                <span className="font-mono text-on-surface font-medium whitespace-nowrap">{formatCurrency(f.amount)}</span>
+                            {feesArray.map((f) => (
+                              <li key={f.id as string | number} className="py-2 flex justify-between items-center gap-3">
+                                <span className="text-on-surface truncate">{f.feeType as string | undefined}</span>
+                                <span className="font-mono text-on-surface font-medium whitespace-nowrap">{formatCurrency(f.amount as number | string | undefined)}</span>
                               </li>
                             ))}
                           </ul>
@@ -443,7 +520,7 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-surface-border">
                         <div>
                           <span className="text-label-md text-outline uppercase">Total</span>
-                          <p className="font-mono text-body-md font-semibold text-on-surface">{formatCurrency(inv.totalAmount)}</p>
+                          <p className="font-mono text-body-md font-semibold text-on-surface">{formatCurrency(inv.totalAmount as number | string | undefined)}</p>
                         </div>
                         <div>
                           <span className="text-label-md text-outline uppercase">Paid</span>
@@ -456,18 +533,18 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                       </div>
 
                       {/* Payment history */}
-                      {inv.payments?.length > 0 && (
+                      {paymentsArray.length > 0 && (
                         <div>
                           <span className="text-label-md text-outline uppercase">Payment History</span>
                           <ul className="mt-1 divide-y divide-surface-border text-body-sm">
-                            {inv.payments.map((p) => (
-                              <li key={p.id} className="py-2 flex justify-between items-center gap-3">
+                            {paymentsArray.map((p) => (
+                              <li key={p.id as string | number} className="py-2 flex justify-between items-center gap-3">
                                 <div className="min-w-0">
-                                  <span className="text-on-surface font-mono">{formatCurrency(p.amount)}</span>
+                                  <span className="text-on-surface font-mono">{formatCurrency(p.amount as number | string | undefined)}</span>
                                   <span className="text-on-surface-variant ml-2">
-                                    {new Date(p.paymentDate).toLocaleDateString()}
-                                    {p.method && ` · ${p.method}`}
-                                    {p.reference && ` · ${p.reference}`}
+                                    {new Date(p.paymentDate as string).toLocaleDateString()}
+                                    {!!(p.method as string | undefined) && ` · ${p.method as string}`}
+                                    {!!(p.reference as string | undefined) && ` · ${p.reference as string}`}
                                   </span>
                                 </div>
                                 <CheckCircle size={14} className="text-success shrink-0" />
@@ -487,35 +564,47 @@ export default function ClaimFinance({ claimId, onClaimChange }) {
                               step="0.01"
                               min="0"
                               max={balance}
-                              value={payment[inv.id]?.amount || ''}
-                              onChange={(e) => setPayment({ ...payment, [inv.id]: { ...payment[inv.id], amount: e.target.value } })}
+                              value={payment[inv.id as string]?.amount || ''}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                const existing = payment[inv.id as string] ?? ({} as PaymentForm);
+                                setPayment({ ...payment, [inv.id as string]: { ...existing, amount: e.target.value } });
+                              }}
                               placeholder="Amount"
                               className="h-10 px-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                             />
                             <input
                               type="date"
-                              value={payment[inv.id]?.paymentDate || ''}
-                              onChange={(e) => setPayment({ ...payment, [inv.id]: { ...payment[inv.id], paymentDate: e.target.value } })}
+                              value={payment[inv.id as string]?.paymentDate || ''}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                const existing = payment[inv.id as string] ?? ({} as PaymentForm);
+                                setPayment({ ...payment, [inv.id as string]: { ...existing, paymentDate: e.target.value } });
+                              }}
                               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                             />
                             <input
                               type="text"
-                              value={payment[inv.id]?.method || ''}
-                              onChange={(e) => setPayment({ ...payment, [inv.id]: { ...payment[inv.id], method: e.target.value } })}
+                              value={payment[inv.id as string]?.method || ''}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                const existing = payment[inv.id as string] ?? ({} as PaymentForm);
+                                setPayment({ ...payment, [inv.id as string]: { ...existing, method: e.target.value } });
+                              }}
                               placeholder="Method"
                               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                             />
                             <input
                               type="text"
-                              value={payment[inv.id]?.reference || ''}
-                              onChange={(e) => setPayment({ ...payment, [inv.id]: { ...payment[inv.id], reference: e.target.value } })}
+                              value={payment[inv.id as string]?.reference || ''}
+                              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                const existing = payment[inv.id as string] ?? ({} as PaymentForm);
+                                setPayment({ ...payment, [inv.id as string]: { ...existing, reference: e.target.value } });
+                              }}
                               placeholder="Reference"
                               className="h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                             />
                           </div>
                           <button
-                            onClick={() => payInvoice(inv.id)}
-                            disabled={saving || !payment[inv.id]?.amount}
+                            onClick={() => payInvoice(inv.id as string | number)}
+                            disabled={saving || !payment[inv.id as string]?.amount}
                             className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <DollarSign size={16} />

@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { CLAIM_DETAIL_TABS, DocumentPreview, InspectionSummary, WorkflowProgress } from './ClaimDetail.jsx';
 
 vi.mock('../components/Modal.jsx', () => ({
-  Modal: ({ open, title, children }) =>
+  Modal: ({ open, title, children }: { open: boolean; title?: string; children: ReactNode }) =>
     open ? (
       <div role="dialog" aria-label={title}>
         {children}

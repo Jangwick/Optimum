@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Login() {
@@ -10,7 +11,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
@@ -19,7 +20,13 @@ export default function Login() {
       await login({ email, password });
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      let message: string | undefined;
+      if (err instanceof AxiosError) {
+        message = (
+          (err.response?.data as Record<string, unknown> | undefined)?.['error'] as string | undefined
+        );
+      }
+      setError(message ?? 'Login failed');
     } finally {
       setSubmitting(false);
     }
@@ -40,7 +47,7 @@ export default function Login() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               placeholder="admin@optimum.com"
               required
@@ -52,7 +59,7 @@ export default function Login() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               placeholder="••••••••"
               required

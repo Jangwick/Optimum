@@ -1,7 +1,31 @@
 import bcrypt from 'bcrypt';
 import { prisma } from '../src/db/client.js';
 
-const statuses = [
+interface StatusSeed {
+  name: string;
+  code: string;
+  color: string;
+  isTerminal: boolean;
+  sortOrder: number;
+}
+
+interface ImportStatusSeed {
+  name: string;
+  code: string;
+  sortOrder: number;
+}
+
+interface DocumentCategorySeed {
+  name: string;
+  code: string;
+}
+
+interface ClaimTypeSeed {
+  name: string;
+  code: string;
+}
+
+const statuses: StatusSeed[] = [
   { name: 'New', code: 'NEW', color: '#767683', isTerminal: false, sortOrder: 10 },
   { name: 'Assigned', code: 'ASSIGNED', color: '#4958ab', isTerminal: false, sortOrder: 20 },
   { name: 'Investigation', code: 'INVESTIGATION', color: '#f26522', isTerminal: false, sortOrder: 30 },
@@ -26,7 +50,7 @@ const statuses = [
 // 18-stage primary workflow status — the primary status dimension for
 // registry/reporting. Replaces the prior 12 OCS process statuses.
 // The 12 OCS codes are retained as read-only ImportStatus for historical records.
-const processStatuses = [
+const processStatuses: StatusSeed[] = [
   { name: 'New Claim', code: 'NEW_CLAIM', color: '#767683', isTerminal: false, sortOrder: 10 },
   { name: 'Claim Assigned', code: 'CLAIM_ASSIGNED', color: '#4958ab', isTerminal: false, sortOrder: 20 },
   { name: 'Initial Review', code: 'INITIAL_REVIEW', color: '#4958ab', isTerminal: false, sortOrder: 30 },
@@ -48,7 +72,7 @@ const processStatuses = [
 ];
 
 // OCS 12-status — retained as read-only ImportStatus on historical/imported records.
-const importStatuses = [
+const importStatuses: ImportStatusSeed[] = [
   { name: 'Awaiting Documents', code: 'AWAITING_DOCUMENTS', sortOrder: 10 },
   { name: 'Documents Under Review', code: 'DOCUMENTS_UNDER_REVIEW', sortOrder: 20 },
   { name: 'Report Under Review', code: 'REPORT_UNDER_REVIEW', sortOrder: 30 },
@@ -67,7 +91,7 @@ const importStatuses = [
 // Used by the backfill to populate processStatusId on existing claims
 // without overwriting the secondary statusId. Conservative: maps to
 // the closest 18-stage workflow step; anything unmapped defaults to NEW_CLAIM.
-const statusToProcess = {
+const statusToProcess: Record<string, string> = {
   NEW: 'NEW_CLAIM',
   ASSIGNED: 'CLAIM_ASSIGNED',
   INVESTIGATION: 'UNDER_INVESTIGATION',
@@ -88,7 +112,7 @@ const statusToProcess = {
   CLOSED: 'CLAIM_CLOSED',
 };
 
-const documentCategories = [
+const documentCategories: DocumentCategorySeed[] = [
   { name: 'Policy', code: 'POLICY' },
   { name: 'Claim Form', code: 'CLAIM_FORM' },
   { name: 'Photo', code: 'PHOTO' },
@@ -101,7 +125,7 @@ const documentCategories = [
   { name: 'Other', code: 'OTHER' },
 ];
 
-const claimTypes = [
+const claimTypes: ClaimTypeSeed[] = [
   { name: 'Property Damage', code: 'PROPERTY_DAMAGE' },
   { name: 'Auto/Casualty', code: 'AUTO_CASUALTY' },
   { name: 'Liability', code: 'LIABILITY' },
@@ -120,7 +144,7 @@ async function main() {
   }
 
   // Upsert 18-stage process statuses (primary status dimension).
-  const processStatusByCode = {};
+  const processStatusByCode: Record<string, { id: number }> = {};
   for (const p of processStatuses) {
     const row = await prisma.processStatus.upsert({ where: { code: p.code }, update: p, create: p });
     processStatusByCode[p.code] = row;
@@ -129,7 +153,7 @@ async function main() {
   // Remove old process statuses that are no longer part of the 18-stage
   // workflow. They have been moved to ImportStatus. Remap any claims that
   // still reference them to the closest 18-stage equivalent before deleting.
-  const oldProcessCodes = {
+  const oldProcessCodes: Record<string, string> = {
     RECEIVED: 'NEW_CLAIM',
     ASSIGNED: 'CLAIM_ASSIGNED',
     INSPECTED: 'INSPECTION_COMPLETED',
@@ -174,7 +198,7 @@ async function main() {
   });
   let backfilled = 0;
   for (const c of claimsWithoutProcess) {
-    const processCode = statusToProcess[c.status?.code] || 'NEW_CLAIM';
+    const processCode = statusToProcess[c.status?.code ?? ''] || 'NEW_CLAIM';
     const process = processStatusByCode[processCode];
     if (!process) continue;
     await prisma.claim.update({ where: { id: c.id }, data: { processStatusId: process.id } });
@@ -193,10 +217,14 @@ async function main() {
   }
 
   const adminRole = roles.find((r) => r.name === 'ADMIN');
+  if (!adminRole) {
+    throw new Error('Admin role was not seeded');
+  }
   const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@optimum.com' } });
 
   if (!existingAdmin) {
-    const passwordHash = await bcrypt.hash('ChangeMe123!', Number(process.env.BCRYPT_ROUNDS || 12));
+    const rounds = Number(process.env.BCRYPT_ROUNDS ?? 12);
+    const passwordHash = await bcrypt.hash('ChangeMe123!', rounds);
     await prisma.user.create({
       data: {
         email: 'admin@optimum.com',
@@ -219,14 +247,14 @@ export async function runSeed() {
   await main();
 }
 
-// Run directly via `node prisma/seed.js` or `prisma db seed`
-const isMain = process.argv[1] && process.argv[1].endsWith('seed.js');
+// Run directly via `node prisma/seed.ts` or `prisma db seed`
+const isMain = process.argv[1] && /seed\.(ts|js)$/.test(process.argv[1]);
 if (isMain) {
   main()
     .then(async () => {
       await prisma.$disconnect();
     })
-    .catch(async (e) => {
+    .catch(async (e: unknown) => {
       console.error(e);
       await prisma.$disconnect();
       process.exit(1);

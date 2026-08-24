@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, type FormEvent, type ChangeEvent, type DragEvent, type MouseEvent, type SyntheticEvent } from 'react';
 import {
   getInvestigations,
   createInvestigation,
@@ -41,23 +41,43 @@ import {
   Upload,
   User,
   Building2,
+  type LucideIcon,
 } from 'lucide-react';
 
-const PARTY_TYPES = [
+interface PartyType {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const PARTY_TYPES: PartyType[] = [
   { value: 'INSURED', label: 'Insured', icon: User },
   { value: 'INSURER', label: 'Insurer', icon: Building2 },
   { value: 'BROKER', label: 'Broker', icon: Users },
   { value: 'INTERNAL', label: 'Internal', icon: FileText },
 ];
 
-export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
-  const [tab, setTab] = useState('notes');
-  const [investigations, setInvestigations] = useState([]);
-  const [contacts, setContacts] = useState([]);
-  const [inspections, setInspections] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const [refresh, setRefresh] = useState(0);
-  const [viewingPhoto, setViewingPhoto] = useState(null);
+interface TabDef {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  count?: number;
+}
+
+interface ClaimInvestigationProps {
+  claimId: string | number;
+  claim?: Record<string, unknown>;
+  onClaimChange?: () => void;
+}
+
+export default function ClaimInvestigation({ claimId, claim, onClaimChange }: ClaimInvestigationProps) {
+  const [tab, setTab] = useState<string>('notes');
+  const [investigations, setInvestigations] = useState<Record<string, unknown>[]>([]);
+  const [contacts, setContacts] = useState<Record<string, unknown>[]>([]);
+  const [inspections, setInspections] = useState<Record<string, unknown>[]>([]);
+  const [notes, setNotes] = useState<Record<string, unknown>[]>([]);
+  const [refresh, setRefresh] = useState<number>(0);
+  const [viewingPhoto, setViewingPhoto] = useState<Record<string, unknown> | null>(null);
 
   const load = useCallback(async () => {
     const [inv, con, ins, dn] = await Promise.all([
@@ -66,10 +86,14 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
       getInspections(claimId),
       getDiscussionNotes(claimId),
     ]);
-    setInvestigations(inv.items || []);
-    setContacts(con.items || []);
-    setInspections(ins.items || []);
-    setNotes(dn.items || []);
+    const invData = inv as Record<string, unknown>;
+    const conData = con as Record<string, unknown>;
+    const insData = ins as Record<string, unknown>;
+    const dnData = dn as Record<string, unknown>;
+    setInvestigations((invData.items as Record<string, unknown>[] | undefined) ?? []);
+    setContacts((conData.items as Record<string, unknown>[] | undefined) ?? []);
+    setInspections((insData.items as Record<string, unknown>[] | undefined) ?? []);
+    setNotes((dnData.items as Record<string, unknown>[] | undefined) ?? []);
   }, [claimId]);
 
   useEffect(() => {
@@ -82,63 +106,77 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
   };
 
   // ─── Investigation form state ───
-  const [invForm, setInvForm] = useState({ findings: '', notes: '' });
-  const [conForm, setConForm] = useState({ name: '', role: '', phone: '', email: '' });
-  const [inspForm, setInspForm] = useState({ scheduledAt: '', location: '', scope: '', notes: '' });
-  const [inspPhotos, setInspPhotos] = useState([]);
-  const inspPhotoInputRef = useRef(null);
-  const [findings, setFindings] = useState({});
-  const [noteForm, setNoteForm] = useState({
+  const [invForm, setInvForm] = useState<Record<string, string>>({ findings: '', notes: '' });
+  const [conForm, setConForm] = useState<Record<string, string>>({ name: '', role: '', phone: '', email: '' });
+  const [inspForm, setInspForm] = useState<Record<string, string>>({
+    scheduledAt: '',
+    location: '',
+    scope: '',
+    notes: '',
+  });
+  const [inspPhotos, setInspPhotos] = useState<File[]>([]);
+  const inspPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const [findings, setFindings] = useState<Record<string, string>>({});
+  const [noteForm, setNoteForm] = useState<Record<string, string>>({
     partyType: 'INSURED',
     partyName: '',
     discussedAt: new Date().toISOString().slice(0, 16),
     notes: '',
     nextAction: '',
   });
-  const [savingNote, setSavingNote] = useState(false);
-  const [reserveValue, setReserveValue] = useState(claim?.estimatedLoss || '');
-  const [suggestion, setSuggestion] = useState(null);
-  const [calculating, setCalculating] = useState(false);
-  const [savingReserve, setSavingReserve] = useState(false);
-  const [reserveSaved, setReserveSaved] = useState(false);
+  const [savingNote, setSavingNote] = useState<boolean>(false);
+  const [reserveValue, setReserveValue] = useState<string | number>(
+    (claim?.estimatedLoss as string | number | undefined) || '',
+  );
+  const [suggestion, setSuggestion] = useState<Record<string, unknown> | null>(null);
+  const [calculating, setCalculating] = useState<boolean>(false);
+  const [savingReserve, setSavingReserve] = useState<boolean>(false);
+  const [reserveSaved, setReserveSaved] = useState<boolean>(false);
 
   useEffect(() => {
-    setReserveValue(claim?.estimatedLoss || '');
+    setReserveValue((claim?.estimatedLoss as string | number | undefined) || '');
   }, [claim, refresh]);
 
+  const [uploading, setUploading] = useState<boolean>(false);
+
   // ─── Handlers ───
-  const saveInvestigation = async (e) => {
+  const saveInvestigation = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await createInvestigation(claimId, invForm);
+    await createInvestigation(claimId, invForm as Record<string, unknown>);
     setInvForm({ findings: '', notes: '' });
     triggerRefresh();
   };
 
-  const removeInvestigation = async (id) => {
+  const removeInvestigation = async (id: string | number) => {
     if (!confirm('Delete this investigation?')) return;
     await deleteInvestigation(claimId, id);
     triggerRefresh();
   };
 
-  const saveContact = async (e) => {
+  const saveContact = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await createContact(claimId, conForm);
+    await createContact(claimId, conForm as Record<string, unknown>);
     setConForm({ name: '', role: '', phone: '', email: '' });
     triggerRefresh();
   };
 
-  const removeContact = async (id) => {
+  const removeContact = async (id: string | number) => {
     if (!confirm('Delete this contact?')) return;
     await deleteContact(claimId, id);
     triggerRefresh();
   };
 
-  const saveInspection = async (e) => {
+  const saveInspection = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUploading(true);
     try {
-      const result = await createInspection(claimId, { ...inspForm, scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null });
-      const inspectionId = result.item?.id || result.id;
+      const result = await createInspection(claimId, {
+        ...inspForm,
+        scheduledAt: inspForm.scheduledAt ? new Date(inspForm.scheduledAt).toISOString() : null,
+      } as Record<string, unknown>);
+      const resultObj = result as Record<string, unknown>;
+      const item = resultObj.item as Record<string, unknown> | undefined;
+      const inspectionId = (item?.id ?? resultObj.id) as string | number;
       for (const file of inspPhotos) {
         await uploadInspectionPhoto(claimId, inspectionId, file, '');
       }
@@ -151,21 +189,24 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     }
   };
 
-  const completeInspection = async (id) => {
-    await updateInspection(claimId, id, { findings: findings[id] || '', conductedAt: new Date().toISOString() });
-    setFindings({ ...findings, [id]: '' });
+  const completeInspection = async (id: string | number) => {
+    await updateInspection(claimId, id, {
+      findings: findings[id as string] || '',
+      conductedAt: new Date().toISOString(),
+    } as Record<string, unknown>);
+    setFindings({ ...findings, [id as string]: '' });
     triggerRefresh();
   };
 
-  const removeInspection = async (id) => {
+  const removeInspection = async (id: string | number) => {
     if (!confirm('Delete this inspection and all its photos?')) return;
     await deleteInspection(claimId, id);
     triggerRefresh();
   };
 
-  const fileInputRefs = useRef({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const handleFileSelect = async (inspectionId, e) => {
+  const handleFileSelect = async (inspectionId: string | number, e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -180,9 +221,9 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     }
   };
 
-  const handleInspectionDrop = async (inspectionId, e) => {
+  const handleInspectionDrop = async (inspectionId: string | number, e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const files = e.dataTransfer.files;
+    const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
@@ -195,28 +236,34 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     }
   };
 
-  const triggerFileInput = (inspectionId) => {
-    fileInputRefs.current[inspectionId]?.click();
+  const triggerFileInput = (inspectionId: string | number) => {
+    fileInputRefs.current[inspectionId as string]?.click();
   };
 
   // ─── Discussion Note handlers ───
-  const saveNote = async (e) => {
+  const saveNote = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!noteForm.notes.trim()) return;
+    if (!noteForm.notes?.trim()) return;
     setSavingNote(true);
     try {
       await createDiscussionNote(claimId, {
         ...noteForm,
         discussedAt: noteForm.discussedAt ? new Date(noteForm.discussedAt).toISOString() : new Date().toISOString(),
+      } as Record<string, unknown>);
+      setNoteForm({
+        partyType: 'INSURED',
+        partyName: '',
+        discussedAt: new Date().toISOString().slice(0, 16),
+        notes: '',
+        nextAction: '',
       });
-      setNoteForm({ partyType: 'INSURED', partyName: '', discussedAt: new Date().toISOString().slice(0, 16), notes: '', nextAction: '' });
       triggerRefresh();
     } finally {
       setSavingNote(false);
     }
   };
 
-  const removeNote = async (id) => {
+  const removeNote = async (id: string | number) => {
     if (!confirm('Delete this discussion note?')) return;
     await deleteDiscussionNote(claimId, id);
     triggerRefresh();
@@ -226,23 +273,23 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
   const calculateReserve = async () => {
     setCalculating(true);
     try {
-      const result = await getAutoReserve(claimId);
+      const result = (await getAutoReserve(claimId)) as Record<string, unknown>;
       setSuggestion(result);
-      setReserveValue(result.suggestedReserve);
+      setReserveValue((result.suggestedReserve as string | number | null | undefined) ?? '');
       setReserveSaved(false);
     } finally {
       setCalculating(false);
     }
   };
 
-  const saveReserve = async (e) => {
+  const saveReserve = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const value = Number(reserveValue);
     if (Number.isNaN(value)) return;
     setSavingReserve(true);
     setReserveSaved(false);
     try {
-      await updateClaim(claimId, { estimatedLoss: value, reserve: value });
+      await updateClaim(claimId, { estimatedLoss: value, reserve: value } as Record<string, unknown>);
       setReserveSaved(true);
       triggerRefresh();
     } finally {
@@ -250,17 +297,16 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
     }
   };
 
-  const [uploading, setUploading] = useState(false);
-
-  const removePhoto = async (photo) => {
+  const removePhoto = async (photo: Record<string, unknown>) => {
     if (!confirm('Delete this photo?')) return;
-    await deleteInspectionPhoto(claimId, photo.id);
+    await deleteInspectionPhoto(claimId, photo.id as string | number);
     triggerRefresh();
   };
 
-  const partyMeta = (type) => PARTY_TYPES.find((p) => p.value === type) || PARTY_TYPES[3];
+  const partyMeta = (type: string) =>
+    PARTY_TYPES.find((p) => p.value === type) ?? PARTY_TYPES[3] ?? { value: 'INTERNAL', label: 'Internal', icon: FileText };
 
-  const tabs = [
+  const tabs: TabDef[] = [
     { key: 'notes', label: 'Discussion Notes', icon: MessageSquare, count: notes.length },
     { key: 'reserve', label: 'Loss Reserve', icon: DollarSign },
     { key: 'investigations', label: 'Investigations', icon: Search, count: investigations.length },
@@ -302,8 +348,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Party Type</label>
                 <Select
-                  value={noteForm.partyType}
-                  onChange={(v) => setNoteForm({ ...noteForm, partyType: v })}
+                  value={noteForm.partyType as string}
+                  onChange={(v) => setNoteForm({ ...noteForm, partyType: v as string })}
                   options={PARTY_TYPES.map((p) => ({ value: p.value, label: p.label }))}
                 />
               </div>
@@ -311,8 +357,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 <label className="block text-label-md text-outline uppercase mb-1.5">Party Name</label>
                 <input
                   type="text"
-                  value={noteForm.partyName}
-                  onChange={(e) => setNoteForm({ ...noteForm, partyName: e.target.value })}
+                  value={noteForm.partyName as string}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNoteForm({ ...noteForm, partyName: e.target.value })}
                   placeholder="Name of person contacted"
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
@@ -321,8 +367,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 <label className="block text-label-md text-outline uppercase mb-1.5">Date & Time</label>
                 <input
                   type="datetime-local"
-                  value={noteForm.discussedAt}
-                  onChange={(e) => setNoteForm({ ...noteForm, discussedAt: e.target.value })}
+                  value={noteForm.discussedAt as string}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNoteForm({ ...noteForm, discussedAt: e.target.value })}
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
               </div>
@@ -330,8 +376,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 <label className="block text-label-md text-outline uppercase mb-1.5">Next Action</label>
                 <input
                   type="text"
-                  value={noteForm.nextAction}
-                  onChange={(e) => setNoteForm({ ...noteForm, nextAction: e.target.value })}
+                  value={noteForm.nextAction as string}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNoteForm({ ...noteForm, nextAction: e.target.value })}
                   placeholder="Agreed next step..."
                   className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                 />
@@ -340,8 +386,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
               <textarea
-                value={noteForm.notes}
-                onChange={(e) => setNoteForm({ ...noteForm, notes: e.target.value })}
+                value={noteForm.notes as string}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setNoteForm({ ...noteForm, notes: e.target.value })}
                 placeholder="Discussion details..."
                 rows={3}
                 required
@@ -350,7 +396,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             </div>
             <button
               type="submit"
-              disabled={savingNote || !noteForm.notes.trim()}
+              disabled={savingNote || !noteForm.notes?.trim()}
               className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Plus size={16} />
@@ -366,10 +412,17 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
               </div>
             ) : (
               notes.map((note) => {
-                const meta = partyMeta(note.partyType);
+                const meta = partyMeta(note.partyType as string);
                 const Icon = meta.icon;
+                const createdBy = note.createdBy as Record<string, unknown> | undefined;
+                const createdByName = createdBy
+                  ? `${createdBy.firstName as string | undefined} ${createdBy.lastName as string | undefined}`
+                  : 'System';
+                const noteText = note.notes as string | undefined;
+                const nextAction = note.nextAction as string | undefined;
+                const partyName = note.partyName as string | undefined;
                 return (
-                  <div key={note.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+                  <div key={note.id as string | number} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
@@ -379,13 +432,13 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary">
                             {meta.label}
                           </span>
-                          {note.partyName && (
-                            <span className="ml-2 text-body-sm font-medium text-on-surface">{note.partyName}</span>
+                          {partyName && (
+                            <span className="ml-2 text-body-sm font-medium text-on-surface">{partyName}</span>
                           )}
                         </div>
                       </div>
                       <button
-                        onClick={() => removeNote(note.id)}
+                        onClick={() => removeNote(note.id as string | number)}
                         className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
                         title="Delete note"
                       >
@@ -393,15 +446,15 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                       </button>
                     </div>
                     <div className="p-3 space-y-2">
-                      <p className="text-body-sm text-on-surface">{note.notes}</p>
-                      {note.nextAction && (
+                      <p className="text-body-sm text-on-surface">{noteText}</p>
+                      {nextAction && (
                         <div>
                           <span className="text-label-md text-outline uppercase">Next Action</span>
-                          <p className="text-body-sm text-on-surface-variant mt-0.5">{note.nextAction}</p>
+                          <p className="text-body-sm text-on-surface-variant mt-0.5">{nextAction}</p>
                         </div>
                       )}
                       <p className="text-label-sm text-outline font-mono pt-1 border-t border-surface-border">
-                        {new Date(note.discussedAt).toLocaleString()} · {note.createdBy ? `${note.createdBy.firstName} ${note.createdBy.lastName}` : 'System'}
+                        {new Date(note.discussedAt as string).toLocaleString()} · {createdByName}
                       </p>
                     </div>
                   </div>
@@ -423,11 +476,11 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-surface-container-low rounded-lg p-4">
               <span className="text-label-md text-outline uppercase">Current Estimated Loss</span>
-              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss)}</p>
+              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.estimatedLoss as string | number | undefined)}</p>
             </div>
             <div className="bg-surface-container-low rounded-lg p-4">
               <span className="text-label-md text-outline uppercase">Current Reserve</span>
-              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.reserve)}</p>
+              <p className="text-headline-md font-mono text-on-surface mt-1">{formatCurrency(claim?.reserve as string | number | undefined)}</p>
             </div>
           </div>
 
@@ -448,17 +501,17 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 {calculating ? 'Calculating...' : 'Calculate'}
               </button>
             </div>
-            {suggestion && (
+            {suggestion ? (
               <div className="mt-3 pt-3 border-t border-primary/20">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-label-md text-outline uppercase">Basis</span>
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-label-md font-medium bg-primary/10 text-primary capitalize">
-                    {suggestion.basis}
+                    {suggestion.basis as string | undefined}
                   </span>
                 </div>
-                <p className="text-body-sm text-on-surface-variant font-mono mt-1">{suggestion.calculation}</p>
+                <p className="text-body-sm text-on-surface-variant font-mono mt-1">{suggestion.calculation as string | undefined}</p>
               </div>
-            )}
+            ) : null}
           </div>
 
           <form onSubmit={saveReserve} className="space-y-4">
@@ -471,7 +524,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                   step="0.01"
                   min="0"
                   value={reserveValue}
-                  onChange={(e) => { setReserveValue(e.target.value); setReserveSaved(false); }}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => { setReserveValue(e.target.value); setReserveSaved(false); }}
                   className="w-full h-10 pl-8 pr-3 rounded border border-outline bg-surface text-body-md font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
                   placeholder="0.00"
                 />
@@ -510,11 +563,11 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Findings</label>
-              <textarea value={invForm.findings} onChange={(e) => setInvForm({ ...invForm, findings: e.target.value })} placeholder="Investigation findings..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={3} />
+              <textarea value={invForm.findings as string} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInvForm({ ...invForm, findings: e.target.value })} placeholder="Investigation findings..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={3} />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
-              <textarea value={invForm.notes} onChange={(e) => setInvForm({ ...invForm, notes: e.target.value })} placeholder="Additional notes..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
+              <textarea value={invForm.notes as string} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInvForm({ ...invForm, notes: e.target.value })} placeholder="Additional notes..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
             </div>
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2">
               <Plus size={16} />
@@ -523,16 +576,16 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
           </form>
           <div className="space-y-3">
             {investigations.map((i) => (
-              <div key={i.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+              <div key={i.id as string | number} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                       <FileText size={16} />
                     </div>
-                    <p className="text-body-md font-semibold text-on-surface">Investigation #{i.id}</p>
+                    <p className="text-body-md font-semibold text-on-surface">Investigation #{i.id as string | number}</p>
                   </div>
                   <button
-                    onClick={() => removeInvestigation(i.id)}
+                    onClick={() => removeInvestigation(i.id as string | number)}
                     className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
                     title="Delete investigation"
                   >
@@ -540,19 +593,19 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                   </button>
                 </div>
                 <div className="p-3 space-y-2">
-                  {i.findings && (
+                  {!!(i.findings as string | undefined) && (
                     <div>
                       <span className="text-label-md text-outline uppercase">Findings</span>
-                      <p className="text-body-sm text-on-surface mt-0.5">{i.findings}</p>
+                      <p className="text-body-sm text-on-surface mt-0.5">{i.findings as string}</p>
                     </div>
                   )}
-                  {i.notes && (
+                  {!!(i.notes as string | undefined) && (
                     <div>
                       <span className="text-label-md text-outline uppercase">Notes</span>
-                      <p className="text-body-sm text-on-surface-variant mt-0.5">{i.notes}</p>
+                      <p className="text-body-sm text-on-surface-variant mt-0.5">{i.notes as string}</p>
                     </div>
                   )}
-                  <p className="text-label-sm text-outline font-mono pt-1 border-t border-surface-border">{new Date(i.createdAt).toLocaleString()}</p>
+                  <p className="text-label-sm text-outline font-mono pt-1 border-t border-surface-border">{new Date(i.createdAt as string).toLocaleString()}</p>
                 </div>
               </div>
             ))}
@@ -578,19 +631,19 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Name</label>
-                <input type="text" value={conForm.name} onChange={(e) => setConForm({ ...conForm, name: e.target.value })} placeholder="Contact name" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" required />
+                <input type="text" value={conForm.name as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setConForm({ ...conForm, name: e.target.value })} placeholder="Contact name" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" required />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Role</label>
-                <input type="text" value={conForm.role} onChange={(e) => setConForm({ ...conForm, role: e.target.value })} placeholder="Role / title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
+                <input type="text" value={conForm.role as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setConForm({ ...conForm, role: e.target.value })} placeholder="Role / title" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Phone</label>
-                <input type="tel" value={conForm.phone} onChange={(e) => setConForm({ ...conForm, phone: e.target.value })} placeholder="Phone number" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
+                <input type="tel" value={conForm.phone as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setConForm({ ...conForm, phone: e.target.value })} placeholder="Phone number" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
               </div>
               <div>
                 <label className="block text-label-md text-outline uppercase mb-1.5">Email</label>
-                <input type="email" value={conForm.email} onChange={(e) => setConForm({ ...conForm, email: e.target.value })} placeholder="Email address" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
+                <input type="email" value={conForm.email as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setConForm({ ...conForm, email: e.target.value })} placeholder="Email address" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
               </div>
             </div>
             <button type="submit" className="h-10 px-4 bg-primary text-white rounded font-semibold hover:bg-primary-container transition-colors inline-flex items-center gap-2">
@@ -600,19 +653,19 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
           </form>
           <div className="space-y-3">
             {contacts.map((c) => (
-              <div key={c.id} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
+              <div key={c.id as string | number} className="bg-surface border border-surface-border border-l-4 border-l-primary rounded-lg shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between p-3 bg-surface-container-low border-b border-surface-border">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                       <Users size={16} />
                     </div>
                     <div>
-                      <p className="text-body-md font-semibold text-on-surface">{c.name}</p>
-                      {c.role && <p className="text-label-sm text-on-surface-variant">{c.role}</p>}
+                      <p className="text-body-md font-semibold text-on-surface">{c.name as string}</p>
+                      {!!(c.role as string | undefined) && <p className="text-label-sm text-on-surface-variant">{c.role as string}</p>}
                     </div>
                   </div>
                   <button
-                    onClick={() => removeContact(c.id)}
+                    onClick={() => removeContact(c.id as string | number)}
                     className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
                     title="Delete contact"
                   >
@@ -621,20 +674,20 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                 </div>
                 <div className="p-3">
                   <div className="grid grid-cols-2 gap-3">
-                    {c.phone && (
+                    {!!(c.phone as string | undefined) && (
                       <div>
                         <span className="text-label-md text-outline uppercase">Phone</span>
-                        <p className="text-body-sm text-on-surface mt-0.5 font-mono">{c.phone}</p>
+                        <p className="text-body-sm text-on-surface mt-0.5 font-mono">{c.phone as string}</p>
                       </div>
                     )}
-                    {c.email && (
+                    {!!(c.email as string | undefined) && (
                       <div>
                         <span className="text-label-md text-outline uppercase">Email</span>
-                        <p className="text-body-sm text-on-surface mt-0.5 break-words">{c.email}</p>
+                        <p className="text-body-sm text-on-surface mt-0.5 break-words">{c.email as string}</p>
                       </div>
                     )}
                   </div>
-                  {!c.phone && !c.email && <p className="text-body-sm text-on-surface-variant">No contact details</p>}
+                  {!(c.phone as string | undefined) && !(c.email as string | undefined) && <p className="text-body-sm text-on-surface-variant">No contact details</p>}
                 </div>
               </div>
             ))}
@@ -659,25 +712,25 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Scheduled Date & Time</label>
-              <input type="datetime-local" value={inspForm.scheduledAt} onChange={(e) => setInspForm({ ...inspForm, scheduledAt: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" required />
+              <input type="datetime-local" value={inspForm.scheduledAt as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setInspForm({ ...inspForm, scheduledAt: e.target.value })} className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" required />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Location</label>
-              <input type="text" value={inspForm.location} onChange={(e) => setInspForm({ ...inspForm, location: e.target.value })} placeholder="Inspection location" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
+              <input type="text" value={inspForm.location as string} onChange={(e: ChangeEvent<HTMLInputElement>) => setInspForm({ ...inspForm, location: e.target.value })} placeholder="Inspection location" className="w-full h-10 px-3 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors" />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Scope</label>
-              <textarea value={inspForm.scope} onChange={(e) => setInspForm({ ...inspForm, scope: e.target.value })} placeholder="Inspection scope..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
+              <textarea value={inspForm.scope as string} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInspForm({ ...inspForm, scope: e.target.value })} placeholder="Inspection scope..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Notes</label>
-              <textarea value={inspForm.notes} onChange={(e) => setInspForm({ ...inspForm, notes: e.target.value })} placeholder="Additional notes..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
+              <textarea value={inspForm.notes as string} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setInspForm({ ...inspForm, notes: e.target.value })} placeholder="Additional notes..." className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none" rows={2} />
             </div>
             <div>
               <label className="block text-label-md text-outline uppercase mb-1.5">Photos</label>
               <div
-                onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); setInspPhotos((prev) => [...prev, ...files]); }}
-                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e: DragEvent<HTMLDivElement>) => { e.preventDefault(); const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : []; setInspPhotos((prev) => [...prev, ...files]); }}
+                onDragOver={(e: DragEvent<HTMLDivElement>) => e.preventDefault()}
                 className="border-2 border-dashed border-outline rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer"
                 onClick={() => inspPhotoInputRef.current?.click()}
               >
@@ -686,7 +739,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => { const files = Array.from(e.target.files); setInspPhotos((prev) => [...prev, ...files]); e.target.value = ''; }}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => { const files = e.target.files ? Array.from(e.target.files) : []; setInspPhotos((prev) => [...prev, ...files]); e.target.value = ''; }}
                   className="hidden"
                 />
                 <Upload size={24} className="mx-auto text-outline mb-2" />
@@ -723,10 +776,12 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
 
           <div className="space-y-4">
             {inspections.map((i) => {
-              const isCompleted = !!i.conductedAt;
+              const isCompleted = !!(i.conductedAt as string | undefined);
+              const inspector = i.inspector as Record<string, unknown> | undefined;
+              const photos = (i.photos as Record<string, unknown>[] | undefined) ?? [];
               return (
                 <div
-                  key={i.id}
+                  key={i.id as string | number}
                   className={`bg-surface border border-surface-border rounded-lg shadow-sm overflow-hidden ${
                     isCompleted ? 'border-l-4 border-l-success' : 'border-l-4 border-l-accent-orange'
                   }`}
@@ -742,11 +797,11 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                       </div>
                       <div className="min-w-0">
                         <p className="text-body-md font-semibold text-on-surface truncate">
-                          {i.scheduledAt ? new Date(i.scheduledAt).toLocaleString() : 'Unscheduled'}
+                          {i.scheduledAt ? new Date(i.scheduledAt as string).toLocaleString() : 'Unscheduled'}
                         </p>
                         <p className="text-label-sm text-outline font-mono mt-0.5">
-                          Inspection #{i.id}
-                          {i.inspector && ` · ${i.inspector.firstName} ${i.inspector.lastName}`}
+                          Inspection #{i.id as string | number}
+                          {!!inspector && ` · ${inspector.firstName as string | undefined} ${inspector.lastName as string | undefined}`}
                         </p>
                       </div>
                     </div>
@@ -762,7 +817,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                         {isCompleted ? 'Completed' : 'Scheduled'}
                       </span>
                       <button
-                        onClick={() => removeInspection(i.id)}
+                        onClick={() => removeInspection(i.id as string | number)}
                         className="inline-flex items-center justify-center w-8 h-8 rounded text-error hover:bg-error/10 transition-colors"
                         title="Delete inspection"
                       >
@@ -773,44 +828,44 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
 
                   <div className="p-4 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {i.location && (
+                      {!!(i.location as string | undefined) && (
                         <div className="flex items-start gap-2">
                           <MapPin size={16} className="text-on-surface-variant shrink-0 mt-0.5" />
                           <div className="min-w-0">
                             <p className="text-label-md text-outline uppercase">Location</p>
-                            <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.location}</p>
+                            <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.location as string}</p>
                           </div>
                         </div>
                       )}
-                      {i.scope && (
+                      {!!(i.scope as string | undefined) && (
                         <div className="flex items-start gap-2">
                           <Search size={16} className="text-on-surface-variant shrink-0 mt-0.5" />
                           <div className="min-w-0">
                             <p className="text-label-md text-outline uppercase">Scope</p>
-                            <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.scope}</p>
+                            <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.scope as string}</p>
                           </div>
                         </div>
                       )}
                     </div>
-                    {i.notes && (
+                    {!!(i.notes as string | undefined) && (
                       <div className="flex items-start gap-2">
                         <FileText size={16} className="text-on-surface-variant shrink-0 mt-0.5" />
                         <div className="min-w-0">
                           <p className="text-label-md text-outline uppercase">Notes</p>
-                          <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.notes}</p>
+                          <p className="text-body-sm text-on-surface mt-0.5 break-words">{i.notes as string}</p>
                         </div>
                       </div>
                     )}
 
-                    {isCompleted && i.findings && (
+                    {isCompleted && !!(i.findings as string | undefined) && (
                       <div className="mt-2 p-3 bg-success/5 border border-success/20 rounded-lg">
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircle size={14} className="text-success shrink-0" />
                           <span className="text-label-md text-success uppercase font-medium">Findings</span>
                         </div>
-                        <p className="text-body-sm text-on-surface">{i.findings}</p>
+                        <p className="text-body-sm text-on-surface">{i.findings as string}</p>
                         <p className="text-label-sm text-outline mt-2 font-mono">
-                          Completed: {new Date(i.conductedAt).toLocaleString()}
+                          Completed: {new Date(i.conductedAt as string).toLocaleString()}
                         </p>
                       </div>
                     )}
@@ -820,8 +875,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                         <div>
                           <label className="block text-label-md text-outline uppercase mb-1.5">Completion Findings</label>
                           <textarea
-                            value={findings[i.id] || ''}
-                            onChange={(e) => setFindings({ ...findings, [i.id]: e.target.value })}
+                            value={findings[i.id as string] || ''}
+                            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFindings({ ...findings, [i.id as string]: e.target.value })}
                             placeholder="Enter inspection findings..."
                             className="w-full px-3 py-2 rounded border border-outline bg-surface text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors resize-none"
                             rows={2}
@@ -834,20 +889,20 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                     <div className="mt-3 pt-3 border-t border-surface-border space-y-3">
                       <div className="flex items-center gap-2">
                         <Camera size={16} className="text-on-surface-variant shrink-0" />
-                        <span className="text-label-md text-outline uppercase">Photos {i.photos?.length > 0 ? `(${i.photos.length})` : ''}</span>
+                        <span className="text-label-md text-outline uppercase">Photos {photos.length > 0 ? `(${photos.length})` : ''}</span>
                       </div>
                       <div
-                        onDrop={(e) => handleInspectionDrop(i.id, e)}
-                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e: DragEvent<HTMLDivElement>) => handleInspectionDrop(i.id as string | number, e)}
+                        onDragOver={(e: DragEvent<HTMLDivElement>) => e.preventDefault()}
                         className="border-2 border-dashed border-outline rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer"
-                        onClick={() => triggerFileInput(i.id)}
+                        onClick={() => triggerFileInput(i.id as string | number)}
                       >
                         <input
-                          ref={(el) => (fileInputRefs.current[i.id] = el)}
+                          ref={(el) => { fileInputRefs.current[i.id as string] = el; }}
                           type="file"
                           accept="image/*"
                           multiple
-                          onChange={(e) => handleFileSelect(i.id, e)}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => handleFileSelect(i.id as string | number, e)}
                           className="hidden"
                         />
                         <Upload size={24} className="mx-auto text-outline mb-2" />
@@ -855,11 +910,11 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                           {uploading ? 'Uploading...' : 'Click or drag photos here'}
                         </p>
                       </div>
-                      {i.photos?.length > 0 && (
+                      {photos.length > 0 && (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                          {i.photos.map((p) => (
+                          {photos.map((p) => (
                             <div
-                              key={p.id}
+                              key={p.id as string | number}
                               className="bg-surface-container-high p-2 rounded-lg text-center border border-surface-border hover:border-primary hover:shadow-md transition-all group"
                             >
                               <div className="relative w-full aspect-square rounded overflow-hidden bg-surface-container-high mb-1 flex items-center justify-center">
@@ -867,14 +922,14 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                                   type="button"
                                   onClick={() => setViewingPhoto(p)}
                                   className="w-full h-full block cursor-zoom-in"
-                                  title={`View ${p.originalName}`}
+                                  title={`View ${p.originalName as string | undefined}`}
                                 >
                                   <img
-                                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id}`)}
-                                    alt={p.originalName}
+                                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id as string | number}`)}
+                                    alt={p.originalName as string | undefined}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                     loading="lazy"
-                                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                    onError={(e: SyntheticEvent<HTMLImageElement, Event>) => { e.currentTarget.style.display = 'none'; const fallback = e.currentTarget.nextSibling as HTMLElement | null; if (fallback) fallback.style.display = 'flex'; }}
                                   />
                                   <div style={{ display: 'none' }} className="w-full h-full items-center justify-center">
                                     <Camera size={24} className="text-on-surface-variant" />
@@ -888,7 +943,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                                   <Trash2 size={14} />
                                 </button>
                               </div>
-                              <p className="text-label-sm truncate" title={p.originalName}>{p.originalName}</p>
+                              <p className="text-label-sm truncate" title={p.originalName as string | undefined}>{p.originalName as string | undefined}</p>
                             </div>
                           ))}
                         </div>
@@ -898,7 +953,7 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
                     {!isCompleted && (
                       <div className="mt-3 pt-3 border-t border-surface-border">
                         <button
-                          onClick={() => completeInspection(i.id)}
+                          onClick={() => completeInspection(i.id as string | number)}
                           className="h-10 px-4 bg-success text-white rounded-lg font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
                         >
                           <CheckCircle size={16} />
@@ -922,26 +977,26 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
       )}
 
       {/* Photo Viewer Lightbox */}
-      {viewingPhoto && (
+      {viewingPhoto ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setViewingPhoto(null)}
         >
           <div
             className="bg-surface rounded-lg shadow-2xl max-w-3xl w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: MouseEvent<HTMLDivElement>) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between p-4 border-b border-surface-border">
               <div className="min-w-0">
-                <p className="text-body-md font-semibold text-on-surface truncate">{viewingPhoto.originalName}</p>
-                {viewingPhoto.caption && (
-                  <p className="text-body-sm text-on-surface-variant truncate">{viewingPhoto.caption}</p>
+                <p className="text-body-md font-semibold text-on-surface truncate">{viewingPhoto.originalName as string | undefined}</p>
+                {!!(viewingPhoto.caption as string | undefined) && (
+                  <p className="text-body-sm text-on-surface-variant truncate">{viewingPhoto.caption as string}</p>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
-                  download={viewingPhoto.originalName}
+                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`)}
+                  download={viewingPhoto.originalName as string | undefined}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
                   title="Download"
                 >
@@ -958,14 +1013,14 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }) {
             </div>
             <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
               <img
-                src={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id}`)}
-                alt={viewingPhoto.originalName}
+                src={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`)}
+                alt={viewingPhoto.originalName as string | undefined}
                 className="max-w-full max-h-[65vh] rounded-lg object-contain"
               />
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

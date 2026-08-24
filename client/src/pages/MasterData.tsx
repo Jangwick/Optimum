@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AppLayout } from '../components/AppLayout.jsx';
 import { MasterDataCrud } from '../components/MasterDataCrud.jsx';
+
 import {
   getInsuranceCompanies,
   createInsuranceCompany,
@@ -26,7 +27,18 @@ import {
 import { formatCurrency } from '../utils/currency.js';
 import { Building2, Users, FileText, Tags, FolderOpen } from 'lucide-react';
 
-const baseFields = {
+type LucideIcon = typeof Building2;
+
+interface MasterDataField {
+  key: string;
+  label: string;
+  type?: 'text' | 'email' | 'number' | 'select' | 'date';
+  required?: boolean;
+}
+
+type ListFn = (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+
+const baseFields: Record<string, MasterDataField[]> = {
   insurance: [
     { key: 'name', label: 'Name', required: true },
     { key: 'code', label: 'Code', required: true },
@@ -69,7 +81,7 @@ const baseFields = {
   ],
 };
 
-const TAB_CONFIG = [
+const TAB_CONFIG: { key: string; label: string; short: string; icon: LucideIcon }[] = [
   { key: 'companies', label: 'Insurance Companies', short: 'Insurers', icon: Building2 },
   { key: 'clients', label: 'Clients', short: 'Clients', icon: Users },
   { key: 'policies', label: 'Policies', short: 'Policies', icon: FileText },
@@ -80,18 +92,18 @@ const TAB_CONFIG = [
 export default function MasterData() {
   const [tab, setTab] = useState('companies');
 
-  const renderSection = () => {
+  const renderSection = (): ReactNode => {
     switch (tab) {
       case 'companies':
         return (
           <MasterDataCrud
             title="Insurance Companies"
             entityLabel="Insurance Company"
-            list={getInsuranceCompanies}
+            list={getInsuranceCompanies as unknown as ListFn}
             create={createInsuranceCompany}
             update={updateInsuranceCompany}
             remove={deleteInsuranceCompany}
-            fields={baseFields.insurance}
+            fields={baseFields['insurance']!}
             defaultValues={{ name: '', code: '', contactPerson: '', email: '', phone: '', address: '' }}
             columns={[
               { key: 'name', title: 'Name' },
@@ -107,11 +119,11 @@ export default function MasterData() {
           <MasterDataCrud
             title="Clients"
             entityLabel="Client"
-            list={getClients}
+            list={getClients as unknown as ListFn}
             create={createClient}
             update={updateClient}
             remove={deleteClient}
-            fields={baseFields.client}
+            fields={baseFields['client']!}
             defaultValues={{ name: '', code: '', contactPerson: '', email: '', phone: '', address: '' }}
             columns={[
               { key: 'name', title: 'Name' },
@@ -127,11 +139,11 @@ export default function MasterData() {
           <MasterDataCrud
             title="Policies"
             entityLabel="Policy"
-            list={getPolicies}
+            list={getPolicies as unknown as ListFn}
             create={createPolicy}
             update={updatePolicy}
             remove={deletePolicy}
-            fields={baseFields.policy}
+            fields={baseFields['policy']!}
             defaultValues={{
               policyNumber: '',
               insuranceCompanyId: '',
@@ -148,18 +160,20 @@ export default function MasterData() {
             }}
             columns={[
               { key: 'policyNumber', title: 'Policy #', className: 'font-mono' },
-              { key: 'client', title: 'Client', render: (row) => row.client?.name },
-              { key: 'insuranceCompany', title: 'Insurer', render: (row) => row.insuranceCompany?.name },
-              { key: 'claimType', title: 'Type', render: (row) => row.claimType?.name },
-              { key: 'sumInsured', title: 'Sum Insured', align: 'right', render: (row) => formatCurrency(row.sumInsured) },
-              { key: 'premium', title: 'Premium', align: 'right', render: (row) => formatCurrency(row.premium) },
+              { key: 'client', title: 'Client', render: (row) => (row['client'] as Record<string, unknown> | undefined)?.['name'] as ReactNode },
+              { key: 'insuranceCompany', title: 'Insurer', render: (row) => (row['insuranceCompany'] as Record<string, unknown> | undefined)?.['name'] as ReactNode },
+              { key: 'claimType', title: 'Type', render: (row) => (row['claimType'] as Record<string, unknown> | undefined)?.['name'] as ReactNode },
+              { key: 'sumInsured', title: 'Sum Insured', align: 'right', render: (row) => formatCurrency(row['sumInsured'] as string | number | undefined) },
+              { key: 'premium', title: 'Premium', align: 'right', render: (row) => formatCurrency(row['premium'] as string | number | undefined) },
               {
                 key: 'startDate',
                 title: 'Period',
                 render: (row) =>
-                  row.startDate
-                    ? `${new Date(row.startDate).toLocaleDateString()} — ${
-                        row.endDate ? new Date(row.endDate).toLocaleDateString() : 'Open'
+                  (row['startDate'] as string | undefined)
+                    ? `${new Date(row['startDate'] as string).toLocaleDateString()} — ${
+                        (row['endDate'] as string | undefined)
+                          ? new Date(row['endDate'] as string).toLocaleDateString()
+                          : 'Open'
                       }`
                     : '—',
               },
@@ -171,11 +185,11 @@ export default function MasterData() {
           <MasterDataCrud
             title="Claim Types"
             entityLabel="Claim Type"
-            list={getClaimTypes}
+            list={getClaimTypes as unknown as ListFn}
             create={createClaimType}
             update={updateClaimType}
             remove={deleteClaimType}
-            fields={baseFields.claimType}
+            fields={baseFields['claimType']!}
             defaultValues={{ name: '', code: '', description: '' }}
             columns={[
               { key: 'name', title: 'Name' },
@@ -189,11 +203,11 @@ export default function MasterData() {
           <MasterDataCrud
             title="Document Categories"
             entityLabel="Document Category"
-            list={getDocumentCategories}
+            list={getDocumentCategories as unknown as ListFn}
             create={createDocumentCategory}
             update={updateDocumentCategory}
             remove={deleteDocumentCategory}
-            fields={baseFields.documentCategory}
+            fields={baseFields['documentCategory']!}
             defaultValues={{ name: '', code: '', description: '' }}
             columns={[
               { key: 'name', title: 'Name' },
@@ -209,38 +223,36 @@ export default function MasterData() {
 
   return (
     <AppLayout>
-          {/* Page Header */}
-          <div className="mb-6">
-            <h2 className="text-headline-lg font-semibold text-primary">Master Data</h2>
-            <p className="text-body-md text-on-surface-variant mt-1">
-              Insurance companies, clients, policies, and lookups.
-            </p>
-          </div>
+      {/* Page Header */}
+      <div className="mb-6">
+        <h2 className="text-headline-lg font-semibold text-primary">Master Data</h2>
+        <p className="text-body-md text-on-surface-variant mt-1">Insurance companies, clients, policies, and lookups.</p>
+      </div>
 
-          {/* Tabs with icons */}
-          <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto">
-            {TAB_CONFIG.map((t) => {
-              const Icon = t.icon;
-              const isActive = tab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`px-4 py-2.5 text-body-md font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
-                    isActive
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-t'
-                  }`}
-                >
-                  <Icon size={16} className={isActive ? 'text-primary' : 'text-outline'} />
-                  <span className="hidden sm:inline">{t.label}</span>
-                  <span className="sm:hidden">{t.short}</span>
-                </button>
-              );
-            })}
-          </div>
+      {/* Tabs with icons */}
+      <div className="flex gap-1 border-b border-surface-border mb-6 overflow-x-auto">
+        {TAB_CONFIG.map((t) => {
+          const Icon = t.icon;
+          const isActive = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 text-body-md font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+                isActive
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-t'
+              }`}
+            >
+              <Icon size={16} className={isActive ? 'text-primary' : 'text-outline'} />
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          {renderSection()}
+      {renderSection()}
     </AppLayout>
   );
 }
