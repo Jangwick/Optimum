@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import type { SignOptions } from 'jsonwebtoken';
 
 interface AppConfig {
   nodeEnv: string;
@@ -6,7 +7,7 @@ interface AppConfig {
   clientUrl: string;
   databaseUrl: string;
   jwtSecret: string;
-  jwtExpiresIn: string;
+  jwtExpiresIn: NonNullable<SignOptions['expiresIn']>;
   bcryptRounds: number;
   uploadDir: string;
   reportDir: string;
@@ -31,7 +32,7 @@ export const config: AppConfig = {
     }
     return 'dev-jwt-secret-change-in-production';
   })(),
-  jwtExpiresIn: trimEnv(process.env.JWT_EXPIRES_IN, '24h') ?? '24h',
+  jwtExpiresIn: (trimEnv(process.env.JWT_EXPIRES_IN, '24h') ?? '24h') as NonNullable<SignOptions['expiresIn']>,
   bcryptRounds: Number(trimEnv(process.env.BCRYPT_ROUNDS, '12')),
   uploadDir: trimEnv(process.env.UPLOAD_DIR, './uploads') ?? './uploads',
   reportDir: trimEnv(process.env.REPORT_DIR, './reports') ?? './reports',

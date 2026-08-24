@@ -1,4 +1,5 @@
-import 'dotenv/config';
+/* eslint-disable @typescript-eslint/no-require-imports */
+require('dotenv/config');
 
 function getTestDatabaseUrl() {
   const base = process.env.DATABASE_URL;

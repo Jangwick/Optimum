@@ -79,7 +79,7 @@ export async function createInvoice(claimId: number | string, data: InvoiceInput
 
   if (!invoice) throw new AppError('Invoice not found after creation', 500);
 
-  await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId: Number(claimId), totalAmount: invoice.totalAmount });
+  await logAction('INVOICE_CREATED', 'Invoice', invoice.id, userId, { claimId: Number(claimId), totalAmount: Number(invoice.totalAmount) });
   await recordActivity(Number(claimId), 'INVOICE_CREATED', `Invoice created: ${invoice.invoiceNumber} — ${Number(invoice.totalAmount || 0).toFixed(2)}`, userId);
   await autoAdvanceStatus(Number(claimId), 'FEE_INVOICED', userId);
   return invoice;

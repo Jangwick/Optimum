@@ -78,7 +78,7 @@ export async function updateTask(id: number, data: TaskUpdateInput, userId: numb
   const task = await prisma.task.findUnique({ where: { id } });
   if (!task) throw new AppError('Task not found', 404);
 
-  const update: Record<string, unknown> = {};
+  const update: Prisma.TaskUncheckedUpdateInput = {};
   if (data.title !== undefined) update.title = data.title;
   if (data.description !== undefined) update.description = data.description;
   if (data.assignedToId !== undefined) update.assignedToId = Number(data.assignedToId);
@@ -96,7 +96,7 @@ export async function updateTask(id: number, data: TaskUpdateInput, userId: numb
 
   const updated = await prisma.task.update({
     where: { id },
-    data: update as Prisma.TaskUpdateInput,
+    data: update,
     include: {
       claim: { select: { id: true, claimNumber: true } },
       assignedTo: { select: { firstName: true, lastName: true } },

@@ -51,7 +51,7 @@ export async function updateInvestigation(id: number, data: InvestigationInput, 
   const inv = await prisma.investigation.findUnique({ where: { id } });
   if (!inv) throw new AppError('Investigation not found', 404);
 
-  const update: Record<string, unknown> = {};
+  const update: Prisma.InvestigationUncheckedUpdateInput = {};
   if (data.summary !== undefined) update.summary = data.summary;
   if (data.findings !== undefined) update.findings = data.findings ?? null;
   if (data.startedAt !== undefined) update.startedAt = new Date(data.startedAt);
@@ -63,7 +63,7 @@ export async function updateInvestigation(id: number, data: InvestigationInput, 
 
   const updated = await prisma.investigation.update({
     where: { id },
-    data: update as Prisma.InvestigationUpdateInput,
+    data: update,
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
   await logAction('INVESTIGATION_UPDATED', 'Investigation', id, userId, { claimId: updated.claimId });

@@ -8,7 +8,7 @@ import { config } from '../config/index.js';
  */
 function isWithinRoot(root: string, resolved: string): boolean {
   const rel = path.relative(root, resolved);
-  return rel ? !rel.startsWith('..') && !path.isAbsolute(rel) : false;
+  return rel ? !rel.startsWith('..') && !path.isAbsolute(rel) : true;
 }
 
 /**

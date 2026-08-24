@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
@@ -26,20 +27,7 @@ export interface UserProfile {
   lastLoginAt: string | null;
 }
 
-interface UserWithRole {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
-  employeeNumber: string | null;
-  department: string | null;
-  designation: string | null;
-  isActive: boolean;
-  lastLoginAt: Date | null;
-  role: { name: string };
-  passwordHash: string;
-}
+type UserWithRole = Prisma.UserGetPayload<{ include: { role: true } }>;
 
 function formatUser(user: UserWithRole): UserProfile {
   return {
@@ -62,7 +50,7 @@ export async function login(email: string, password: string): Promise<{ token: s
   const user = await prisma.user.findUnique({
     where: { email },
     include: { role: true },
-  }) as UserWithRole | null;
+  });
 
   if (!user || !user.isActive) {
     throw new AppError('Invalid credentials', 401);
@@ -79,7 +67,7 @@ export async function login(email: string, password: string): Promise<{ token: s
   });
 
   const signOptions: jwt.SignOptions = {
-    expiresIn: config.jwtExpiresIn as NonNullable<jwt.SignOptions['expiresIn']>,
+    expiresIn: config.jwtExpiresIn,
   };
 
   const token = jwt.sign(
@@ -95,7 +83,7 @@ export async function updateProfile(userId: number, data: { firstName?: string; 
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { role: true },
-  }) as UserWithRole | null;
+  });
 
   if (!user) {
     throw new AppError('User not found', 404);
@@ -110,7 +98,7 @@ export async function updateProfile(userId: number, data: { firstName?: string; 
     where: { id: userId },
     data: allowed,
     include: { role: true },
-  }) as UserWithRole;
+  });
 
   return formatUser(updated);
 }
@@ -135,14 +123,24 @@ export function clearAuthCookie(res: Response): void {
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, config.jwtSecret) as TokenPayload;
+    const payload = jwt.verify(token, config.jwtSecret);
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'userId' in payload &&
+      'role' in payload &&
+      'email' in payload
+    ) {
+      return payload as TokenPayload;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 export async function changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
-  const user = await prisma.user.findUnique({ where: { id: userId } }) as UserWithRole | null;
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new AppError('User not found', 404);
   }

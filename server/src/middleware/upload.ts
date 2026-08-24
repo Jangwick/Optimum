@@ -55,6 +55,16 @@ const SIGNATURES: Record<string, number[][]> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4B, 0x03, 0x04]],
 };
 
+function isOfficeZip(buffer: Buffer, mimetype: string): boolean {
+  if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return buffer.indexOf('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml') >= 0;
+  }
+  if (mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    return buffer.indexOf('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml') >= 0;
+  }
+  return false;
+}
+
 function matchesSignature(buffer: Buffer, mimetype: string): boolean {
   const signatures = SIGNATURES[mimetype];
   if (!signatures) {
@@ -73,7 +83,15 @@ function matchesSignature(buffer: Buffer, mimetype: string): boolean {
 
   for (const signature of signatures) {
     if (buffer.length < signature.length) continue;
-    if (signature.every((byte, i) => buffer[i] === byte)) return true;
+    if (signature.every((byte, i) => buffer[i] === byte)) {
+      // Office Open XML files are ZIP archives; require the document-specific
+      // content type to be declared inside [Content_Types].xml so arbitrary
+      // ZIP files cannot masquerade as Word or Excel documents.
+      if (mimetype.startsWith('application/vnd.openxmlformats-officedocument')) {
+        return isOfficeZip(buffer, mimetype);
+      }
+      return true;
+    }
   }
 
   return false;

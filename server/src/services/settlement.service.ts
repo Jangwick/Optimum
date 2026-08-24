@@ -38,20 +38,20 @@ async function syncSettlementToClaim(claimId: number) {
     prisma.settlement.findFirst({ where: { claimId } }),
   ]);
 
-  const update: Record<string, unknown> = {};
+  const update: Prisma.ClaimUpdateInput = {};
   // proposedSettlement = latest offer amount (if any)
-  if (latestOffer) {
+  if (latestOffer?.offeredAmount != null) {
     update.proposedSettlement = latestOffer.offeredAmount;
   }
   // agreedSettlement = accepted offer amount, or settlement agreed amount
-  if (acceptedOffer) {
+  if (acceptedOffer?.offeredAmount != null) {
     update.agreedSettlement = acceptedOffer.offeredAmount;
-  } else if (settlement?.status === 'AGREED' && settlement?.settledAmount) {
+  } else if (settlement?.status === 'AGREED' && settlement?.settledAmount != null) {
     update.agreedSettlement = settlement.settledAmount;
   }
 
   if (Object.keys(update).length > 0) {
-    await prisma.claim.update({ where: { id: claimId }, data: update as Prisma.ClaimUpdateInput });
+    await prisma.claim.update({ where: { id: claimId }, data: update });
   }
 }
 
@@ -90,7 +90,7 @@ export async function upsertSettlement(claimId: number | string, data: Settlemen
     });
   }
 
-  await logAction('SETTLEMENT_SAVED', 'Settlement', item.id, userId, { claimId: Number(claimId), amount: item.settledAmount });
+  await logAction('SETTLEMENT_SAVED', 'Settlement', item.id, userId, { claimId: Number(claimId), amount: Number(item.settledAmount || 0) });
   await syncSettlementToClaim(Number(claimId));
   await recordActivity(Number(claimId), 'SETTLEMENT_SAVED', `Settlement saved: ${Number(item.settledAmount || 0).toFixed(2)} (${item.status})`, userId);
   await autoAdvanceStatus(Number(claimId), 'SETTLEMENT', userId);
@@ -124,7 +124,7 @@ export async function createOffer(claimId: number | string, data: OfferInput, us
       responseBy: { select: { firstName: true, lastName: true } },
     },
   });
-  await logAction('OFFER_CREATED', 'Offer', offer.id, userId, { claimId: Number(claimId), amount: offer.offeredAmount });
+  await logAction('OFFER_CREATED', 'Offer', offer.id, userId, { claimId: Number(claimId), amount: Number(offer.offeredAmount || 0) });
   await syncSettlementToClaim(Number(claimId));
   await recordActivity(Number(claimId), 'OFFER_CREATED', `Offer created: ${Number(offer.offeredAmount || 0).toFixed(2)}`, userId);
   await autoAdvanceStatus(Number(claimId), 'OFFER_SENT', userId);
@@ -152,7 +152,7 @@ export async function respondToOffer(id: number, data: OfferResponseInput, userI
     },
   });
 
-  await logAction('OFFER_RESPONDED', 'Offer', id, userId, { status: data.status, amount: offer.offeredAmount });
+  await logAction('OFFER_RESPONDED', 'Offer', id, userId, { status: data.status, amount: Number(offer.offeredAmount || 0) });
   await syncSettlementToClaim(offer.claimId);
   await recordActivity(offer.claimId, 'OFFER_RESPONDED', `Offer ${data.status}: ${Number(offer.offeredAmount || 0).toFixed(2)}`, userId);
 

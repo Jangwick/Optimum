@@ -47,7 +47,7 @@ export async function logAction(
   tableName: string,
   recordId: number | string,
   userId: number | null | undefined,
-  newValues: Record<string, unknown> | null = null
+  newValues: Prisma.InputJsonValue | null = null
 ): Promise<void> {
   try {
     await prisma.auditLog.create({
@@ -56,7 +56,7 @@ export async function logAction(
         tableName,
         recordId: String(recordId),
         ...(userId !== undefined && userId !== null ? { userId } : {}),
-        ...(newValues === null ? {} : { newValues: newValues as Prisma.InputJsonValue }),
+        ...(newValues === null ? {} : { newValues }),
       },
     });
   } catch {

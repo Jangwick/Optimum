@@ -2,20 +2,7 @@ import 'dotenv/config';
 import { PrismaClient } from '../../generated/prisma/client.js';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
-interface DbConnectionConfig {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-  connectionLimit: number;
-  idleTimeout: number;
-  acquireTimeout: number;
-  connectTimeout: number;
-  reconnect: true;
-}
-
-function parseUrl(url: string | undefined): DbConnectionConfig {
+function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaMariaDb>[0] {
   if (!url) {
     throw new Error('DATABASE_URL is not set');
   }
@@ -32,11 +19,10 @@ function parseUrl(url: string | undefined): DbConnectionConfig {
     idleTimeout: Number(parsed.searchParams.get('idleTimeout')) || 600000,
     acquireTimeout: Number(parsed.searchParams.get('acquireTimeout')) || 30000,
     connectTimeout: Number(parsed.searchParams.get('connectTimeout')) || 30000,
-    reconnect: true,
   };
 }
 
 const config = parseUrl(process.env.DATABASE_URL);
-const adapter = new PrismaMariaDb(config as unknown as ConstructorParameters<typeof PrismaMariaDb>[0]);
+const adapter = new PrismaMariaDb(config);
 
 export const prisma = new PrismaClient({ adapter });

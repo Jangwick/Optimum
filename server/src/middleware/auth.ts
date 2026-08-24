@@ -2,7 +2,6 @@ import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../services/auth.service.js';
 import { prisma } from '../db/client.js';
 import { AppError } from './error.js';
-import type { TokenPayload } from '../services/auth.service.js';
 
 export interface AuthUser {
   id: number;
@@ -44,7 +43,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       throw new AppError('Authentication required', 401);
     }
 
-    const payload = verifyToken(token) as TokenPayload | null;
+    const payload = verifyToken(token);
     if (!payload) {
       throw new AppError('Invalid or expired token', 401);
     }

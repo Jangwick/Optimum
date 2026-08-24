@@ -44,7 +44,7 @@ export async function createFee(claimId: number | string, data: FeeInput, userId
     },
     include: { user: { select: { id: true, firstName: true, lastName: true } } },
   });
-  await logAction('FEE_CREATED', 'Fee', fee.id, userId, { claimId: Number(claimId), amount: fee.amount });
+  await logAction('FEE_CREATED', 'Fee', fee.id, userId, { claimId: Number(claimId), amount: Number(fee.amount) });
   await syncFeeTotals(Number(claimId));
   await recordActivity(Number(claimId), 'FEE_CREATED', `Fee created: ${fee.feeType} — ${Number(fee.amount || 0).toFixed(2)}`, userId);
   return fee;
@@ -54,7 +54,7 @@ export async function updateFee(id: number, data: Partial<FeeInput>, userId: num
   const fee = await prisma.fee.findUnique({ where: { id } });
   if (!fee) throw new AppError('Fee not found', 404);
 
-  const update: Record<string, unknown> = {};
+  const update: Prisma.FeeUncheckedUpdateInput = {};
   if (data.userId !== undefined) update.userId = data.userId ? Number(data.userId) : null;
   if (data.feeType !== undefined) update.feeType = data.feeType;
   if (data.amount !== undefined) update.amount = Number(data.amount);
@@ -62,7 +62,7 @@ export async function updateFee(id: number, data: Partial<FeeInput>, userId: num
 
   const updated = await prisma.fee.update({
     where: { id },
-    data: update as Prisma.FeeUpdateInput,
+    data: update,
     include: { user: { select: { id: true, firstName: true, lastName: true } } },
   });
   await syncFeeTotals(fee.claimId);

@@ -4,9 +4,14 @@ import { logger } from './config/logger.js';
 import { execSync } from 'node:child_process';
 
 async function syncSchema() {
+  if (config.nodeEnv === 'production') {
+    logger.info('Skipping auto schema sync in production (migrations are run before start).');
+    return;
+  }
+
   try {
     logger.info('Syncing database schema with prisma db push...');
-    execSync('npx prisma db push --accept-data-loss', {
+    execSync('npx prisma db push', {
       stdio: 'inherit',
       cwd: process.cwd(),
       env: process.env,
@@ -18,6 +23,11 @@ async function syncSchema() {
 }
 
 async function autoSeed() {
+  if (config.nodeEnv === 'production') {
+    logger.info('Skipping auto-seed in production.');
+    return;
+  }
+
   try {
     logger.info('Running auto-seed (idempotent upserts)...');
 

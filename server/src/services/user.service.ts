@@ -83,7 +83,7 @@ function generatePassword(): string {
 
 export async function getUsers(filters: UserFilters = {}) {
   const { role, search, page, limit, sortField, sortOrder } = filters;
-  const where: { role?: { name: string }; OR?: object[] } = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (role) {
     where.role = { name: role };
@@ -98,13 +98,29 @@ export async function getUsers(filters: UserFilters = {}) {
     ];
   }
 
-  const orderBy: Record<string, string | object> = {};
+  const order: Prisma.SortOrder = sortOrder === 'desc' ? 'desc' : 'asc';
+  const orderBy: Prisma.UserOrderByWithRelationInput = {};
+
   if (sortField === 'fullName') {
-    orderBy.firstName = sortOrder || 'asc';
+    orderBy.firstName = order;
   } else if (sortField === 'role') {
-    orderBy.role = { name: sortOrder || 'asc' };
+    orderBy.role = { name: order };
   } else if (sortField) {
-    orderBy[sortField] = sortOrder || 'asc';
+    switch (sortField) {
+      case 'firstName': orderBy.firstName = order; break;
+      case 'lastName': orderBy.lastName = order; break;
+      case 'email': orderBy.email = order; break;
+      case 'phone': orderBy.phone = order; break;
+      case 'employeeNumber': orderBy.employeeNumber = order; break;
+      case 'department': orderBy.department = order; break;
+      case 'designation': orderBy.designation = order; break;
+      case 'roleId': orderBy.roleId = order; break;
+      case 'isActive': orderBy.isActive = order; break;
+      case 'lastLoginAt': orderBy.lastLoginAt = order; break;
+      case 'createdAt': orderBy.createdAt = order; break;
+      case 'updatedAt': orderBy.updatedAt = order; break;
+      default: orderBy.lastName = 'asc';
+    }
   } else {
     orderBy.lastName = 'asc';
   }
@@ -172,8 +188,6 @@ export async function createUser(data: CreateUserInput) {
   return { ...formatUser(user), plainPassword: data.password ? undefined : password };
 }
 
-const PROTECTED_USER_FIELDS = ['role', 'roleId', 'isActive', 'email', 'password', 'passwordHash', 'id'];
-
 export async function updateUser(id: number, data: UpdateUserInput, requester?: AuthUser) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
@@ -187,35 +201,38 @@ export async function updateUser(id: number, data: UpdateUserInput, requester?: 
     throw new AppError('Forbidden', 403);
   }
 
-  const updateData: Record<string, unknown> = { ...data };
+  const updateData: Prisma.UserUncheckedUpdateInput = {};
 
   if (isAdmin) {
+    if (data.firstName !== undefined) updateData.firstName = data.firstName;
+    if (data.lastName !== undefined) updateData.lastName = data.lastName;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.employeeNumber !== undefined) updateData.employeeNumber = data.employeeNumber;
+    if (data.department !== undefined) updateData.department = data.department;
+    if (data.designation !== undefined) updateData.designation = data.designation;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.email !== undefined) updateData.email = data.email;
+
     if (data.role) {
       const role = await prisma.role.findUnique({ where: { name: data.role } });
       if (!role) {
         throw new AppError('Invalid role', 400);
       }
       updateData.roleId = role.id;
-      delete updateData.role;
     }
 
     if (data.password) {
       updateData.passwordHash = await bcrypt.hash(data.password, config.bcryptRounds);
-      delete updateData.password;
     }
+  } else if (isSelf) {
+    if (data.firstName !== undefined) updateData.firstName = data.firstName;
+    if (data.lastName !== undefined) updateData.lastName = data.lastName;
+    if (data.phone !== undefined) updateData.phone = data.phone;
   }
-
-  if (!isAdmin) {
-    for (const key of PROTECTED_USER_FIELDS) {
-      delete updateData[key];
-    }
-  }
-
-  delete updateData.id;
 
   const updated = await prisma.user.update({
     where: { id },
-    data: updateData as Prisma.UserUpdateInput,
+    data: updateData,
     include: { role: true },
   });
 

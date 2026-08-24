@@ -40,7 +40,7 @@ export async function updateContact(id: number, data: Partial<ContactData>, user
   const contact = await prisma.contact.findUnique({ where: { id } });
   if (!contact) throw new AppError('Contact not found', 404);
 
-  const updateData: Record<string, unknown> = {};
+  const updateData: Prisma.ContactUpdateInput = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.role !== undefined) updateData.role = data.role;
   if (data.phone !== undefined) updateData.phone = data.phone;
@@ -49,7 +49,7 @@ export async function updateContact(id: number, data: Partial<ContactData>, user
 
   const updated = await prisma.contact.update({
     where: { id },
-    data: updateData as Prisma.ContactUpdateInput,
+    data: updateData,
   });
   await recordActivity(updated.claimId, 'CONTACT_UPDATED', `Contact updated: ${updated.name}`, userId);
   return updated;

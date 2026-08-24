@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.js",
-    "start": "node src/server.js",
-    "build": "npx prisma generate && tsc",
+    "start": "node dist/src/server.js",
+    "start:prod": "npx prisma migrate deploy && node dist/src/server.js",
+    "prebuild": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npx prisma generate && tsc && node -e \"require('fs').cpSync('generated/prisma', 'dist/generated/prisma', { recursive: true, force: true })\"",
     "typecheck": "tsc --noEmit",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint .",
@@ -71,16 +73,21 @@
     "testTimeout": 30000,
     "maxWorkers": 1,
     "testPathIgnorePatterns": ["<rootDir>/dist/"],
+    "modulePathIgnorePatterns": ["<rootDir>/dist/", "<rootDir>/generated/"],
     "moduleFileExtensions": ["js", "ts", "mjs", "cjs", "json", "node"],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
+    "transform": {
+      "^.+\\.[jt]sx?$": ["ts-jest", { "useESM": true }]
+    },
+    "extensionsToTreatAsEsm": [".ts"],
     "coverageDirectory": "coverage",
     "globalSetup": "<rootDir>/tests/globalSetup.js",
-    "setupFiles": ["<rootDir>/tests/setup-test-env.js"],
+    "setupFiles": ["<rootDir>/tests/setup-test-env.cjs"],
     "collectCoverageFrom": [
       "src/**/*.{js,ts}",
-      "!src/server.ts"
+      "!src/server.js"
     ]
   },
   "allowScripts": {
