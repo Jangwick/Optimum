@@ -38,6 +38,20 @@
 - MySQL 8 + Prisma 7
 - JWT + bcrypt, Multer, docxtemplater, puppeteer, exceljs
 
+## Testing and Test-Driven Development
+
+Testing is not an afterthought. Every feature and every bug fix must be proven with a test before the implementation is considered complete.
+
+- **Write a failing test first.** Before implementing any new feature or change, write a test that fails. For bug fixes, write a test that reproduces the bug and fails with the current code. A passing test on the first run proves nothing.
+- **Follow the TDD cycle:** RED (failing test) → GREEN (minimal code to pass) → REFACTOR (clean up while tests still pass).
+- **Prefer state-based assertions.** Test the outcome, not internal method calls. Tests that assert on call sequences break during refactors.
+- **Prefer real implementations over mocks.** Use the simplest test double that works; reach for mocks only at slow, non-deterministic, or external boundaries (network, email, third-party APIs).
+- **Follow Arrange-Act-Assert.** Set up the scenario, perform the action, verify the result. Keep one concept per test.
+- **Run targeted, relevant tests.** After a change, run only the test files that cover the affected code. Do not run the entire suite unless a final check is needed.
+- **Do not skip or disable tests to make a suite green.** If a test fails, fix the root cause or escalate, do not silence the signal.
+- **Client tests:** use `npx vitest run <path>` or the relevant `*.test.tsx` files.
+- **Server tests:** use `npx jest --testPathPatterns=<name>` and `NODE_OPTIONS=--experimental-vm-modules` when needed.
+
 ## Security & Secure Coding
 
 Security is a constraint on every line that touches user data, authentication, files, or external input. Follow these principles on every change.
