@@ -3,6 +3,15 @@ import { config } from './config/index.js';
 import { logger } from './config/logger.js';
 import { execSync } from 'node:child_process';
 
+interface SeedModule {
+  runSeed?: () => Promise<void>;
+}
+
+function getErrorMeta(err: unknown) {
+  if (err instanceof Error) return { message: err.message, stack: err.stack };
+  return { message: String(err) };
+}
+
 async function syncSchema() {
   if (config.nodeEnv === 'production') {
     logger.info('Skipping auto schema sync in production (migrations are run before start).');
@@ -18,7 +27,7 @@ async function syncSchema() {
     });
     logger.info('Schema sync complete.');
   } catch (err) {
-    logger.error({ err: err.message }, 'Schema sync failed (non-fatal, continuing)');
+    logger.error(getErrorMeta(err), 'Schema sync failed (non-fatal, continuing)');
   }
 }
 
@@ -31,13 +40,13 @@ async function autoSeed() {
   try {
     logger.info('Running auto-seed (idempotent upserts)...');
 
-    const { runSeed } = await import('../prisma/seed.js');
+    const { runSeed } = (await import('../prisma/seed.js')) as SeedModule;
     if (typeof runSeed === 'function') {
       await runSeed();
       logger.info('Auto-seed complete.');
     }
   } catch (err) {
-    logger.error({ err: err.message, stack: err.stack }, 'Auto-seed failed (non-fatal)');
+    logger.error(getErrorMeta(err), 'Auto-seed failed (non-fatal)');
   }
 }
 
@@ -47,12 +56,12 @@ const server = app.listen(config.port, async () => {
   await autoSeed();
 });
 
-process.on('unhandledRejection', (err) => {
-  logger.error({ err: err.message, stack: err.stack }, 'Unhandled rejection');
+process.on('unhandledRejection', (err: unknown) => {
+  logger.error(getErrorMeta(err), 'Unhandled rejection');
   server.close(() => process.exit(1));
 });
 
-process.on('uncaughtException', (err) => {
-  logger.error({ err: err.message, stack: err.stack }, 'Uncaught exception');
+process.on('uncaughtException', (err: unknown) => {
+  logger.error(getErrorMeta(err), 'Uncaught exception');
   server.close(() => process.exit(1));
 });

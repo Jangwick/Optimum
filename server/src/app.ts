@@ -1,5 +1,5 @@
-import express from 'express';
-import cors from 'cors';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
@@ -35,7 +35,7 @@ import discussionNoteRoutes from './routes/discussion-note.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const app = express();
+const app: Express = express();
 
 // Trust proxy — Railway uses a reverse proxy
 app.set('trust proxy', 1);
@@ -47,9 +47,9 @@ app.use(helmet({
 // CORS: allow the configured origin, localhost variants in dev, or any origin in production.
 // Note: wildcard (*) cannot be used with credentials=true.
 // Use the request origin dynamically when config.clientUrl is '*'.
-const corsOptions = {
+const corsOptions: CorsOptions = {
   credentials: true,
-  origin: (origin, callback) => {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true);
     if (config.clientUrl === '*') return callback(null, true);
     if (config.clientUrl && origin === config.clientUrl) return callback(null, true);
@@ -71,7 +71,7 @@ app.use(
     max: config.nodeEnv === 'development' ? 1000 : 100,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
+    skip: (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
   })
 );
 
@@ -107,7 +107,7 @@ const clientDist = path.resolve(__dirname, '../../client/dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
   // SPA fallback: serve index.html for non-API, non-file routes
-  app.get('*', (req, res, next) => {
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/')) return next();
     if (req.path.includes('.')) return next(); // let 404 handler return real files
     res.sendFile(path.join(clientDist, 'index.html'));
@@ -117,7 +117,7 @@ if (fs.existsSync(clientDist)) {
   console.warn(`client/dist not found at ${clientDist}`);
 }
 
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, error: 'Not found' });
 });
 
