@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getClaims, exportClaims } from '../services/claim.service.js';
 import { getClaimStatuses, getClaimTypes, getClients, getInsuranceCompanies } from '../services/master-data.service.js';
 import { getUsers } from '../services/user.service.js';
@@ -106,6 +106,8 @@ function formatDate(dateStr) {
 }
 
 export default function Claims() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = useMemo(() => searchParams.get('search') || '', [searchParams]);
   const {
     page,
     setPage,
@@ -119,7 +121,7 @@ export default function Claims() {
     sortOrder,
     onSort,
     refresh,
-  } = useList();
+  } = useList({ initialSearch });
 
   const [data, setData] = useState({ items: [], count: 0 });
   const [globalCounts, setGlobalCounts] = useState({ total: 0, active: 0, closed: 0, cancelled: 0 });

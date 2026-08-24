@@ -15,8 +15,8 @@ export async function getDocumentCategories() {
   return data;
 }
 
-export async function getClients() {
-  const { data } = await api.get('/master-data/clients');
+export async function getClients(params = {}) {
+  const { data } = await api.get('/master-data/clients', { params });
   return data;
 }
 
@@ -35,8 +35,8 @@ export async function deleteClient(id) {
   return data;
 }
 
-export async function getInsuranceCompanies() {
-  const { data } = await api.get('/master-data/insurance-companies');
+export async function getInsuranceCompanies(params = {}) {
+  const { data } = await api.get('/master-data/insurance-companies', { params });
   return data;
 }
 
@@ -55,8 +55,8 @@ export async function deleteInsuranceCompany(id) {
   return data;
 }
 
-export async function getPolicies() {
-  const { data } = await api.get('/master-data/policies');
+export async function getPolicies(params = {}) {
+  const { data } = await api.get('/master-data/policies', { params });
   return data;
 }
 

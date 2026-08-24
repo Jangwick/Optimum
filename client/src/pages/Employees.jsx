@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -66,7 +67,9 @@ function initials(firstName, lastName) {
 }
 
 export default function Employees() {
-  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList();
+  const [searchParams] = useSearchParams();
+  const initialSearch = useMemo(() => searchParams.get('search') || '', [searchParams]);
+  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList({ initialSearch });
 
   const [data, setData] = useState({ users: [], count: 0 });
   const [loading, setLoading] = useState(true);

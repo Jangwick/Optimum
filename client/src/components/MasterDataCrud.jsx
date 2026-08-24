@@ -22,8 +22,9 @@ export function MasterDataCrud({
   defaultValues,
   transformIn,
   transformOut,
+  initialSearch = '',
 }) {
-  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList();
+  const { page, setPage, limit, setLimit, search, applySearch, sortField, sortOrder, onSort, refresh, reload } = useList({ initialSearch });
   const [items, setItems] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);

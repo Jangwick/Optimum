@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 
-export function useList({ initialPage = 1, initialLimit = 25 } = {}) {
+export function useList({ initialPage = 1, initialLimit = 25, initialSearch = '' } = {}) {
   const [page, setPage] = useState(initialPage);
   const [limit, setLimit] = useState(initialLimit);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [filters, setFilters] = useState({});
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');

@@ -12,12 +12,17 @@ export async function getUsers(filters = {}) {
   }
 
   if (search) {
-    where.OR = [
-      { email: { contains: search } },
-      { firstName: { contains: search } },
-      { lastName: { contains: search } },
-      { employeeNumber: { contains: search } },
-    ];
+    const terms = search.trim().split(/\s+/).filter(Boolean);
+    if (terms.length > 0) {
+      where.AND = terms.map((term) => ({
+        OR: [
+          { email: { contains: term } },
+          { firstName: { contains: term } },
+          { lastName: { contains: term } },
+          { employeeNumber: { contains: term } },
+        ],
+      }));
+    }
   }
 
   const orderBy = {};
