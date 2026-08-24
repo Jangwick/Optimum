@@ -75,8 +75,8 @@ app.use(
   })
 );
 
-// Static file serving for uploads
-app.use('/uploads', express.static(path.resolve(config.uploadDir)));
+// Legacy public static mount removed; files are served only through
+// authenticated API endpoints (documents, reports) after access checks.
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
