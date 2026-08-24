@@ -22,8 +22,14 @@
 ## Project Plan
 
 - Full implementation plan: `C:\Users\Administrator\.devin\plans\plan-87f3885396a41ad7.md`
+- TypeScript and Docker migration plan: `C:\Users\mikmikk03\.devin\plans\plan-typescript-and-docker.md`
 - Repo plan: `tasks/plan.md`
 - Task list: `tasks/todo.md`
+
+## Technical Documentation
+
+- Architecture overview, data flow, security model, and deployment notes: `references/technical-architecture.md`
+- Security references and verification checklist: `references/security-checklist.md`
 
 ## Tech Stack (MVP)
 
