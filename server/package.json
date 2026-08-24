@@ -66,14 +66,16 @@
     "typescript": "^5.8.3"
   },
   "jest": {
+    "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
     "testTimeout": 30000,
+    "testPathIgnorePatterns": ["<rootDir>/dist/"],
     "coverageDirectory": "coverage",
     "globalSetup": "<rootDir>/tests/globalSetup.js",
     "setupFiles": ["<rootDir>/tests/setup-test-env.js"],
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
+      "src/**/*.{js,ts}",
+      "!src/server.ts"
     ]
   },
   "allowScripts": {
