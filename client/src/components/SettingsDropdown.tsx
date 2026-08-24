@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { User, KeyRound, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -6,15 +6,29 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { changePassword } from '../services/auth.service.js';
 import { Modal } from './Modal.jsx';
 import { toast } from 'sonner';
+import { AxiosError } from 'axios';
 
-function getInitials(user) {
+interface ProfileForm {
+  [key: string]: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
+interface PasswordForm {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+function getInitials(user: { firstName?: string; lastName?: string; email: string } | null) {
   if (!user) return '?';
   const f = user.firstName?.[0] ?? '';
   const l = user.lastName?.[0] ?? '';
   return (f + l).toUpperCase() || user.email?.[0]?.toUpperCase() || '?';
 }
 
-function getRoleLabel(role) {
+function getRoleLabel(role?: string) {
   switch (role) {
     case 'ADMIN':
       return 'Administrator';
@@ -23,7 +37,7 @@ function getRoleLabel(role) {
     case 'ACCOUNTANT':
       return 'Accountant';
     default:
-      return role;
+      return role ?? 'User';
   }
 }
 
@@ -33,14 +47,14 @@ export function SettingsDropdown() {
   const [showProfile, setShowProfile] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const [profileForm, setProfileForm] = useState({
+  const [profileForm, setProfileForm] = useState<ProfileForm>({
     firstName: user?.firstName ?? '',
     lastName: user?.lastName ?? '',
     phone: user?.phone ?? '',
   });
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const [passwordForm, setPasswordForm] = useState({
+  const [passwordForm, setPasswordForm] = useState<PasswordForm>({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -52,21 +66,21 @@ export function SettingsDropdown() {
     navigate('/login');
   };
 
-  const handleSaveProfile = async (e) => {
+  const handleSaveProfile = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await updateProfile(profileForm);
+      await updateProfile(profileForm as Record<string, unknown>);
       toast.success('Profile updated successfully');
       setShowProfile(false);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to update profile');
+      toast.error(err instanceof AxiosError && err.response?.data?.error ? err.response.data.error : 'Failed to update profile');
     } finally {
       setSavingProfile(false);
     }
   };
 
-  const handleChangePassword = async (e) => {
+  const handleChangePassword = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error('New passwords do not match');
@@ -86,7 +100,7 @@ export function SettingsDropdown() {
       setShowPassword(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to change password');
+      toast.error(err instanceof AxiosError && err.response?.data?.error ? err.response.data.error : 'Failed to change password');
     } finally {
       setSavingPassword(false);
     }
@@ -123,7 +137,7 @@ export function SettingsDropdown() {
           </div>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <button
                 onClick={openProfile}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${
@@ -137,7 +151,7 @@ export function SettingsDropdown() {
           </MenuItem>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <button
                 onClick={() => setShowPassword(true)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${
@@ -151,7 +165,7 @@ export function SettingsDropdown() {
           </MenuItem>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <button
                 onClick={handleLogout}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${

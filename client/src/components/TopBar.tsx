@@ -7,14 +7,26 @@ import { HelpDropdown } from './HelpDropdown.jsx';
 import { SettingsDropdown } from './SettingsDropdown.jsx';
 import { api } from '../services/api.js';
 
-function GlobalSearch() {
+interface ClaimSearchResult {
+  id: number;
+  claimNumber: string;
+  client?: { name?: string } | null;
+  insuredName?: string | null;
+  status?: { name?: string } | null;
+}
+
+interface GlobalSearchProps {
+  className?: string;
+}
+
+function GlobalSearch({ className = '' }: GlobalSearchProps) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<ClaimSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const containerRef = useRef(null);
-  const debounceRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -25,7 +37,7 @@ function GlobalSearch() {
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await api.get('/claims', { params: { search: query, limit: 5, page: 1, view: 'all' } });
+        const res = (await api.get('/claims', { params: { search: query, limit: 5, page: 1, view: 'all' } })) as { data: { items: ClaimSearchResult[] } };
         setResults(res.data.items || []);
       } catch {
         setResults([]);
@@ -37,8 +49,8 @@ function GlobalSearch() {
   }, [query]);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
@@ -46,7 +58,7 @@ function GlobalSearch() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (claimId) => {
+  const handleSelect = (claimId: number) => {
     navigate(`/claims/${claimId}`);
     setQuery('');
     setResults([]);
@@ -54,7 +66,7 @@ function GlobalSearch() {
   };
 
   return (
-    <div ref={containerRef} className="relative w-32 sm:w-48 lg:w-64">
+    <div ref={containerRef} className={`relative w-32 sm:w-48 lg:w-64 ${className}`}>
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
         <input
@@ -103,7 +115,11 @@ function GlobalSearch() {
   );
 }
 
-export function TopBar({ onMenuClick }) {
+interface TopBarProps {
+  onMenuClick?: () => void;
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   return (
     <header className="h-16 bg-surface border-b border-surface-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10">
       <div className="flex items-center gap-2 flex-1 min-w-0">

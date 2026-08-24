@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { type LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   FileText,
@@ -9,14 +10,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const navItems = [
+interface NavItem {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+}
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: FileText, label: 'Claims', href: '/claims' },
   { icon: BarChart3, label: 'Reports', href: '/reports' },
   { icon: Building2, label: 'Master Data', href: '/master-data' },
 ];
 
-const adminNavItems = [
+const adminNavItems: NavItem[] = [
   { icon: Users, label: 'Employees', href: '/employees' },
   { icon: History, label: 'Audit Logs', href: '/audit-logs' },
 ];

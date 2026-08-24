@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { HelpCircle, BookOpen, Keyboard, Mail, ExternalLink } from 'lucide-react';
-import { useState } from 'react';
 import { Modal } from './Modal.jsx';
 
-const SHORTCUTS = [
+interface Shortcut {
+  keys: string;
+  label: string;
+}
+
+const SHORTCUTS: Shortcut[] = [
   { keys: 'Ctrl + K', label: 'Quick search (coming soon)' },
   { keys: 'Esc', label: 'Close dialogs / dropdowns' },
   { keys: 'Tab', label: 'Navigate form fields' },
@@ -30,7 +35,7 @@ export function HelpDropdown() {
           </div>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <button
                 onClick={() => setShowGuide(true)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${
@@ -47,7 +52,7 @@ export function HelpDropdown() {
           </MenuItem>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <button
                 onClick={() => setShowShortcuts(true)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${
@@ -64,7 +69,7 @@ export function HelpDropdown() {
           </MenuItem>
 
           <MenuItem>
-            {({ focus }) => (
+            {({ focus }: { focus: boolean }) => (
               <a
                 href="mailto:support@optimumclaims.com"
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-body-sm text-left ${

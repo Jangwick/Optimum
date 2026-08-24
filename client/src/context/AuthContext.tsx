@@ -10,7 +10,9 @@ interface AuthUser {
   id: number;
   firstName: string;
   lastName: string;
+  fullName?: string;
   email: string;
+  phone?: string;
   role: string;
 }
 
