@@ -240,6 +240,8 @@ Client (`.env` / `.env.local`):
 - Migrated shared server infrastructure:
   - `server/src/config/index.ts`
   - `server/src/middleware/error.ts`
+  - `server/src/middleware/auth.ts`
+  - `server/src/services/auth.service.ts`
 - `server/package.json` Jest config updated to `ts-jest/presets/default-esm` with `moduleNameMapper` so existing `.js` imports resolve to renamed `.ts` source files and tests still run without editing every import path.
 
 ### Current migration status
