@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { prisma } from '../db/client.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/error.js';
@@ -213,5 +214,7 @@ function formatUser(user) {
 }
 
 function generatePassword() {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  // URL-safe base64url; 12 bytes produces a 16-character string with
+  // mixed-case letters, digits, and '-' / '_'.
+  return randomBytes(12).toString('base64url');
 }
