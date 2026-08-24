@@ -130,7 +130,10 @@ export async function deleteDocument(id, userId) {
   if (!doc) throw new AppError('Document not found', 404);
   // Clean up legacy disk file if it exists
   if (doc.path) {
-    try { fs.unlinkSync(resolveFilePath(doc.path)); } catch { /* file may already be gone */ }
+    const resolved = resolveFilePath(doc.path);
+    if (resolved) {
+      try { fs.unlinkSync(resolved); } catch { /* file may already be gone */ }
+    }
   }
   await logAction('DOCUMENT_DELETED', 'Document', id, userId, { originalName: doc.originalName, claimId: doc.claimId });
   await recordActivity(doc.claimId, 'DOCUMENT_DELETED', `Document deleted: ${doc.originalName}`, userId);
@@ -150,7 +153,7 @@ export async function getDocumentFile(id, claimId) {
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(doc.path);
-  if (fs.existsSync(resolved)) {
+  if (resolved && fs.existsSync(resolved)) {
     return { ...doc, buffer: fs.readFileSync(resolved) };
   }
 

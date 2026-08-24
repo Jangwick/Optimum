@@ -1,6 +1,7 @@
 import * as reportService from '../services/report.service.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { resolveFilePath } from '../utils/file-path.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -62,11 +63,13 @@ export async function downloadReport(req, res, next) {
     const id = idParam(req);
     const report = await prisma.report.findUnique({ where: { id } });
     if (!report || !report.pdfPath) throw new AppError('Report not found', 404);
-    if (!fs.existsSync(report.pdfPath)) throw new AppError('PDF not found', 404);
+
+    const resolved = resolveFilePath(report.pdfPath);
+    if (!resolved || !fs.existsSync(resolved)) throw new AppError('PDF not found', 404);
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(report.pdfPath)}"`);
-    res.sendFile(path.resolve(report.pdfPath));
+    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved)}"`);
+    res.sendFile(resolved);
   } catch (err) {
     next(err);
   }
@@ -77,11 +80,13 @@ export async function downloadDocx(req, res, next) {
     const id = idParam(req);
     const report = await prisma.report.findUnique({ where: { id } });
     if (!report || !report.docxPath) throw new AppError('DOCX not found', 404);
-    if (!fs.existsSync(report.docxPath)) throw new AppError('File not found', 404);
+
+    const resolved = resolveFilePath(report.docxPath);
+    if (!resolved || !fs.existsSync(resolved)) throw new AppError('File not found', 404);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(report.docxPath)}"`);
-    res.sendFile(path.resolve(report.docxPath));
+    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved)}"`);
+    res.sendFile(resolved);
   } catch (err) {
     next(err);
   }

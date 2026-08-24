@@ -126,7 +126,7 @@ export async function getPhoto(photoId) {
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(photo.path);
-  if (fs.existsSync(resolved)) {
+  if (resolved && fs.existsSync(resolved)) {
     return { ...photo, buffer: fs.readFileSync(resolved) };
   }
 
@@ -144,7 +144,10 @@ export async function deletePhoto(photoId, userId) {
   const claimId = photo.inspection.claimId;
   // Clean up legacy disk file if it exists
   if (photo.path) {
-    try { fs.unlinkSync(resolveFilePath(photo.path)); } catch { /* file may already be gone */ }
+    const resolved = resolveFilePath(photo.path);
+    if (resolved) {
+      try { fs.unlinkSync(resolved); } catch { /* file may already be gone */ }
+    }
   }
   await prisma.inspectionPhoto.delete({ where: { id: Number(photoId) } });
   await logAction('INSPECTION_PHOTO_DELETED', 'InspectionPhoto', photoId, userId, { claimId });
