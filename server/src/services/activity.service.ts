@@ -2,15 +2,49 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 
+interface ActivityFilters {
+  activityType?: string;
+  source?: string;
+  page?: number | string;
+  limit?: number | string;
+}
+
+interface ActivityData {
+  activityType: string;
+  occurredAt?: string | Date;
+  description: string;
+}
+
+interface CorrespondenceData {
+  type: string;
+  sentAt?: string | Date | null;
+  receivedAt?: string | Date | null;
+  followUpDate?: string | Date | null;
+  recipient?: string | null;
+  notes?: string | null;
+  isHistorical?: boolean;
+}
+
+function toDateOrNull(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  return value instanceof Date ? value : new Date(value);
+}
+
 // Record a system-generated activity for a claim (used by all services to reflect tab actions)
-export async function recordActivity(claimId, activityType, description, actorId, source = 'SYSTEM') {
+export async function recordActivity(
+  claimId: number | string,
+  activityType: string,
+  description: string,
+  actorId: number | null | undefined,
+  source = 'SYSTEM'
+) {
   try {
     return await prisma.claimActivity.create({
       data: {
         claimId: Number(claimId),
         activityType,
         description,
-        actorId: actorId || null,
+        actorId: actorId ?? null,
         source,
         occurredAt: new Date(),
       },
@@ -21,12 +55,12 @@ export async function recordActivity(claimId, activityType, description, actorId
 }
 
 // List activities for a claim
-export async function getActivities(claimId, filters = {}) {
+export async function getActivities(claimId: number | string, filters: ActivityFilters = {}) {
   const { activityType, source, page = 1, limit = 50 } = filters;
-  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
-  const where = { claimId };
+  const where: { claimId: number; activityType?: string; source?: string } = { claimId: Number(claimId) };
   if (activityType) where.activityType = activityType;
   if (source) where.source = source;
 
@@ -62,32 +96,32 @@ export async function getActivities(claimId, filters = {}) {
 }
 
 // Add a manual activity to a claim
-export async function addActivity(claimId, data, addedBy) {
-  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+export async function addActivity(claimId: number | string, data: ActivityData, addedBy: number) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
   const activity = await prisma.claimActivity.create({
     data: {
-      claimId,
+      claimId: Number(claimId),
       activityType: data.activityType,
-      occurredAt: data.occurredAt ? new Date(data.occurredAt) : new Date(),
+      occurredAt: data.occurredAt ? toDateOrNull(data.occurredAt) : new Date(),
       description: data.description,
       source: 'USER',
       actorId: addedBy,
     },
   });
 
-  await logAction('ACTIVITY_ADDED', 'Claim', claimId, addedBy, { activityType: data.activityType });
+  await logAction('ACTIVITY_ADDED', 'Claim', Number(claimId), addedBy, { activityType: data.activityType });
   return activity;
 }
 
 // List correspondence for a claim
-export async function getCorrespondence(claimId) {
-  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+export async function getCorrespondence(claimId: number | string) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
   const items = await prisma.claimCorrespondence.findMany({
-    where: { claimId },
+    where: { claimId: Number(claimId) },
     orderBy: { sentAt: 'desc' },
     include: {
       createdBy: { select: { id: true, firstName: true, lastName: true } },
@@ -109,20 +143,20 @@ export async function getCorrespondence(claimId) {
 }
 
 // Add a correspondence entry
-export async function addCorrespondence(claimId, data, addedBy) {
-  const claim = await prisma.claim.findUnique({ where: { id: claimId }, select: { id: true } });
+export async function addCorrespondence(claimId: number | string, data: CorrespondenceData, addedBy: number) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
   const corr = await prisma.claimCorrespondence.create({
     data: {
-      claimId,
+      claimId: Number(claimId),
       type: data.type,
-      sentAt: data.sentAt ? new Date(data.sentAt) : null,
-      receivedAt: data.receivedAt ? new Date(data.receivedAt) : null,
-      followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-      recipient: data.recipient || null,
-      notes: data.notes || null,
-      isHistorical: data.isHistorical || false,
+      sentAt: toDateOrNull(data.sentAt),
+      receivedAt: toDateOrNull(data.receivedAt),
+      followUpDate: toDateOrNull(data.followUpDate),
+      recipient: data.recipient ?? null,
+      notes: data.notes ?? null,
+      isHistorical: data.isHistorical ?? false,
       createdById: addedBy,
     },
   });
@@ -131,7 +165,7 @@ export async function addCorrespondence(claimId, data, addedBy) {
   if (data.followUpDate) {
     await prisma.task.create({
       data: {
-        claimId,
+        claimId: Number(claimId),
         assignedToId: addedBy,
         title: `Follow-up: ${data.type} for claim ${claim.id}`,
         description: data.notes || `Follow-up on ${data.type} correspondence`,
@@ -143,6 +177,6 @@ export async function addCorrespondence(claimId, data, addedBy) {
     });
   }
 
-  await logAction('CORRESPONDENCE_ADDED', 'Claim', claimId, addedBy, { type: data.type });
+  await logAction('CORRESPONDENCE_ADDED', 'Claim', Number(claimId), addedBy, { type: data.type });
   return corr;
 }
