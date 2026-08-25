@@ -1,5 +1,6 @@
 import type { AuthUser } from '../middleware/auth.js';
 import { prisma } from '../db/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -15,19 +16,26 @@ export async function getAnalytics(user: AuthUser) {
   const now = new Date();
   const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
+  // Build optional role scoping for raw SQL (engineerId/accountantId only, numeric)
+  let roleFilter = Prisma.empty;
+  if (Number.isInteger(baseWhere.engineerId)) {
+    roleFilter = Prisma.sql`AND engineerId = ${baseWhere.engineerId}`;
+  } else if (Number.isInteger(baseWhere.accountantId)) {
+    roleFilter = Prisma.sql`AND accountantId = ${baseWhere.accountantId}`;
+  }
+
   // Run all independent queries in parallel
   const [
     processStatusCounts,
     claimTypeCounts,
-    monthlyCounts,
-    monthlyLossTotals,
+    monthlyAggregates,
     financialTotals,
     engineerWorkloads,
     settlementTotals,
     invoiceTotals,
     paymentTotals,
     clientCounts,
-    agingBuckets,
+    agingResult,
   ] = await Promise.all([
     // Claims by process status
     prisma.claim.groupBy({
@@ -43,17 +51,20 @@ export async function getAnalytics(user: AuthUser) {
       _count: { id: true },
     }),
 
-    // Monthly claim counts (last 12 months)
-    prisma.claim.findMany({
-      where: { ...baseWhere, dateReceived: { gte: twelveMonthsAgo } },
-      select: { dateReceived: true },
-    }),
-
-    // Monthly estimated loss totals (last 12 months)
-    prisma.claim.findMany({
-      where: { ...baseWhere, dateReceived: { gte: twelveMonthsAgo }, estimatedLoss: { not: null } },
-      select: { dateReceived: true, estimatedLoss: true },
-    }),
+    // Monthly claim counts and estimated loss totals (last 12 months) — DB aggregation
+    prisma.$queryRaw<any[]>(
+      Prisma.sql`
+        SELECT
+          DATE_FORMAT(dateReceived, '%Y-%m') AS month,
+          COUNT(*) AS claims,
+          COALESCE(SUM(estimatedLoss), 0) AS estimatedLoss
+        FROM claims
+        WHERE dateReceived >= ${twelveMonthsAgo}
+          ${roleFilter}
+        GROUP BY DATE_FORMAT(dateReceived, '%Y-%m')
+        ORDER BY month ASC
+      `
+    ),
 
     // Financial aggregates
     prisma.claim.aggregate({
@@ -107,11 +118,19 @@ export async function getAnalytics(user: AuthUser) {
       take: 10,
     }),
 
-    // Aging buckets (days since dateReceived for non-closed claims)
-    prisma.claim.findMany({
-      where: { ...baseWhere, isClosed: false, isCancelled: false },
-      select: { id: true, dateReceived: true },
-    }),
+    // Aging buckets (days since dateReceived for non-closed claims) — DB aggregation
+    prisma.$queryRaw<any[]>(
+      Prisma.sql`
+        SELECT
+          SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) <= 30 THEN 1 ELSE 0 END) AS bucket_0_30,
+          SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 31 AND 60 THEN 1 ELSE 0 END) AS bucket_31_60,
+          SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 61 AND 90 THEN 1 ELSE 0 END) AS bucket_61_90,
+          SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) > 90 THEN 1 ELSE 0 END) AS bucket_90_plus
+        FROM claims
+        WHERE isClosed = false AND isCancelled = false
+          ${roleFilter}
+      `
+    ),
   ]);
 
   // Resolve related entities
@@ -166,18 +185,12 @@ export async function getAnalytics(user: AuthUser) {
   }
   const monthMap = new Map(monthLabels.map((m) => [m.key, m]));
 
-  for (const c of monthlyCounts) {
-    const d = new Date(c.dateReceived);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const entry = monthMap.get(key);
-    if (entry) entry.claims += 1;
-  }
-
-  for (const c of monthlyLossTotals) {
-    const d = new Date(c.dateReceived);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const entry = monthMap.get(key);
-    if (entry) entry.estimatedLoss += Number(c.estimatedLoss || 0);
+  for (const row of monthlyAggregates) {
+    const entry = monthMap.get(row.month);
+    if (entry) {
+      entry.claims += Number(row.claims ?? 0);
+      entry.estimatedLoss += Number(row.estimatedLoss ?? 0);
+    }
   }
 
   // Build engineer workload
@@ -200,14 +213,18 @@ export async function getAnalytics(user: AuthUser) {
     .filter((c: any) => c.name !== 'Unknown');
 
   // Build aging buckets
-  const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-  for (const c of agingBuckets as any[]) {
-    const days = Math.floor((now.getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 30) buckets['0-30']++;
-    else if (days <= 60) buckets['31-60']++;
-    else if (days <= 90) buckets['61-90']++;
-    else buckets['90+']++;
-  }
+  const agingRow = (agingResult as any[])[0] ?? {
+    bucket_0_30: 0,
+    bucket_31_60: 0,
+    bucket_61_90: 0,
+    bucket_90_plus: 0,
+  };
+  const agingBuckets = [
+    { label: '0-30', count: Number(agingRow.bucket_0_30 ?? 0) },
+    { label: '31-60', count: Number(agingRow.bucket_31_60 ?? 0) },
+    { label: '61-90', count: Number(agingRow.bucket_61_90 ?? 0) },
+    { label: '90+', count: Number(agingRow.bucket_90_plus ?? 0) },
+  ];
 
   return {
     summary: {
@@ -231,6 +248,6 @@ export async function getAnalytics(user: AuthUser) {
     typeBreakdown,
     engineerWorkload,
     topClients,
-    agingBuckets: Object.entries(buckets).map(([label, count]) => ({ label, count })),
+    agingBuckets,
   };
 }
