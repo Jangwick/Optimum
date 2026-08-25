@@ -10,6 +10,10 @@ function getToken(): string | null {
   }
 }
 
+function generateRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export const api: AxiosInstance = axios.create({
   baseURL,
   withCredentials: true,
@@ -23,6 +27,9 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  if (!config.headers['x-request-id']) {
+    config.headers['x-request-id'] = generateRequestId();
+  }
   return config;
 });
 
@@ -35,7 +42,7 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 /**

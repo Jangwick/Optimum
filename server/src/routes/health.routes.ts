@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db/client.js';
+import { getVersion } from '../config/version.js';
 
 const router = Router();
 
@@ -14,8 +15,10 @@ router.get('/', async (_req: Request, res: Response) => {
 
     res.json({
       status: 'ok',
+      version: getVersion(),
       timestamp: new Date().toISOString(),
       env: process.env.NODE_ENV?.trim() || 'development',
+      database: 'connected',
       seeded: {
         users: userCount,
         roles: roleCount,
@@ -24,8 +27,9 @@ router.get('/', async (_req: Request, res: Response) => {
       },
     });
   } catch (err: unknown) {
-    res.status(500).json({
+    res.status(503).json({
       status: 'error',
+      version: getVersion(),
       error: err instanceof Error ? err.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     });
