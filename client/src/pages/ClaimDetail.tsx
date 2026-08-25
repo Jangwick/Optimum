@@ -19,6 +19,7 @@ import { getReports, createReport, generateReport, askClarification, getDownload
 import { getInspections } from '../services/investigation.service.js';
 import { getDocumentCategories, getInsuranceCompanies } from '../services/master-data.service.js';
 import { formatCurrency } from '../utils/currency.js';
+import { stripHtml } from '../utils/sanitize.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import ClaimInvestigation from '../components/ClaimInvestigation.jsx';
 import ClaimFinance from '../components/ClaimFinance.jsx';
@@ -934,10 +935,9 @@ export function DocumentPreview({ claimId, documents = [] }: DocumentPreviewProp
                   </div>
                 )}
                 {docxStatus === DOCX_PREVIEW.ready && (
-                  <div
-                    className="prose max-w-none text-on-surface"
-                    dangerouslySetInnerHTML={{ __html: docxHtml }}
-                  />
+                  <div className="prose max-w-none text-on-surface whitespace-pre-wrap">
+                    {stripHtml(docxHtml)}
+                  </div>
                 )}
               </div>
             ) : (
