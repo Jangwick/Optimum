@@ -14,14 +14,14 @@ interface FeeInput {
 }
 
 // Sync total fees to the claim's actualLoss field
-async function syncFeeTotals(claimId: number) {
-  const result = await prisma.fee.aggregate({
+async function syncFeeTotals(claimId: number, tx: Prisma.TransactionClient = prisma) {
+  const result = await tx.fee.aggregate({
     where: { claimId },
     _sum: { amount: true },
   });
   const total = result._sum.amount;
   const numericTotal = total ? total.toNumber() : 0;
-  await prisma.claim.update({
+  await tx.claim.update({
     where: { id: claimId },
     data: { actualLoss: numericTotal > 0 ? total : null },
   });
@@ -58,18 +58,24 @@ export async function createFee(claimId: number | string, data: FeeInput, user: 
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  const fee = await prisma.fee.create({
-    data: {
-      claimId: Number(claimId),
-      userId: data.userId ? Number(data.userId) : null,
-      feeType: data.feeType,
-      amount: Number(data.amount),
-      description: data.description ?? null,
+  const fee = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      const fee = await tx.fee.create({
+        data: {
+          claimId: Number(claimId),
+          userId: data.userId ? Number(data.userId) : null,
+          feeType: data.feeType,
+          amount: Number(data.amount),
+          description: data.description ?? null,
+        },
+        include: { user: { select: { id: true, firstName: true, lastName: true } } },
+      });
+      await syncFeeTotals(Number(claimId), tx);
+      return fee;
     },
-    include: { user: { select: { id: true, firstName: true, lastName: true } } },
-  });
+    { maxWait: 5000, timeout: 10000 }
+  );
   await logAction('FEE_CREATED', 'Fee', fee.id, user.id, { claimId: Number(claimId), amount: Number(fee.amount) });
-  await syncFeeTotals(Number(claimId));
   await recordActivity(Number(claimId), 'FEE_CREATED', `Fee created: ${fee.feeType} — ${Number(fee.amount || 0).toFixed(2)}`, user.id);
   return fee;
 }
@@ -85,12 +91,18 @@ export async function updateFee(id: number, data: Partial<FeeInput>, user: AuthU
   if (data.amount !== undefined) update.amount = Number(data.amount);
   if (data.description !== undefined) update.description = data.description ?? null;
 
-  const updated = await prisma.fee.update({
-    where: { id },
-    data: update,
-    include: { user: { select: { id: true, firstName: true, lastName: true } } },
-  });
-  await syncFeeTotals(fee.claimId);
+  const updated = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      const updated = await tx.fee.update({
+        where: { id },
+        data: update,
+        include: { user: { select: { id: true, firstName: true, lastName: true } } },
+      });
+      await syncFeeTotals(fee.claimId, tx);
+      return updated;
+    },
+    { maxWait: 5000, timeout: 10000 }
+  );
   await recordActivity(fee.claimId, 'FEE_UPDATED', `Fee updated: ${updated.feeType} — ${Number(updated.amount || 0).toFixed(2)}`, user.id);
   return updated;
 }
@@ -100,7 +112,12 @@ export async function deleteFee(id: number, user: AuthUser) {
   if (!fee) throw new AppError('Fee not found', 404);
   assertClaimAccess(user, fee.claim);
   const { claimId } = fee;
-  await prisma.fee.delete({ where: { id } });
-  await syncFeeTotals(claimId);
+  await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      await tx.fee.delete({ where: { id } });
+      await syncFeeTotals(claimId, tx);
+    },
+    { maxWait: 5000, timeout: 10000 }
+  );
   await recordActivity(claimId, 'FEE_DELETED', `Fee deleted: ${fee.feeType}`, user.id);
 }
