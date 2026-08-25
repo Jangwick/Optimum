@@ -12,7 +12,7 @@ function idParam(req: Request) {
 
 export const getSettlement: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.getSettlement(Number(req.params.claimId));
+    const item = await settlementService.getSettlement(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -20,7 +20,7 @@ export const getSettlement: RequestHandler = async (req, res, next) => {
 
 export const upsertSettlement: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.upsertSettlement(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await settlementService.upsertSettlement(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +28,7 @@ export const upsertSettlement: RequestHandler = async (req, res, next) => {
 
 export const listOffers: RequestHandler = async (req, res, next) => {
   try {
-    const items = await settlementService.listOffers(Number(req.params.claimId));
+    const items = await settlementService.listOffers(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -36,7 +36,7 @@ export const listOffers: RequestHandler = async (req, res, next) => {
 
 export const createOffer: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.createOffer(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await settlementService.createOffer(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -44,7 +44,7 @@ export const createOffer: RequestHandler = async (req, res, next) => {
 
 export const respondToOffer: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.respondToOffer(idParam(req), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await settlementService.respondToOffer(idParam(req), req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }

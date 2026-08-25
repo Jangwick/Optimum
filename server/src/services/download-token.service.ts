@@ -13,6 +13,9 @@ export interface DownloadTokenPayload {
 
 const EXPIRES_IN = '5m';
 
+// ponytail: signed JWT download tokens cannot be revoked before expiry.
+// If explicit revocation or instantaneous invalidation is needed, replace
+// this with a server-side token store (e.g., Redis / short-lived DB rows).
 export function createDownloadToken(user: AuthUser, resource: string): string {
   return jwt.sign(
     {

@@ -2,6 +2,8 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
+import { assertClaimAccess } from './claim.service.js';
+import type { AuthUser } from '../middleware/auth.js';
 
 interface DiscussionNoteInput {
   partyType?: string;
@@ -11,7 +13,11 @@ interface DiscussionNoteInput {
   nextAction?: string;
 }
 
-export async function listDiscussionNotes(claimId: number | string) {
+export async function listDiscussionNotes(claimId: number | string, user: AuthUser) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
+  if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
+
   return prisma.discussionNote.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { discussedAt: 'desc' },
@@ -21,9 +27,10 @@ export async function listDiscussionNotes(claimId: number | string) {
   });
 }
 
-export async function createDiscussionNote(claimId: number | string, data: DiscussionNoteInput, userId: number) {
+export async function createDiscussionNote(claimId: number | string, data: DiscussionNoteInput, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
 
   const note = await prisma.discussionNote.create({
     data: {
@@ -33,21 +40,22 @@ export async function createDiscussionNote(claimId: number | string, data: Discu
       discussedAt: data.discussedAt ? new Date(data.discussedAt) : new Date(),
       notes: data.notes || '',
       nextAction: data.nextAction || null,
-      createdById: userId,
+      createdById: user.id,
     },
     include: {
       createdBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
-  await logAction('DISCUSSION_NOTE_CREATED', 'DiscussionNote', note.id, userId, { claimId: Number(claimId) });
-  await recordActivity(Number(claimId), 'DISCUSSION_NOTE_CREATED', `Discussion note added (${note.partyType})`, userId);
+  await logAction('DISCUSSION_NOTE_CREATED', 'DiscussionNote', note.id, user.id, { claimId: Number(claimId) });
+  await recordActivity(Number(claimId), 'DISCUSSION_NOTE_CREATED', `Discussion note added (${note.partyType})`, user.id);
   return note;
 }
 
-export async function deleteDiscussionNote(id: number | string, userId: number) {
-  const note = await prisma.discussionNote.findUnique({ where: { id: Number(id) } });
+export async function deleteDiscussionNote(id: number | string, user: AuthUser) {
+  const note = await prisma.discussionNote.findUnique({ where: { id: Number(id) }, include: { claim: true } });
   if (!note) throw new AppError('Discussion note not found', 404);
-  await logAction('DISCUSSION_NOTE_DELETED', 'DiscussionNote', Number(id), userId, { claimId: note.claimId });
-  await recordActivity(note.claimId, 'DISCUSSION_NOTE_DELETED', 'Discussion note deleted', userId);
+  assertClaimAccess(user, note.claim);
+  await logAction('DISCUSSION_NOTE_DELETED', 'DiscussionNote', Number(id), user.id, { claimId: note.claimId });
+  await recordActivity(note.claimId, 'DISCUSSION_NOTE_DELETED', 'Discussion note deleted', user.id);
   await prisma.discussionNote.delete({ where: { id: Number(id) } });
 }

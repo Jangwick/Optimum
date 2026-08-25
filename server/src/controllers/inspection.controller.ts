@@ -12,7 +12,7 @@ function idParam(req: Request) {
 
 export const listInspections: RequestHandler = async (req, res, next) => {
   try {
-    const items = await inspectionService.listInspections(Number(req.params.claimId));
+    const items = await inspectionService.listInspections(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -20,7 +20,7 @@ export const listInspections: RequestHandler = async (req, res, next) => {
 
 export const createInspection: RequestHandler = async (req, res, next) => {
   try {
-    const item = await inspectionService.createInspection(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await inspectionService.createInspection(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +28,7 @@ export const createInspection: RequestHandler = async (req, res, next) => {
 
 export const updateInspection: RequestHandler = async (req, res, next) => {
   try {
-    const item = await inspectionService.updateInspection(idParam(req), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await inspectionService.updateInspection(idParam(req), req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -36,7 +36,7 @@ export const updateInspection: RequestHandler = async (req, res, next) => {
 
 export const deleteInspection: RequestHandler = async (req, res, next) => {
   try {
-    await inspectionService.deleteInspection(idParam(req), (req as AuthenticatedRequest).user.id);
+    await inspectionService.deleteInspection(idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }
@@ -49,7 +49,7 @@ export const uploadInspectionPhoto: RequestHandler = async (req, res, next) => {
       idParam(req),
       (req as any).file,
       req.body.caption,
-      (req as AuthenticatedRequest).user.id
+      (req as AuthenticatedRequest).user
     );
     res.status(201).json({ success: true, item: photo });
   } catch (err) { next(err as any);
@@ -58,7 +58,7 @@ export const uploadInspectionPhoto: RequestHandler = async (req, res, next) => {
 
 export const getInspectionPhoto: RequestHandler = async (req, res, next) => {
   try {
-    const photo = await inspectionService.getPhoto(Number(req.params.photoId));
+    const photo = await inspectionService.getPhoto(Number(req.params.photoId), (req as AuthenticatedRequest).user);
     res.setHeader('Content-Type', photo.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${photo.originalName}"`);
     res.send(photo.buffer);
@@ -68,7 +68,7 @@ export const getInspectionPhoto: RequestHandler = async (req, res, next) => {
 
 export const deleteInspectionPhoto: RequestHandler = async (req, res, next) => {
   try {
-    await inspectionService.deletePhoto(Number(Number(req.params.photoId)), (req as AuthenticatedRequest).user.id);
+    await inspectionService.deletePhoto(Number(Number(req.params.photoId)), (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }

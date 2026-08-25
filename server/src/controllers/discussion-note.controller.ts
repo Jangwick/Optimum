@@ -12,7 +12,7 @@ function idParam(req: Request) {
 
 export const listDiscussionNotes: RequestHandler = async (req, res, next) => {
   try {
-    const items = await discussionNoteService.listDiscussionNotes(Number(req.params.claimId));
+    const items = await discussionNoteService.listDiscussionNotes(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -20,7 +20,7 @@ export const listDiscussionNotes: RequestHandler = async (req, res, next) => {
 
 export const createDiscussionNote: RequestHandler = async (req, res, next) => {
   try {
-    const item = await discussionNoteService.createDiscussionNote(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await discussionNoteService.createDiscussionNote(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +28,7 @@ export const createDiscussionNote: RequestHandler = async (req, res, next) => {
 
 export const deleteDiscussionNote: RequestHandler = async (req, res, next) => {
   try {
-    await discussionNoteService.deleteDiscussionNote(idParam(req), (req as AuthenticatedRequest).user.id);
+    await discussionNoteService.deleteDiscussionNote(idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }

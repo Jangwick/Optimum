@@ -3,7 +3,8 @@ import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
-import { autoAdvanceStatus } from './claim.service.js';
+import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
+import type { AuthUser } from '../middleware/auth.js';
 
 interface InvestigationInput {
   summary: string;
@@ -17,7 +18,11 @@ function toDateOrNull(value: string | Date | null | undefined): Date | null {
   return value instanceof Date ? value : new Date(value);
 }
 
-export async function listInvestigations(claimId: number | string) {
+export async function listInvestigations(claimId: number | string, user: AuthUser) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
+  if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
+
   return prisma.investigation.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { createdAt: 'desc' },
@@ -25,9 +30,10 @@ export async function listInvestigations(claimId: number | string) {
   });
 }
 
-export async function createInvestigation(claimId: number | string, data: InvestigationInput, userId: number) {
+export async function createInvestigation(claimId: number | string, data: InvestigationInput, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
 
   const completedAt = toDateOrNull(data.completedAt);
   const inv = await prisma.investigation.create({
@@ -37,19 +43,20 @@ export async function createInvestigation(claimId: number | string, data: Invest
       findings: data.findings ?? null,
       startedAt: data.startedAt ? new Date(data.startedAt) : new Date(),
       completedAt,
-      completedById: completedAt ? userId : null,
+      completedById: completedAt ? user.id : null,
     },
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
-  await logAction('INVESTIGATION_CREATED', 'Investigation', inv.id, userId, { claimId: Number(claimId) });
-  await recordActivity(Number(claimId), 'INVESTIGATION_CREATED', 'Investigation created', userId);
-  await autoAdvanceStatus(Number(claimId), 'INVESTIGATION', userId);
+  await logAction('INVESTIGATION_CREATED', 'Investigation', inv.id, user.id, { claimId: Number(claimId) });
+  await recordActivity(Number(claimId), 'INVESTIGATION_CREATED', 'Investigation created', user.id);
+  await autoAdvanceStatus(Number(claimId), 'INVESTIGATION', user.id);
   return inv;
 }
 
-export async function updateInvestigation(id: number, data: InvestigationInput, userId: number) {
-  const inv = await prisma.investigation.findUnique({ where: { id } });
+export async function updateInvestigation(id: number, data: InvestigationInput, user: AuthUser) {
+  const inv = await prisma.investigation.findUnique({ where: { id }, include: { claim: true } });
   if (!inv) throw new AppError('Investigation not found', 404);
+  assertClaimAccess(user, inv.claim);
 
   const update: Prisma.InvestigationUncheckedUpdateInput = {};
   if (data.summary !== undefined) update.summary = data.summary;
@@ -58,7 +65,7 @@ export async function updateInvestigation(id: number, data: InvestigationInput, 
   if (data.completedAt !== undefined) {
     const completedAt = toDateOrNull(data.completedAt);
     update.completedAt = completedAt;
-    update.completedById = completedAt ? userId : null;
+    update.completedById = completedAt ? user.id : null;
   }
 
   const updated = await prisma.investigation.update({
@@ -66,15 +73,16 @@ export async function updateInvestigation(id: number, data: InvestigationInput, 
     data: update,
     include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
   });
-  await logAction('INVESTIGATION_UPDATED', 'Investigation', id, userId, { claimId: updated.claimId });
-  await recordActivity(updated.claimId, 'INVESTIGATION_UPDATED', 'Investigation updated', userId);
+  await logAction('INVESTIGATION_UPDATED', 'Investigation', id, user.id, { claimId: updated.claimId });
+  await recordActivity(updated.claimId, 'INVESTIGATION_UPDATED', 'Investigation updated', user.id);
   return updated;
 }
 
-export async function deleteInvestigation(id: number, userId: number) {
-  const inv = await prisma.investigation.findUnique({ where: { id } });
+export async function deleteInvestigation(id: number, user: AuthUser) {
+  const inv = await prisma.investigation.findUnique({ where: { id }, include: { claim: true } });
   if (!inv) throw new AppError('Investigation not found', 404);
-  await logAction('INVESTIGATION_DELETED', 'Investigation', id, userId, { claimId: inv.claimId });
-  await recordActivity(inv.claimId, 'INVESTIGATION_DELETED', 'Investigation deleted', userId);
+  assertClaimAccess(user, inv.claim);
+  await logAction('INVESTIGATION_DELETED', 'Investigation', id, user.id, { claimId: inv.claimId });
+  await recordActivity(inv.claimId, 'INVESTIGATION_DELETED', 'Investigation deleted', user.id);
   await prisma.investigation.delete({ where: { id } });
 }

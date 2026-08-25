@@ -13,7 +13,7 @@ function idParam(req: Request) {
 
 export async function listAssessments(req: Request, res: Response, next: NextFunction) {
   try {
-    const items = await assessmentService.getAssessments(req.params.claimId as string);
+    const items = await assessmentService.getAssessments(req.params.claimId as string, (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err: any) {
     next(err);
@@ -22,7 +22,7 @@ export async function listAssessments(req: Request, res: Response, next: NextFun
 
 export async function getAssessment(req: Request, res: Response, next: NextFunction) {
   try {
-    const item = await assessmentService.getAssessment(idParam(req));
+    const item = await assessmentService.getAssessment(idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err: any) {
     next(err);
@@ -31,7 +31,7 @@ export async function getAssessment(req: Request, res: Response, next: NextFunct
 
 export async function createAssessment(req: Request, res: Response, next: NextFunction) {
   try {
-    const item = await assessmentService.createAssessment(req.params.claimId as string, req.body, (req as AuthenticatedRequest).user.id);
+    const item = await assessmentService.createAssessment(req.params.claimId as string, req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err: any) {
     next(err);
@@ -40,7 +40,7 @@ export async function createAssessment(req: Request, res: Response, next: NextFu
 
 export async function updateAssessment(req: Request, res: Response, next: NextFunction) {
   try {
-    const item = await assessmentService.updateAssessment(idParam(req), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await assessmentService.updateAssessment(idParam(req), req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err: any) {
     next(err);
@@ -49,7 +49,7 @@ export async function updateAssessment(req: Request, res: Response, next: NextFu
 
 export async function deleteAssessment(req: Request, res: Response, next: NextFunction) {
   try {
-    await assessmentService.deleteAssessment(idParam(req), (req as AuthenticatedRequest).user.id);
+    await assessmentService.deleteAssessment(idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err: any) {
     next(err);
