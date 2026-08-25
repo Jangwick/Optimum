@@ -20,7 +20,10 @@ export interface SearchResponse {
   };
 }
 
+const MAX_SEARCH_LIMIT = 10;
+
 export async function searchAll(query: string, limit = 3): Promise<SearchResponse> {
-  const { data } = await api.get<SearchResponse>('/search', { params: { q: query, limit } });
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_SEARCH_LIMIT);
+  const { data } = await api.get<SearchResponse>('/search', { params: { q: query, limit: safeLimit } });
   return data;
 }

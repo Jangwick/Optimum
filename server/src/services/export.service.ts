@@ -1,7 +1,10 @@
 import ExcelJS from 'exceljs';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import { AppError } from '../middleware/error.js';
 import type { AuthUser } from '../middleware/auth.js';
+
+const EXPORT_MAX_ROWS = 10_000;
 
 interface ExportFilters {
   search?: string;
@@ -54,9 +57,15 @@ export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
 
+  const total = await prisma.claim.count({ where });
+  if (total > EXPORT_MAX_ROWS) {
+    throw new AppError('Export too large; narrow filters to under 10,000 rows', 413);
+  }
+
   const claims = await prisma.claim.findMany({
     where,
     orderBy: { dateReceived: 'desc' },
+    take: EXPORT_MAX_ROWS,
     include: {
       client: { select: { name: true } },
       insuranceCompany: { select: { name: true } },
