@@ -2,7 +2,7 @@ export type JobType = 'export' | 'report' | 'import';
 
 /**
  * Simple in-process counter for active background-style jobs.
- * ponytail: per-process counter only; for multi-instance deployments,
+ * LIMIT: per-process counter only; for multi-instance deployments,
  * replace with a Redis-backed counter or a shared semaphore.
  */
 export class JobCounter {

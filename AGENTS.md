@@ -202,3 +202,18 @@ This checklist aligns with the OWASP Top 10:2025 and common defensive practices 
 ### Testing
 - After security changes, run targeted tests (e.g., `auth.test.ts`, `claim.test.ts`, `file-path.test.ts`) instead of the full suite unless a broader check is required.
 - Add or update a focused regression test for non-trivial security logic.
+
+## Resilience Checklist
+
+When adding or modifying features, verify these operational safeguards are in place:
+
+- [ ] Add `LIMIT:` or `TODO:` comments for in-process/single-node ceilings.
+- [ ] Use pagination and caps for list, export, and import endpoints.
+- [ ] Use `withRetry` for raw SQL queries against transient Prisma errors.
+- [ ] Use `req.signal` to respect `AbortSignal` in long-running operations.
+- [ ] Stream large files instead of buffering them with `res.send(buffer)`.
+- [ ] Add `try/finally` around Puppeteer calls, streams, and timers.
+- [ ] Use `referenceDataCache` for stable reference lookups.
+- [ ] Apply `strictRateLimit` to expensive or mutation-heavy routes.
+- [ ] Clamp client `limit` values and validate file sizes before upload.
+- [ ] Add a focused regression test for non-trivial logic.

@@ -6,7 +6,7 @@ type IdempotencyResult = {
   json: boolean;
 };
 
-// ponytail: single-process in-memory cache. For multi-instance deployments, swap
+// LIMIT: single-process in-memory cache. For multi-instance deployments, swap
 // this Map for a Redis-backed store or a shared cache so idempotency keys survive
 // restarts and work across replicas.
 const TTL_MS = 5 * 60 * 1000;

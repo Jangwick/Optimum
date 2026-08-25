@@ -539,6 +539,20 @@ When you complete an action in any tab, the result shows up in:
 | **Audit Logs** (`/audit-logs`) | Every mutation is logged with user, action, timestamp |
 | **Database** | The source of truth — all data persists to MySQL |
 
+## Resilience and Operations
+
+The backend and client include a set of production-hardening measures for stability, observability, and graceful degradation under load.
+
+API endpoints guard against unbounded work with pagination, capped exports/imports/search, and Prisma indexes. Mutation endpoints such as `POST /api/claims`, `/api/fees`, `/api/invoices`, and `/api/settlements` are idempotent so retries are safe. Configuration is validated with Zod, uploads are capped at `MAX_FILE_SIZE` (100 MB), and network/database calls enforce timeouts including a 60-second Puppeteer PDF timeout. Transient Prisma errors are retried with `withRetry`, and request `AbortSignal` cancellation is propagated through long-running operations and export jobs.
+
+- **Resource caps**: paginated lists, capped exports/imports/search, Prisma indexes, and `MAX_FILE_SIZE` 100 MB validation.
+- **Idempotency**: `POST /api/claims`, `/api/fees`, `/api/invoices`, `/api/settlements`, and similar mutations.
+- **Timeouts and retries**: database query timeout, HTTP timeouts, 60-second Puppeteer PDF timeout, `withRetry` for transient Prisma errors.
+- **Cancellation and cleanup**: request signal propagation, export cancellation, streaming file downloads, and `AssignClaimModal` `setTimeout` cleanup.
+- **Operational resilience**: graceful shutdown, in-process job queue, `referenceDataCache`, per-user/per-endpoint rate limits, and load shedding.
+- **Observability and safety**: versioned request/error logs, log sanitization, safe notifications, client React Query defaults, client file-size limits, and API error classification.
+- **Client performance**: route-based code splitting, manual chunks, and memoization.
+
 ## License
 
 Proprietary — Claims Solutions Insurance Adjustment, Inc.
