@@ -6,8 +6,8 @@ Optimum is a claims-adjustment management system. It lets insurance adjusters cr
 
 ## Tech Stack
 
-- **Frontend:** React 18, Vite 6, Tailwind CSS 4, TanStack Query, React Router DOM 6, React Hook Form, Zod, Axios, Recharts, date-fns, Vitest
-- **Backend:** Node.js 22, Express 4, Prisma 7, MySQL 8, JWT, bcrypt, Multer, docxtemplater, Puppeteer, ExcelJS, pino, Jest + Supertest
+- **Frontend:** React 18, TypeScript, Vite 6, Tailwind CSS 4, TanStack Query, React Router DOM 6, React Hook Form, Zod, Axios, Recharts, date-fns, Vitest
+- **Backend:** Node.js 22, Express 4, TypeScript, Prisma 7, MySQL/MariaDB, JWT, bcrypt, Zod, Helmet, CORS, Multer, docxtemplater, Puppeteer, ExcelJS, pino, Jest + Supertest
 - **Shared tooling:** npm, concurrently, ESLint, Prettier
 - **Containerization target:** Docker, Docker Compose, nginx (client), Node 22 slim (server)
 
@@ -206,7 +206,7 @@ Client (`.env` / `.env.local`):
 
 ### Phase 0 — Stabilization
 
-- The server test suite was wired to the `server/.env` test database URL through `server/tests/setup-test-env.cjs` and `server/tests/globalSetup.js`. Jest now runs `prisma db push` and `prisma db seed` once before all suites.
+- The server test suite was wired to the `server/.env` test database URL through `server/tests/setup-test-env.ts` and `server/tests/globalSetup.ts`. Jest now runs `prisma db push` and `prisma db seed` once before all suites.
 - Coverage was added for documents, reports, and user endpoints in `server/tests/feature-coverage.test.ts`.
 - A file-upload bug was fixed: `server/src/middleware/upload.ts` now returns `400` for disallowed extensions and mismatched MIME types instead of `500`.
 
@@ -218,11 +218,11 @@ Client (`.env` / `.env.local`):
   - `typescript` and `@types/react`/`@types/react-dom`/`@types/node` added.
   - `client/tsconfig.json` and `client/tsconfig.node.json` created with `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes`.
   - `client/vite.config.js` renamed to `client/vite.config.ts`.
-  - `client/eslint.config.js` updated with `typescript-eslint` for `.js`/`.jsx`/`.ts`/`.tsx`.
+  - `client/eslint.config.ts` updated with `typescript-eslint` for `.js`/`.jsx`/`.ts`/`.tsx`.
 - Server tooling:
   - `typescript`, `tsx`, `ts-jest`, and relevant `@types/*` packages added.
   - `server/tsconfig.json` created with `NodeNext` module resolution, `allowJs: true`, `strict`, and output to `dist/`.
-  - `server/eslint.config.js` updated with `typescript-eslint` and `.cjs`/`.mjs` support.
+  - `server/eslint.config.ts` updated with `typescript-eslint` and `.cjs`/`.mjs` support.
   - `dev` script changed to `tsx watch src/server.ts`; `build` runs `npx prisma generate && tsc`.
 
 ### Verification

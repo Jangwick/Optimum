@@ -1,6 +1,6 @@
 # Claims Solutions / Optimum — Insurance Adjustment Management System
 
-A greenfield React + Node.js + MySQL web application for managing insurance claims from assignment through closure.
+A greenfield React + TypeScript + Vite frontend and Node.js 22 + Express + TypeScript backend, backed by MySQL/MariaDB, for managing insurance claims from assignment through closure.
 
 ## Docker Quick Start
 
@@ -39,9 +39,7 @@ The server health endpoint returns `{ "status": "ok", ... }` once migrations and
 After first start, log in with:
 
 - Email: `admin@optimum.com`
-- Password: `ChangeMe123!`
-
-Change the password immediately after first login.
+- Password: set via the `DEFAULT_ADMIN_PASSWORD` environment variable before first seed; change immediately after first login.
 
 ### 5. Stop and clean up
 
@@ -145,7 +143,8 @@ In development the Express server may print `client/dist not found`. This is exp
 
 - `server/` — Express API, Prisma ORM, MySQL schema, tests
 - `client/` — React 18 + Vite + Tailwind CSS v4 frontend
-- `tasks/plan.md` and `tasks/todo.md` — implementation plan and task list
+- `C:\Users\mikmikk03\.devin\plans\analyze-and-optimize-codebase.md` — active implementation plan
+- `tasks/plan.md` and `tasks/todo.md` — completed TypeScript/Docker migration (obsolete)
 - `design.md` — design system source of truth
 - `logo.png` — application brand logo
 
@@ -203,13 +202,13 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
 
 8. **Login** with the default admin:
    - Email: `admin@optimum.com`
-   - Password: `ChangeMe123!`
+   - Password: the value of `DEFAULT_ADMIN_PASSWORD` from your environment
    - **Change the password immediately after first login.**
 
 #### Notes
 
 - Puppeteer/Chromium is installed in the Docker image for PDF report generation.
-- File uploads are stored in `/tmp/uploads` (ephemeral). For persistent storage, configure an S3-compatible service and update `server/src/middleware/upload.js`.
+- File uploads are stored in `/tmp/uploads` (ephemeral). For persistent storage, configure an S3-compatible service and update `server/src/middleware/upload.ts`.
 - Railway's free tier provides limited hours. See [Railway pricing](https://railway.app/pricing) for details.
 
 ### Manual / VPS Deployment
@@ -223,7 +222,7 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
    ```bash
    cd server
    npx prisma migrate deploy
-   node dist/prisma/seed.js
+   npx prisma db seed
    ```
 
 3. Start the server with PM2 or directly:
@@ -244,8 +243,8 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
 ## Runbook Notes
 
 - MySQL is the canonical data store. Run `backup-mysql.ps1` before any schema change.
-- Uploaded files are stored in `server/uploads` by default; configure S3/Azure Blob by replacing `server/src/middleware/upload.js`.
-- Default admin: `admin@optimum.com` / `ChangeMe123!` — change before production.
+- Uploaded files are stored in `server/uploads` by default; configure S3/Azure Blob by replacing `server/src/middleware/upload.ts`.
+- Default admin: `admin@optimum.com` / the value of `DEFAULT_ADMIN_PASSWORD` from your environment — change before production.
 - JWT secret and database credentials must be set in `server/.env`.
 
 ## Workflow Architecture
@@ -293,7 +292,7 @@ A step-by-step procedure for using the Claims Registry and Claim Detail page.
 2. You will be redirected to the **Login page**.
 3. Enter your credentials:
    - **Email**: `admin@optimum.com`
-   - **Password**: `ChangeMe123!`
+   - **Password**: the value of `DEFAULT_ADMIN_PASSWORD` from your environment
 4. Click **Sign In**.
 5. You will land on the **Dashboard**.
 

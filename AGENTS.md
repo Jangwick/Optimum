@@ -15,28 +15,48 @@
 
 ## Frontend Conventions
 
+- React 18 with TypeScript; Vite 6 and React Router DOM 6.
 - Tailwind CSS v4 with CSS-based configuration in `client/src/index.css`.
+- TanStack React Query 5 for server state; Zustand or context for local state.
 - Theme tokens from `design.md` must be mapped to Tailwind (colors, spacing, border-radius, typography).
 - Layout: fixed 260px sidebar (`sidebar-bg`), 12-column fluid content, 40px inputs, 56px top bar, metric cards with 4px top-cap, sticky table headers.
 
 ## Project Plan
 
-- Full implementation plan: `C:\Users\Administrator\.devin\plans\plan-87f3885396a41ad7.md`
-- TypeScript and Docker migration plan: `C:\Users\mikmikk03\.devin\plans\plan-typescript-and-docker.md`
-- Repo plan: `tasks/plan.md`
-- Task list: `tasks/todo.md`
+- **Active optimization plan**: `C:\Users\mikmikk03\.devin\plans\analyze-and-optimize-codebase.md`
+- **TypeScript and Docker migration plan**: `C:\Users\mikmikk03\.devin\plans\plan-typescript-and-docker.md` (completed)
+- `tasks/plan.md` and `tasks/todo.md` describe the completed JavaScript → TypeScript migration and are now obsolete.
 
 ## Technical Documentation
 
 - Architecture overview, data flow, security model, and deployment notes: `references/technical-architecture.md`
 - Security references and verification checklist: `references/security-checklist.md`
+- Architecture Decision Records (ADRs): `docs/adr-*.md` (being reorganized under `docs/adrs/`)
 
 ## Tech Stack (MVP)
 
-- React 18 + Vite 6 + Tailwind CSS 4
-- Node.js 22 + Express 4
-- MySQL 8 + Prisma 7
-- JWT + bcrypt, Multer, docxtemplater, puppeteer, exceljs
+- **Frontend**: React 18 + TypeScript + Vite 6 + Tailwind CSS 4, React Router DOM 6, TanStack React Query 5, Recharts, Axios, React Hook Form, Zod, Vitest, jsdom
+- **Backend**: Node.js 22 + Express 4 + TypeScript, Prisma 7.9.1 with `@prisma/adapter-mariadb`, MySQL 8 / MariaDB
+- **Auth & security**: JWT (access via secure `httpOnly` cookie), bcrypt, Zod input validation, Helmet, CORS, `express-rate-limit`
+- **Files & reports**: Multer, Puppeteer, ExcelJS, docxtemplater, PizZip
+- **Logging & observability**: pino structured logging, request IDs, versioned health endpoint
+- **Testing**: Vitest (client), Jest + Supertest (server)
+
+## Modular Project Structure
+
+- **Services** (`server/src/services/`) own one bounded responsibility and contain all business logic.
+- **Controllers** (`server/src/controllers/`) are thin: validate input, delegate to services, and format responses.
+- **Validators** (`server/src/validators/`) hold Zod schemas reused across routes and shared validation helpers.
+- **Middleware** (`server/src/middleware/`) encapsulates cross-cutting concerns (auth, logging, error handling, upload, rate limits).
+- **Client utilities** (`client/src/utils/` and `client/src/hooks/`) hold reusable helpers and data-access hooks.
+- **Shared types** (`packages/shared-types/`) are the only cross-workspace dependency for API contracts.
+- **Resilience modules** (`server/src/middleware/request-logger.ts`, `server/src/services/download-token.service.ts`, `server/src/validators/index.ts`) are small, replaceable, and tested in isolation.
+
+## Resilience & Operations
+
+- Security and authorization guidance: `references/security-checklist.md`
+- Resilience runbook (timeouts, retries, rate limits, idempotency, graceful degradation): `RESILIENCE.md` (planned)
+- Operational runbook (deployment, monitoring, backups, incident response): `OPERATIONS.md` (planned)
 
 ## Testing and Test-Driven Development
 
@@ -129,13 +149,14 @@ This checklist aligns with the OWASP Top 10:2025 and common defensive practices 
 
 ### Input validation and trust boundaries
 - **Treat all external input as untrusted**, including HTTP bodies, query params, route params, headers, cookies, file uploads, and data from third-party APIs or LLMs.
-- Validate and sanitize at the API boundary. Cast numeric IDs with `Number` and reject `NaN`. Prefer Zod schemas for complex request bodies.
+- Validate and sanitize at the API boundary. Reject `NaN` IDs and malformed input with Zod. Prefer Zod schemas for complex request bodies.
 - Never trust client-supplied MIME types or file extensions. Verify uploads with an allowlist and magic-byte content checks.
 
 ### Authentication and authorization (A01, A07)
 - Authenticate every `/api` route except `/api/health` with `authMiddleware`.
-- Authorize every action. Use `requireRole` for role checks and `assertClaimAccess` / `canAccessClaim` for claim-scoped resources. Default to **deny**.
+- Authorize every action. Use `requireRole` for role checks and `assertClaimAccess` for claim-scoped resources. Default to **deny**.
 - Enforce least privilege: users should only see and mutate data they own, are assigned to, or are explicitly allowed to manage.
+- Do not return JWTs in JSON or store them in `localStorage`. For binary downloads, use short-lived, file-scoped download tokens on specific GET routes.
 
 ### Output encoding and injection prevention (A05)
 - Use parameterized queries via Prisma; never concatenate user input into SQL.
@@ -146,7 +167,6 @@ This checklist aligns with the OWASP Top 10:2025 and common defensive practices 
 - Hash passwords with bcrypt (≥12 rounds). Use `crypto.randomBytes` or the installed `nanoid` for tokens, nonces, and generated passwords; never `Math.random()`.
 - Keep `JWT_SECRET`, `DATABASE_URL`, and bcrypt rounds in environment variables, not code.
 - Auth cookies must be `httpOnly`, `secure` in production, and `sameSite='lax'`. Clear them with matching options and `maxAge: 0`.
-- Avoid returning JWTs in JSON or storing them in `localStorage`. If a query-string token is required for binary downloads, restrict it to those specific GET routes.
 
 ### File and path safety (A01, A08)
 - Resolve stored file paths only under `UPLOAD_DIR` and `REPORT_DIR` using `resolveFilePath`. Reject absolute paths and `..` traversal before `fs` calls or `res.sendFile`.
@@ -180,5 +200,5 @@ This checklist aligns with the OWASP Top 10:2025 and common defensive practices 
 - Avoid SSRF: never fetch user-supplied URLs without an allowlist of schemes and hosts, and reject private/reserved IPs.
 
 ### Testing
-- After security changes, run targeted tests (e.g., `auth.test.js`, `claim.test.js`, `file-path.test.js`) instead of the full suite unless a broader check is required.
+- After security changes, run targeted tests (e.g., `auth.test.ts`, `claim.test.ts`, `file-path.test.ts`) instead of the full suite unless a broader check is required.
 - Add or update a focused regression test for non-trivial security logic.

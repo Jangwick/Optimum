@@ -1,6 +1,6 @@
 # Security References and Checklist
 
-This is a curated reference list for secure coding and application security. Use it when designing, reviewing, or hardening features in the Optimum stack (React 18 + Vite, Express 4 + Node.js 22, MySQL 8 + Prisma 7, JWT, Multer).
+This is a curated reference list for secure coding and application security. Use it when designing, reviewing, or hardening features in the Optimum stack (React 18 + TypeScript + Vite, Express 4 + TypeScript + Node.js 22, MySQL 8 + Prisma 7, Zod validation, JWT, Multer).
 
 ## OWASP Top 10:2025
 
