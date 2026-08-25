@@ -29,6 +29,7 @@ import { Modal } from '../components/Modal.jsx';
 import { Select } from '../components/Select.jsx';
 import { AppLayout } from '../components/AppLayout.jsx';
 import { setBreadcrumbLabel } from '../components/Breadcrumbs.jsx';
+import { toast } from 'sonner';
 import { type LucideIcon } from 'lucide-react';
 import {
   Lock,
@@ -59,6 +60,9 @@ import {
   Camera,
   Eye,
 } from 'lucide-react';
+
+// LIMIT: this should be shared from server config
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 type Data = Record<string, unknown>;
 
@@ -1205,6 +1209,10 @@ function DocumentsTab({ claimId, onClaimChange }: DocumentsTabProps) {
   const handleUpload = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!file || !categoryId) return;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File too large. Maximum is 20MB.');
+      return;
+    }
     setUploading(true);
     setError(null);
     try {

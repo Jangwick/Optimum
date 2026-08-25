@@ -44,6 +44,10 @@ import {
   Building2,
   type LucideIcon,
 } from 'lucide-react';
+import { toast } from 'sonner';
+
+// LIMIT: this should be shared from server config
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
 interface PartyType {
   value: string;
@@ -169,6 +173,10 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
 
   const saveInspection = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (inspPhotos.some((photo) => photo.size > MAX_FILE_SIZE)) {
+      toast.error('File too large. Maximum is 20MB.');
+      return;
+    }
     setUploading(true);
     try {
       const result = await createInspection(claimId, {
@@ -210,9 +218,15 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
   const handleFileSelect = async (inspectionId: string | number, e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    if (fileList.some((file) => file.size > MAX_FILE_SIZE)) {
+      toast.error('File too large. Maximum is 20MB.');
+      e.target.value = '';
+      return;
+    }
     setUploading(true);
     try {
-      for (const file of files) {
+      for (const file of fileList) {
         await uploadInspectionPhoto(claimId, inspectionId, file, '');
       }
       e.target.value = '';
@@ -226,9 +240,14 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
     e.preventDefault();
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    if (fileList.some((file) => file.size > MAX_FILE_SIZE)) {
+      toast.error('File too large. Maximum is 20MB.');
+      return;
+    }
     setUploading(true);
     try {
-      for (const file of files) {
+      for (const file of fileList) {
         await uploadInspectionPhoto(claimId, inspectionId, file, '');
       }
       triggerRefresh();

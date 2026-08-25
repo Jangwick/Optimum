@@ -20,7 +20,7 @@ export interface SearchResponse {
   };
 }
 
-const MAX_SEARCH_LIMIT = 10;
+const MAX_SEARCH_LIMIT = 100;
 
 export async function searchAll(query: string, limit = 3): Promise<SearchResponse> {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_SEARCH_LIMIT);

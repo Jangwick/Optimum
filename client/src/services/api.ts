@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { classifyApiError } from '../utils/api-error.js';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -31,6 +32,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isAuth && !onLogin) {
       window.location.href = '/login';
     }
+
+    const classified = classifyApiError(error);
+    console.error(`[API] ${classified.kind}: ${classified.message}`);
+
     return Promise.reject(error);
   },
 );
