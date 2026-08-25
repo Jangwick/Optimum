@@ -19,6 +19,7 @@ function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaM
     idleTimeout: Number(parsed.searchParams.get('idleTimeout')) || 600000,
     acquireTimeout: Number(parsed.searchParams.get('acquireTimeout')) || 30000,
     connectTimeout: Number(parsed.searchParams.get('connectTimeout')) || 30000,
+    queryTimeout: Number(parsed.searchParams.get('queryTimeout') ?? process.env.QUERY_TIMEOUT) || 60000,
   };
 }
 

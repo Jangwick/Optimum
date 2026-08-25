@@ -12,6 +12,7 @@ import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import type { AuthUser } from '../middleware/auth.js';
 import puppeteer from 'puppeteer';
+import type { Browser } from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 
@@ -167,12 +168,27 @@ export async function generateReport(claimId: number | string, id: number, user:
   const fileName = `report-${id}-${Date.now()}.pdf`;
   const filePath = path.join(reportOutputDir, String(claim.id), fileName);
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await page.setContent(html, { waitUntil: 'networkidle0' as any });
-  await page.pdf({ path: filePath, format: 'A4', printBackground: true });
-  await browser.close();
+  let browser: Browser | undefined;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      timeout: 60000,
+    });
+    const page = await browser.newPage();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.setContent(html, { waitUntil: 'networkidle0' as any, timeout: 60000 });
+
+    const pdfPromise = page.pdf({ path: filePath, format: 'A4', printBackground: true });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new AppError('PDF generation timed out', 504)), 60_000)
+    );
+    await Promise.race([pdfPromise, timeoutPromise]);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 
   let docxPath: string | null = null;
   if (report.reportTemplate?.path) {
