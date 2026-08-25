@@ -21,10 +21,16 @@ function trimEnv(value: string | undefined, defaultValue: string | undefined = u
 
 const nodeEnv = trimEnv(process.env.NODE_ENV, 'development') ?? 'development';
 
+const clientUrl = trimEnv(process.env.CLIENT_URL) || (nodeEnv === 'production' ? '' : 'http://localhost:5173');
+
+if (nodeEnv === 'production' && (!clientUrl || clientUrl === '*')) {
+  throw new Error('CLIENT_URL must be set to an explicit origin in production; wildcard is not allowed.');
+}
+
 export const config: AppConfig = {
   nodeEnv,
   port: Number(trimEnv(process.env.PORT, '3001')),
-  clientUrl: trimEnv(process.env.CLIENT_URL) || (nodeEnv === 'production' ? '*' : 'http://localhost:5173'),
+  clientUrl,
   databaseUrl: trimEnv(process.env.DATABASE_URL) || '',
   jwtSecret: trimEnv(process.env.JWT_SECRET) || (() => {
     if (nodeEnv === 'production') {
