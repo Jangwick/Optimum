@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { optionalNullableId, optionalNullableString } from './index.js';
+import {
+  PaginationQuerySchema,
+  optionalNullableId,
+  optionalNullableString,
+} from './index.js';
+
+export const ListDocumentsQuerySchema = PaginationQuerySchema;
 
 export const UploadDocumentSchema = z.object({
   documentCategoryId: optionalNullableId(),

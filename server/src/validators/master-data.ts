@@ -16,6 +16,24 @@ export const ListPoliciesQuerySchema = PaginationQuerySchema.extend({
   insuranceCompanyId: optionalId(),
 });
 
+export const ListClaimTypesQuerySchema = PaginationQuerySchema.merge(
+  z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+);
+
+export const ListDocumentCategoriesQuerySchema = PaginationQuerySchema.merge(
+  z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+);
+
+export const ListClaimStatusesQuerySchema = PaginationQuerySchema.merge(
+  z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+);
+
 export const CreateInsuranceCompanySchema = z.object({
   name: z.string().min(1, 'Name is required'),
   code: optionalString(),

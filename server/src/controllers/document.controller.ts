@@ -4,13 +4,14 @@ import { AppError } from '../middleware/error.js';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { UploadDocumentSchema } from '../validators/document.js';
+import { ListDocumentsQuerySchema, UploadDocumentSchema } from '../validators/document.js';
 
 export const getChecklist: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await documentService.getDocumentChecklist(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListDocumentsQuerySchema, req.query);
+    const data = await documentService.getDocumentChecklist(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

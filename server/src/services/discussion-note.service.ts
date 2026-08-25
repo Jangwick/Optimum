@@ -13,18 +13,32 @@ interface DiscussionNoteInput {
   nextAction?: string;
 }
 
-export async function listDiscussionNotes(claimId: number | string, user: AuthUser) {
+export async function listDiscussionNotes(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.discussionNote.findMany({
-    where: { claimId: Number(claimId) },
-    orderBy: { discussedAt: 'desc' },
-    include: {
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.discussionNote.findMany({
+      where,
+      orderBy: { discussedAt: 'desc' },
+      include: {
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.discussionNote.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createDiscussionNote(claimId: number | string, data: DiscussionNoteInput, user: AuthUser) {

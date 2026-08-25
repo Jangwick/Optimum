@@ -1,8 +1,11 @@
 import { api } from './api.js';
 import type { AxiosResponse } from 'axios';
 
-export async function getDocuments(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/documents`);
+export async function getDocuments(
+  claimId: string | number,
+  params: Record<string, unknown> = {}
+): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/documents`, { params });
   return data;
 }
 

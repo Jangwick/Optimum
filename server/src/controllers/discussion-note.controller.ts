@@ -3,6 +3,8 @@ import * as discussionNoteService from '../services/discussion-note.service.js';
 import { AppError } from '../middleware/error.js';
 import type { Request, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { parseWithAppError } from '../validators/index.js';
+import { ListDiscussionNotesQuerySchema } from '../validators/discussion-note.js';
 
 function idParam(req: Request) {
   const id = Number(Number(req.params.id));
@@ -12,8 +14,9 @@ function idParam(req: Request) {
 
 export const listDiscussionNotes: RequestHandler = async (req, res, next) => {
   try {
-    const items = await discussionNoteService.listDiscussionNotes(Number(req.params.claimId), (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListDiscussionNotesQuerySchema, req.query);
+    const data = await discussionNoteService.listDiscussionNotes(Number(req.params.claimId), (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

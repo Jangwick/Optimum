@@ -21,7 +21,12 @@ interface ChecklistGroup {
   uploaded: Record<string, unknown>[];
 }
 
-export async function getDocumentChecklist(claimId: number | string, user: AuthUser): Promise<ChecklistGroup[]> {
+export async function getDocumentChecklist(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+): Promise<{ items: ChecklistGroup[]; count: number; page: number; limit: number }> {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({
     where: { id: Number(claimId) },
     include: { claimType: { include: { requirements: { include: { documentCategory: true } } } } },
@@ -29,12 +34,18 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  const documents = await prisma.document.findMany({
-    where: { claimId: Number(claimId) },
-    include: { documentCategory: true, uploadedBy: { select: { firstName: true, lastName: true } } },
-    orderBy: { createdAt: 'desc' },
-    omit: { data: true },
-  });
+  const where = { claimId: Number(claimId) };
+  const [documents, count] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      include: { documentCategory: true, uploadedBy: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      omit: { data: true },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.document.count({ where }),
+  ]);
 
   const requirements = claim.claimType?.requirements || [];
 
@@ -99,7 +110,7 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
     });
   }
 
-  return result;
+  return { items: result, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function uploadDocument(claimId: number | string, file: Express.Multer.File, data: DocumentData, user: AuthUser) {

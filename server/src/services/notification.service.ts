@@ -6,12 +6,24 @@ interface NotificationInput {
   claimId?: number | string | null;
 }
 
-export async function getNotifications(userId: number) {
-  return prisma.notification.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+export async function getNotifications(
+  userId: number,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 50 } = pagination;
+  const where = { userId };
+
+  const [items, count] = await Promise.all([
+    prisma.notification.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.notification.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createNotification(userId: number, { title, message, claimId }: NotificationInput) {

@@ -185,8 +185,18 @@ export async function deletePolicy(id: number) {
 }
 
 // Lookups
-export async function listClaimTypes() {
-  return prisma.claimType.findMany({ orderBy: { name: 'asc' } });
+export async function listClaimTypes({ search, page = 1, limit = 100 }: PaginationFilters) {
+  const where: any = buildSearchWhere(['name', 'code', 'description'], search);
+  const [items, count] = await Promise.all([
+    prisma.claimType.findMany({
+      where,
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+      orderBy: { name: 'asc' },
+    }),
+    prisma.claimType.count({ where }),
+  ]);
+  return { items: items.map(formatDates), count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createClaimType(data: any) {
@@ -201,8 +211,18 @@ export async function deleteClaimType(id: number) {
   return prisma.claimType.delete({ where: { id } });
 }
 
-export async function listDocumentCategories() {
-  return prisma.documentCategory.findMany({ orderBy: { name: 'asc' } });
+export async function listDocumentCategories({ search, page = 1, limit = 100 }: PaginationFilters) {
+  const where: any = buildSearchWhere(['name', 'code', 'description'], search);
+  const [items, count] = await Promise.all([
+    prisma.documentCategory.findMany({
+      where,
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+      orderBy: { name: 'asc' },
+    }),
+    prisma.documentCategory.count({ where }),
+  ]);
+  return { items: items.map(formatDates), count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createDocumentCategory(data: any) {
@@ -217,6 +237,16 @@ export async function deleteDocumentCategory(id: number) {
   return prisma.documentCategory.delete({ where: { id } });
 }
 
-export async function listClaimStatuses() {
-  return prisma.claimStatus.findMany({ orderBy: { sortOrder: 'asc' } });
+export async function listClaimStatuses({ search: _search, page = 1, limit = 100 }: PaginationFilters) {
+  const where = {};
+  const [items, count] = await Promise.all([
+    prisma.claimStatus.findMany({
+      where,
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+      orderBy: { sortOrder: 'asc' },
+    }),
+    prisma.claimStatus.count({ where }),
+  ]);
+  return { items: items.map(formatDates), count, page: Number(page), limit: Number(limit) };
 }

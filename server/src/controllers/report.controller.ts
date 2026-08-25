@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import type { Request, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { parseWithAppError } from '../validators/index.js';
+import { ListReportsQuerySchema } from '../validators/report.js';
 
 function idParam(req: Request) {
   const id = Number(Number(req.params.id));
@@ -17,8 +19,9 @@ function idParam(req: Request) {
 
 export const listReports: RequestHandler = async (req, res, next) => {
   try {
-    const items = await reportService.listReports(Number(req.params.claimId), (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListReportsQuerySchema, req.query);
+    const data = await reportService.listReports(Number(req.params.claimId), (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

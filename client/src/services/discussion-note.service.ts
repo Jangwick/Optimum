@@ -1,7 +1,10 @@
 import { api } from './api.js';
 
-export async function getDiscussionNotes(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/discussion-notes`);
+export async function getDiscussionNotes(
+  claimId: string | number,
+  params: Record<string, unknown> = {}
+): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/discussion-notes`, { params });
   return data;
 }
 

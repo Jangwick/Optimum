@@ -1,7 +1,10 @@
 import { api } from './api.js';
 
-export async function getReports(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/reports`);
+export async function getReports(
+  claimId: string | number,
+  params: Record<string, unknown> = {}
+): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/reports`, { params });
   return data;
 }
 

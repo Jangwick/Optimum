@@ -6,6 +6,9 @@ import {
   ListInsuranceCompaniesQuerySchema,
   ListClientsQuerySchema,
   ListPoliciesQuerySchema,
+  ListClaimTypesQuerySchema,
+  ListDocumentCategoriesQuerySchema,
+  ListClaimStatusesQuerySchema,
   CreateInsuranceCompanySchema,
   UpdateInsuranceCompanySchema,
   CreateClientSchema,
@@ -147,8 +150,9 @@ export const deletePolicy: RequestHandler = async (req, res, next) => {
 // Lookups
 export const listClaimTypes: RequestHandler = async (req, res, next) => {
   try {
-    const items = await masterDataService.listClaimTypes();
-    res.json({ success: true, items });
+    const filters = parseWithAppError(ListClaimTypesQuerySchema, req.query);
+    const data = await masterDataService.listClaimTypes(filters);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any); }
 }
 
@@ -179,8 +183,9 @@ export const deleteClaimType: RequestHandler = async (req, res, next) => {
 
 export const listDocumentCategories: RequestHandler = async (req, res, next) => {
   try {
-    const items = await masterDataService.listDocumentCategories();
-    res.json({ success: true, items });
+    const filters = parseWithAppError(ListDocumentCategoriesQuerySchema, req.query);
+    const data = await masterDataService.listDocumentCategories(filters);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any); }
 }
 
@@ -211,7 +216,8 @@ export const deleteDocumentCategory: RequestHandler = async (req, res, next) => 
 
 export const listClaimStatuses: RequestHandler = async (req, res, next) => {
   try {
-    const items = await masterDataService.listClaimStatuses();
-    res.json({ success: true, items });
+    const filters = parseWithAppError(ListClaimStatusesQuerySchema, req.query);
+    const data = await masterDataService.listClaimStatuses(filters);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any); }
 }
