@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { execSync } from 'node:child_process';
 
-function getTestDatabaseUrl() {
+function getTestDatabaseUrl(): string {
   const base = process.env.DATABASE_URL;
   if (!base) {
     return 'mysql://root:@localhost:3306/claims_solutions_test?schema=public';

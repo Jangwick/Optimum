@@ -3,6 +3,7 @@ import { useState, useCallback, type Dispatch, type SetStateAction } from 'react
 interface UseListOptions {
   initialPage?: number;
   initialLimit?: number;
+  initialSearch?: string;
 }
 
 interface UseListFilters {
@@ -27,10 +28,10 @@ interface UseListState {
   reload: () => void;
 }
 
-export function useList({ initialPage = 1, initialLimit = 25 }: UseListOptions = {}): UseListState {
+export function useList({ initialPage = 1, initialLimit = 25, initialSearch = '' }: UseListOptions = {}): UseListState {
   const [page, setPage] = useState(initialPage);
   const [limit, setLimit] = useState(initialLimit);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [filters, setFilters] = useState<UseListFilters>({});
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');

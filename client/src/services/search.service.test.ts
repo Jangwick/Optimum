@@ -8,15 +8,16 @@ vi.mock('./api.js', () => ({
   },
 }));
 
+const mockData = {
+  success: true,
+  query: 'CS',
+  limit: 3,
+  groups: { claims: [], clients: [], policies: [], users: [] },
+};
+
 describe('search.service', () => {
   it('searchAll calls /search with query and limit', async () => {
-    const mockData = {
-      success: true,
-      query: 'CS',
-      limit: 3,
-      groups: { claims: [], clients: [], policies: [], users: [] },
-    };
-    api.get.mockResolvedValueOnce({ data: mockData });
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: mockData });
 
     const result = await searchAll('CS', 3);
 
@@ -25,7 +26,7 @@ describe('search.service', () => {
   });
 
   it('searchAll uses default limit of 3', async () => {
-    api.get.mockResolvedValueOnce({ data: { success: true } });
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ data: { success: true, query: 'test', limit: 3, groups: { claims: [], clients: [], policies: [], users: [] } } });
     await searchAll('test');
     expect(api.get).toHaveBeenCalledWith('/search', { params: { q: 'test', limit: 3 } });
   });

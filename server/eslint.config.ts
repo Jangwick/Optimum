@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import type { Linter } from 'eslint';
 
 export default [
   js.configs.recommended,
@@ -22,9 +23,9 @@ export default [
     },
   },
   {
-    files: ['prisma/seed.*', 'scripts/*.{js,ts}'],
+    files: ['prisma.config.*', 'prisma/seed.*', 'scripts/*.{js,ts}'],
     rules: {
       'no-console': 'off',
     },
   },
-];
+] satisfies Linter.Config[];

@@ -3,6 +3,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import type { Linter } from 'eslint';
 
 export default [
   js.configs.recommended,
@@ -34,4 +35,4 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
-];
+] satisfies Linter.Config[];

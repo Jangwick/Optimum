@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-require('dotenv/config');
+import 'dotenv/config';
 
-function getTestDatabaseUrl() {
+function getTestDatabaseUrl(): string {
   const base = process.env.DATABASE_URL;
   if (!base) {
     return 'mysql://root:@localhost:3306/claims_solutions_test?schema=public';

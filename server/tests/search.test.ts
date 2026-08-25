@@ -3,11 +3,11 @@ import app from '../src/app.js';
 import { prisma } from '../src/db/client.js';
 import bcrypt from 'bcrypt';
 
-let engineerId;
-let accountantId;
+let engineerId: number;
+let accountantId: number;
 
 describe('Search endpoints', () => {
-  let adminId;
+  let adminId: number;
 
   beforeAll(async () => {
     const [adminRole, engineerRole, accountantRole] = await Promise.all([
@@ -129,7 +129,7 @@ describe('Search endpoints', () => {
     expect(Array.isArray(users)).toBe(true);
 
     // Client result
-    expect(clients.some((c) => c.type === 'client' && c.title === 'Test Client')).toBe(true);
+    expect(clients.some((c: { type: string; title: string }) => c.type === 'client' && c.title === 'Test Client')).toBe(true);
   });
 
   it('GET /api/search returns grouped claim results for admin', async () => {
@@ -145,7 +145,7 @@ describe('Search endpoints', () => {
     expect(res.body.query).toBe('CS-SEARCH');
 
     const { claims, clients } = res.body.groups;
-    expect(claims.some((c) => c.type === 'claim' && c.title === 'CS-SEARCH-0001')).toBe(true);
+    expect(claims.some((c: { type: string; title: string }) => c.type === 'claim' && c.title === 'CS-SEARCH-0001')).toBe(true);
     expect(clients.length).toBe(0);
   });
 
