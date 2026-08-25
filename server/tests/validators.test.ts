@@ -30,9 +30,23 @@ describe('validators', () => {
     expect(() => parseWithAppError(PaginationQuerySchema, { page: '1', limit: '200' })).toThrow(AppError);
   });
 
+  it('caps limit at 100', () => {
+    const parsed = parseWithAppError(PaginationQuerySchema, { page: '1', limit: '100' });
+    expect(parsed.limit).toBe(100);
+    expect(parsed.page).toBe(1);
+  });
+
+  it('rejects invalid page and limit values', () => {
+    expect(() => parseWithAppError(PaginationQuerySchema, { page: '0', limit: '20' })).toThrow(AppError);
+    expect(() => parseWithAppError(PaginationQuerySchema, { page: '1', limit: '0' })).toThrow(AppError);
+    expect(() => parseWithAppError(PaginationQuerySchema, { page: '-1', limit: '20' })).toThrow(AppError);
+    expect(() => parseWithAppError(PaginationQuerySchema, { page: '1', limit: '-5' })).toThrow(AppError);
+    expect(() => parseWithAppError(PaginationQuerySchema, { page: 'foo', limit: 'bar' })).toThrow(AppError);
+  });
+
   it('returns the first zod message', () => {
     const err = new z.ZodError([
-      { message: 'first issue', path: ['a'], code: 'invalid_type', expected: 'string', received: 'number' },
+      { message: 'first issue', path: ['a'], code: 'invalid_type', expected: 'string', input: 0 },
     ]);
     expect(firstZodMessage(err)).toBe('first issue');
   });

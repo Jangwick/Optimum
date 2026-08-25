@@ -4,13 +4,14 @@ import { AppError } from '../middleware/error.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { CreateInspectionSchema, UpdateInspectionSchema, InspectionPhotoCaptionSchema } from '../validators/inspection.js';
+import { ListInspectionsQuerySchema, CreateInspectionSchema, UpdateInspectionSchema, InspectionPhotoCaptionSchema } from '../validators/inspection.js';
 
 export const listInspections: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await inspectionService.listInspections(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListInspectionsQuerySchema, req.query);
+    const data = await inspectionService.listInspections(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

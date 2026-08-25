@@ -7,6 +7,8 @@ import type { AuthUser } from '../middleware/auth.js';
 interface TaskFilters {
   claimId?: number | string;
   status?: string;
+  page?: number | string;
+  limit?: number | string;
 }
 
 interface TaskInput {
@@ -34,20 +36,28 @@ function toDateOrNull(value: string | Date | null | undefined): Date | null {
 }
 
 export async function getTasks(filters: TaskFilters, user: AuthUser) {
+  const { claimId, status, page = 1, limit = 20 } = filters;
   const where: { assignedToId?: number; claimId?: number; status?: string } = {};
   if (user.role !== 'ADMIN') where.assignedToId = user.id;
-  if (filters.claimId) where.claimId = Number(filters.claimId);
-  if (filters.status) where.status = filters.status;
+  if (claimId) where.claimId = Number(claimId);
+  if (status) where.status = status;
 
-  return prisma.task.findMany({
-    where,
-    include: {
-      claim: { select: { id: true, claimNumber: true } },
-      assignedTo: { select: { firstName: true, lastName: true } },
-      createdBy: { select: { firstName: true, lastName: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [items, count] = await Promise.all([
+    prisma.task.findMany({
+      where,
+      include: {
+        claim: { select: { id: true, claimNumber: true } },
+        assignedTo: { select: { firstName: true, lastName: true } },
+        createdBy: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.task.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createTask(data: TaskInput, createdBy: number) {

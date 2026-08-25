@@ -18,16 +18,30 @@ function toDateOrNull(value: string | Date | null | undefined): Date | null {
   return value instanceof Date ? value : new Date(value);
 }
 
-export async function listInvestigations(claimId: number | string, user: AuthUser) {
+export async function listInvestigations(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.investigation.findMany({
-    where: { claimId: Number(claimId) },
-    orderBy: { createdAt: 'desc' },
-    include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
-  });
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.investigation.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { completedBy: { select: { id: true, firstName: true, lastName: true } } },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.investigation.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createInvestigation(claimId: number | string, data: InvestigationInput, user: AuthUser) {

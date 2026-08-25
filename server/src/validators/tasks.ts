@@ -4,12 +4,13 @@ import {
   optionalNullableString,
   optionalId,
   requiredId,
+  PaginationQuerySchema,
 } from './index.js';
 
 export const ListTasksQuerySchema = z.object({
   claimId: optionalId(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED']).exactOptional(),
-});
+}).merge(PaginationQuerySchema);
 
 export const CreateTaskSchema = z.object({
   title: z.string().min(1, 'Title is required'),

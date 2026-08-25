@@ -18,30 +18,44 @@ interface InspectionData {
   inspectorId?: number | string | null;
 }
 
-export async function listInspections(claimId: number | string, user: AuthUser) {
+export async function listInspections(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.inspection.findMany({
-    where: { claimId: Number(claimId) },
-    orderBy: { scheduledAt: 'desc' },
-    include: {
-      photos: {
-        select: {
-          id: true,
-          fileName: true,
-          originalName: true,
-          mimeType: true,
-          size: true,
-          caption: true,
-          createdAt: true,
-          updatedAt: true,
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.inspection.findMany({
+      where,
+      orderBy: { scheduledAt: 'desc' },
+      include: {
+        photos: {
+          select: {
+            id: true,
+            fileName: true,
+            originalName: true,
+            mimeType: true,
+            size: true,
+            caption: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
+        inspector: { select: { id: true, firstName: true, lastName: true } },
       },
-      inspector: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.inspection.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createInspection(claimId: number | string, data: InspectionData, user: AuthUser) {

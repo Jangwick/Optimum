@@ -3,13 +3,14 @@ import * as investigationService from '../services/investigation.service.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { CreateInvestigationSchema, UpdateInvestigationSchema } from '../validators/investigation.js';
+import { ListInvestigationsQuerySchema, CreateInvestigationSchema, UpdateInvestigationSchema } from '../validators/investigation.js';
 
 export const listInvestigations: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await investigationService.listInvestigations(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListInvestigationsQuerySchema, req.query);
+    const data = await investigationService.listInvestigations(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

@@ -8,8 +8,8 @@ import { ListTasksQuerySchema, CreateTaskSchema, UpdateTaskSchema } from '../val
 export const listTasks: RequestHandler = async (req, res, next) => {
   try {
     const filters = parseWithAppError(ListTasksQuerySchema, req.query);
-    const items = await taskService.getTasks(filters, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const data = await taskService.getTasks(filters, (req as AuthenticatedRequest).user);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

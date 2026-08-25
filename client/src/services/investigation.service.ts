@@ -1,7 +1,7 @@
 import { api } from './api.js';
 
-export async function getInvestigations(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/investigations`);
+export async function getInvestigations(claimId: string | number, params?: Record<string, unknown>): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/investigations`, { params });
   return data;
 }
 
@@ -30,8 +30,8 @@ export async function deleteContact(claimId: string | number, id: string | numbe
   return data;
 }
 
-export async function getInspections(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/inspections`);
+export async function getInspections(claimId: string | number, params?: Record<string, unknown>): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/inspections`, { params });
   return data;
 }
 
