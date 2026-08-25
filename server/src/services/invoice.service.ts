@@ -1,9 +1,14 @@
 import { prisma } from '../db/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import type { AuthUser } from '../middleware/auth.js';
+
+function isUniqueConstraintError(err: unknown): err is Prisma.PrismaClientKnownRequestError {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
 
 interface InvoiceInput {
   feeIds?: (number | string)[];
@@ -19,10 +24,10 @@ interface PaymentInput {
   notes?: string;
 }
 
-async function generateInvoiceNumber(): Promise<string> {
+async function generateInvoiceNumber(tx: Prisma.TransactionClient = prisma): Promise<string> {
   const now = new Date();
   const year = now.getFullYear();
-  const count = await prisma.invoice.count({ where: { createdAt: { gte: new Date(year, 0, 1) } } });
+  const count = await tx.invoice.count({ where: { createdAt: { gte: new Date(year, 0, 1) } } });
   return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
 }
 
@@ -71,29 +76,41 @@ export async function createInvoice(claimId: number | string, data: InvoiceInput
   }
 
   const totalAmount = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-  const invoiceNumber = await generateInvoiceNumber();
 
-  const created = await prisma.$transaction(async (tx) => {
-    const inv = await tx.invoice.create({
-      data: {
-        claimId: Number(claimId),
-        invoiceNumber,
-        issueDate: new Date(),
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
-        totalAmount,
-        status: 'ISSUED',
-        notes: data.notes ?? null,
-        createdById: user.id,
-      },
-    });
+  let created: { id: number } | undefined;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      created = await prisma.$transaction(async (tx) => {
+        const invoiceNumber = await generateInvoiceNumber(tx);
+        const inv = await tx.invoice.create({
+          data: {
+            claimId: Number(claimId),
+            invoiceNumber,
+            issueDate: new Date(),
+            dueDate: data.dueDate ? new Date(data.dueDate) : null,
+            totalAmount,
+            status: 'ISSUED',
+            notes: data.notes ?? null,
+            createdById: user.id,
+          },
+        });
 
-    await tx.fee.updateMany({
-      where: { id: { in: feeIds } },
-      data: { isInvoiced: true, invoiceId: inv.id },
-    });
+        await tx.fee.updateMany({
+          where: { id: { in: feeIds } },
+          data: { isInvoiced: true, invoiceId: inv.id },
+        });
 
-    return inv;
-  });
+        return inv;
+      }, { maxWait: 5000, timeout: 10000 });
+      break;
+    } catch (err) {
+      if (attempt === 4 || !isUniqueConstraintError(err)) throw err;
+    }
+  }
+
+  if (!created) {
+    throw new AppError('Invoice creation failed after retries', 500);
+  }
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: created.id },
