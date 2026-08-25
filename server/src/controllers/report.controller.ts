@@ -36,7 +36,8 @@ export const createReport: RequestHandler = async (req, res, next) => {
 
 export const generateReport: RequestHandler = async (req, res, next) => {
   try {
-    const item = await reportService.generateReport(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user);
+    const signal = (req as { signal?: AbortSignal }).signal;
+    const item = await reportService.generateReport(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user, signal);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -76,6 +77,12 @@ export const downloadReport: RequestHandler = async (req, res, next) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
+
+    const signal = (req as { signal?: AbortSignal }).signal;
+    if (signal) {
+      signal.addEventListener('abort', () => { res.destroy(); }, { once: true });
+    }
+
     res.sendFile(resolved);
   } catch (err) { next(err as any);
   }
@@ -97,6 +104,12 @@ export const downloadDocx: RequestHandler = async (req, res, next) => {
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
+
+    const signal = (req as { signal?: AbortSignal }).signal;
+    if (signal) {
+      signal.addEventListener('abort', () => { res.destroy(); }, { once: true });
+    }
+
     res.sendFile(resolved);
   } catch (err) { next(err as any);
   }

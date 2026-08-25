@@ -3,6 +3,7 @@ import * as documentService from '../services/document.service.js';
 import { AppError } from '../middleware/error.js';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import type { Readable } from 'stream';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
 import { ListDocumentsQuerySchema, UploadDocumentSchema } from '../validators/document.js';
 
@@ -41,14 +42,18 @@ async function sendDocumentFile(req: Request, res: Response, next: NextFunction,
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
     const id = parseWithAppError(IdParamSchema, req.params.id);
-    const doc = (await documentService.getDocumentFile(claimId, id, (req as AuthenticatedRequest).user)) as { originalName: string; mimeType: string; buffer: Buffer };
+    const doc = (await documentService.getDocumentFile(claimId, id, (req as AuthenticatedRequest).user)) as {
+      originalName: string;
+      mimeType: string;
+      stream: Readable;
+    };
 
     res.setHeader(
       'Content-Disposition',
       `${disposition}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.send(doc.buffer);
+    doc.stream.on('error', (err) => next(err as any)).pipe(res);
   } catch (err) { next(err as any);
   }
 }

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { Readable } from 'stream';
 import type { Express } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
@@ -188,7 +189,11 @@ export async function deleteDocument(claimId: number | string, id: number, user:
   await prisma.document.delete({ where: { id } });
 }
 
-export async function getDocumentFile(claimId: number | string, id: number, user: AuthUser): Promise<Record<string, unknown>> {
+export async function getDocumentFile(
+  claimId: number | string,
+  id: number,
+  user: AuthUser
+): Promise<{ originalName: string; mimeType: string; stream: Readable; isPlaceholder?: boolean }> {
   const doc = await prisma.document.findFirst({
     where: { id, claimId: Number(claimId) },
     include: { claim: true },
@@ -197,14 +202,15 @@ export async function getDocumentFile(claimId: number | string, id: number, user
   assertClaimAccess(user, doc.claim);
 
   // Prefer BLOB data stored in the database (persistent across deploys)
+  // LIMIT: The whole BLOB is materialized in memory from the Prisma adapter; the upgrade path is a streaming SQL query or an object store.
   if (doc.data) {
-    return { ...doc, buffer: Buffer.from(doc.data as Uint8Array) };
+    return { originalName: doc.originalName, mimeType: doc.mimeType, stream: Readable.from(doc.data as Uint8Array) };
   }
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(doc.path);
   if (resolved && fs.existsSync(resolved)) {
-    return { ...doc, buffer: fs.readFileSync(resolved) };
+    return { originalName: doc.originalName, mimeType: doc.mimeType, stream: fs.createReadStream(resolved) };
   }
 
   // File is missing (ephemeral filesystem lost it) — return a text placeholder
@@ -212,5 +218,5 @@ export async function getDocumentFile(claimId: number | string, id: number, user
     `This document ("${doc.originalName}") was uploaded to the server's local disk, ` +
     'which was lost during a redeploy. Please re-upload the file to restore it.'
   );
-  return { ...doc, buffer: placeholder, mimeType: 'text/plain', isPlaceholder: true };
+  return { originalName: doc.originalName, mimeType: 'text/plain', stream: Readable.from(placeholder), isPlaceholder: true };
 }

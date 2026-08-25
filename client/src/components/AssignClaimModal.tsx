@@ -40,6 +40,16 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }: AssignClaimM
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        onSaved?.();
+        onClose();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [success, onSaved, onClose]);
+
+  useEffect(() => {
     if (!open || !claim) return;
     setForm({
       engineerId: claim.engineerId ? String(claim.engineerId) : '',
@@ -71,10 +81,6 @@ export function AssignClaimModal({ open, onClose, claim, onSaved }: AssignClaimM
         assignedByName: form.assignedByName,
       });
       setSuccess(true);
-      setTimeout(() => {
-        onSaved?.();
-        onClose();
-      }, 600);
     } catch (err) {
       setError(
         (err instanceof AxiosError && err.response?.data?.error) ||

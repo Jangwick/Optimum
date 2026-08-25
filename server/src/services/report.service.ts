@@ -100,7 +100,7 @@ export async function createReportDraft(claimId: number | string, data: ReportDr
   return report;
 }
 
-export async function generateReport(claimId: number | string, id: number, user: AuthUser) {
+export async function generateReport(claimId: number | string, id: number, user: AuthUser, signal?: AbortSignal) {
   const report = await prisma.report.findUnique({
     where: { id },
     include: {
@@ -175,15 +175,18 @@ export async function generateReport(claimId: number | string, id: number, user:
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
       timeout: 60000,
     });
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
     const page = await browser.newPage();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await page.setContent(html, { waitUntil: 'networkidle0' as any, timeout: 60000 });
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
 
     const pdfPromise = page.pdf({ path: filePath, format: 'A4', printBackground: true });
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new AppError('PDF generation timed out', 504)), 60_000)
     );
     await Promise.race([pdfPromise, timeoutPromise]);
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
   } finally {
     if (browser) {
       await browser.close();
@@ -194,6 +197,7 @@ export async function generateReport(claimId: number | string, id: number, user:
   if (report.reportTemplate?.path) {
     const templatePath = resolveFilePath(report.reportTemplate.path, config.uploadDir);
     if (templatePath && fs.existsSync(templatePath)) {
+      if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
       try {
         const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);
