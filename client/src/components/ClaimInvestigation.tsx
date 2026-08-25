@@ -20,7 +20,8 @@ import {
   getAutoReserve,
 } from '../services/discussion-note.service.js';
 import { updateClaim } from '../services/claim.service.js';
-import { authUrl } from '../services/api.js';
+import { SecureImage } from './SecureImage.jsx';
+import { SecureDownloadLink } from './SecureDownloadLink.jsx';
 import { formatCurrency } from '../utils/currency.js';
 import { Select } from './Select.jsx';
 import {
@@ -924,8 +925,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
                                   className="w-full h-full block cursor-zoom-in"
                                   title={`View ${p.originalName as string | undefined}`}
                                 >
-                                  <img
-                                    src={authUrl(`/api/claims/${claimId}/inspections/photos/${p.id as string | number}`)}
+                                  <SecureImage
+                                    resource={`/api/claims/${claimId}/inspections/photos/${p.id as string | number}`}
                                     alt={p.originalName as string | undefined}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                     loading="lazy"
@@ -994,14 +995,14 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <a
-                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`)}
+                <SecureDownloadLink
+                  resource={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`}
                   download={viewingPhoto.originalName as string | undefined}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
                   title="Download"
                 >
                   <Download size={18} />
-                </a>
+                </SecureDownloadLink>
                 <button
                   onClick={() => setViewingPhoto(null)}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
@@ -1012,8 +1013,8 @@ export default function ClaimInvestigation({ claimId, claim, onClaimChange }: Cl
               </div>
             </div>
             <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
-              <img
-                src={authUrl(`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`)}
+              <SecureImage
+                resource={`/api/claims/${claimId}/inspections/photos/${viewingPhoto.id as string | number}`}
                 alt={viewingPhoto.originalName as string | undefined}
                 className="max-w-full max-h-[65vh] rounded-lg object-contain"
               />

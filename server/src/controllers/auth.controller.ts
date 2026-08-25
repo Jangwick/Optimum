@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { login, setAuthCookie, clearAuthCookie, changePassword, updateProfile } from '../services/auth.service.js';
+import { createDownloadToken } from '../services/download-token.service.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -13,7 +14,7 @@ export const loginHandler: RequestHandler = async (req, res, next) => {
     const { token, user } = await login(email, password);
     setAuthCookie(res, token);
 
-    res.json({ success: true, token, user });
+    res.json({ success: true, user });
   } catch (err) { next(err as any);
   }
 }
@@ -25,6 +26,19 @@ export const logoutHandler: RequestHandler = (req, res) => {
 
 export const meHandler: RequestHandler = (req, res) => {
   res.json({ success: true, user: (req as AuthenticatedRequest).user });
+}
+
+export const downloadTokenHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const resource = typeof req.query.resource === 'string' ? req.query.resource : '';
+    if (!resource || !resource.startsWith('/api/')) {
+      return res.status(400).json({ success: false, error: 'Invalid resource' });
+    }
+
+    const token = createDownloadToken((req as AuthenticatedRequest).user, resource);
+    res.json({ success: true, token, expiresIn: '5m' });
+  } catch (err) { next(err as any);
+  }
 }
 
 export const changePasswordHandler: RequestHandler = async (req, res, next) => {

@@ -17,13 +17,6 @@ export async function downloadDocument(claimId: string | number, docId: string |
   return api.get<Blob>(`/claims/${claimId}/documents/${docId}/download`, { responseType: 'blob' });
 }
 
-export function getDocumentPreviewUrl(claimId: string | number, docId: string | number): string {
-  let token: string | null = null;
-  try { token = localStorage.getItem('token'); } catch { /* localStorage not available */ }
-  const base = `/api/claims/${claimId}/documents/${docId}/preview`;
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
-}
-
 export async function markDocumentReceived(claimId: string | number, docId: string | number): Promise<unknown> {
   const { data } = await api.put(`/claims/${claimId}/documents/${docId}/received`);
   return data;

@@ -46,14 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUser]);
 
   const login = async (credentials: Record<string, unknown>) => {
-    const { token, user: me } = (await loginApi(credentials)) as { token: string; user: AuthUser };
-    if (token) {
-      try {
-        localStorage.setItem('token', token);
-      } catch {
-        // ignore
-      }
-    }
+    const { user: me } = (await loginApi(credentials)) as { user: AuthUser };
     setUser(me);
     return me;
   };

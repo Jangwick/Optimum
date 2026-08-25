@@ -29,7 +29,7 @@ import {
   uploadInspectionPhoto,
   deleteInspectionPhoto,
 } from '../services/investigation.service.js';
-import { authUrl } from '../services/api.js';
+import { SecureImage } from './SecureImage.jsx';
 import { Select } from './Select.jsx';
 
 const PARTY_TYPES: { value: string; label: string; icon: LucideIcon }[] = [
@@ -581,8 +581,8 @@ function PhotosStep({ claimId, refresh, onChanged, onBack }: PhotosStepProps) {
               return (
                 <figure key={String(photo.id)} className="border border-surface-border rounded-lg overflow-hidden bg-surface">
                   <div className="relative group">
-                    <img
-                      src={authUrl(`/api/claims/${claimId}/inspections/photos/${photo.id as string | number}`)}
+                    <SecureImage
+                      resource={`/api/claims/${claimId}/inspections/photos/${photo.id as string | number}`}
                       alt={photo.originalName as string | undefined}
                       className="w-full h-48 object-cover bg-surface-container-high"
                     />

@@ -10,9 +10,10 @@ import {
   markDocumentReceived,
   deleteDocument,
   downloadDocument,
-  getDocumentPreviewUrl,
 } from '../services/document.service.js';
-import { authUrl } from '../services/api.js';
+import { useDownloadUrl } from '../hooks/useDownloadUrl.js';
+import { SecureImage } from '../components/SecureImage.jsx';
+import { SecureDownloadLink } from '../components/SecureDownloadLink.jsx';
 import { getAssessments, createAssessment, deleteAssessment } from '../services/assessment.service.js';
 import { getSettlement, saveSettlement, getOffers, createOffer, respondToOffer } from '../services/settlement.service.js';
 import { getReports, createReport, generateReport, askClarification, getDownloadUrl } from '../services/report.service.js';
@@ -841,6 +842,11 @@ export function DocumentPreview({ claimId, documents = [] }: DocumentPreviewProp
   const canPreview = selectedDocument ? isPreviewable(getString(selectedDocument, 'mimeType')) : false;
   const isDocxPreview = selectedDocument ? isDocx(getString(selectedDocument, 'mimeType')) : false;
 
+  const selectedDocId = String(getId(selectedDocument, 'id') ?? '');
+  const downloadResource = selectedDocId ? `/api/claims/${claimId}/documents/${selectedDocId}/download` : '';
+  const previewResource = selectedDocId ? `/api/claims/${claimId}/documents/${selectedDocId}/preview` : '';
+  const { url: previewUrl, loading: previewLoading } = useDownloadUrl(previewResource);
+
   useEffect(() => {
     if (!open || !isDocxPreview || !selectedDocument) return;
     let cancelled = false;
@@ -849,8 +855,8 @@ export function DocumentPreview({ claimId, documents = [] }: DocumentPreviewProp
     (async () => {
       try {
         const mammoth = await import('mammoth');
-        const response = await fetch(`/api/claims/${claimId}/documents/${String(getId(selectedDocument, 'id') ?? '')}/preview`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        const response = await fetch(`/api/claims/${claimId}/documents/${selectedDocId}/preview`, {
+          credentials: 'include',
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const arrayBuffer = await response.arrayBuffer();
@@ -864,7 +870,7 @@ export function DocumentPreview({ claimId, documents = [] }: DocumentPreviewProp
       }
     })();
     return () => { cancelled = true; };
-  }, [open, isDocxPreview, claimId, selectedDocument]);
+  }, [open, isDocxPreview, claimId, selectedDocument, selectedDocId]);
 
   return (
     <>
@@ -901,22 +907,29 @@ export function DocumentPreview({ claimId, documents = [] }: DocumentPreviewProp
                   ariaLabel="Preview document"
                 />
               </div>
-              <a
-                href={authUrl(`/api/claims/${claimId}/documents/${String(getId(selectedDocument, 'id') ?? '')}/download`)}
+              <SecureDownloadLink
+                resource={downloadResource}
+                download={getString(selectedDocument, 'originalName')}
                 className="h-10 px-4 inline-flex items-center justify-center gap-2 rounded-lg border border-outline text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-primary transition-colors"
               >
                 <Download size={16} />
                 Download
-              </a>
+              </SecureDownloadLink>
             </div>
             {canPreview ? (
               <div className="border border-surface-border rounded-lg overflow-hidden bg-surface-container-low">
-                <iframe
-                  key={String(getId(selectedDocument, 'id') ?? '')}
-                  src={getDocumentPreviewUrl(claimId, String(getId(selectedDocument, 'id') ?? ''))}
-                  title="Document preview"
-                  className="w-full h-[65vh] bg-white"
-                />
+                {previewUrl ? (
+                  <iframe
+                    key={selectedDocId}
+                    src={previewUrl}
+                    title="Document preview"
+                    className="w-full h-[65vh] bg-white"
+                  />
+                ) : (
+                  <div className="w-full h-[65vh] flex items-center justify-center text-on-surface-variant">
+                    {previewLoading ? 'Loading preview...' : 'Unable to load preview'}
+                  </div>
+                )}
               </div>
             ) : isDocxPreview ? (
               <div className="border border-surface-border rounded-lg bg-white overflow-y-auto h-[65vh] p-6">
@@ -1087,8 +1100,8 @@ export function InspectionSummary({ claimId, inspections = [] }: InspectionSumma
                       className="w-full block cursor-zoom-in"
                       title="Click to view full size"
                     >
-                      <img
-                        src={authUrl(`/api/claims/${claimId}/inspections/photos/${String(getId(photo, 'id') ?? '')}`)}
+                      <SecureImage
+                        resource={`/api/claims/${claimId}/inspections/photos/${String(getId(photo, 'id') ?? '')}`}
                         alt={getString(photo, 'originalName')}
                         className="w-full h-48 object-cover bg-surface-container-high"
                       />
@@ -1122,14 +1135,14 @@ export function InspectionSummary({ claimId, inspections = [] }: InspectionSumma
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <a
-                  href={authUrl(`/api/claims/${claimId}/inspections/photos/${String(getId(viewingPhoto, 'id') ?? '')}`)}
+                <SecureDownloadLink
+                  resource={`/api/claims/${claimId}/inspections/photos/${String(getId(viewingPhoto, 'id') ?? '')}`}
                   download={getString(viewingPhoto, 'originalName')}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
                   title="Download"
                 >
                   <Download size={18} />
-                </a>
+                </SecureDownloadLink>
                 <button
                   onClick={() => setViewingPhoto(null)}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors"
@@ -1140,8 +1153,8 @@ export function InspectionSummary({ claimId, inspections = [] }: InspectionSumma
               </div>
             </div>
             <div className="p-4 bg-surface-container-low flex items-center justify-center max-h-[70vh]">
-              <img
-                src={authUrl(`/api/claims/${claimId}/inspections/photos/${String(getId(viewingPhoto, 'id') ?? '')}`)}
+              <SecureImage
+                resource={`/api/claims/${claimId}/inspections/photos/${String(getId(viewingPhoto, 'id') ?? '')}`}
                 alt={getString(viewingPhoto, 'originalName')}
                 className="max-w-full max-h-[65vh] rounded-lg object-contain"
               />
