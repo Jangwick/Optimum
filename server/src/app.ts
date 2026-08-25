@@ -38,6 +38,14 @@ import searchRoutes from './routes/search.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// In-flight request tracking for graceful shutdown
+export let activeRequests = 0;
+export let isShuttingDown = false;
+
+export function setShuttingDown(value: boolean): void {
+  isShuttingDown = value;
+}
+
 const app: Express = express();
 
 // Trust proxy — Railway uses a reverse proxy
@@ -69,6 +77,26 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(requestLogger);
 app.use(requestSignalMiddleware);
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (isShuttingDown) {
+    res.status(503).json({ success: false, error: 'Server is shutting down' });
+    return;
+  }
+
+  activeRequests += 1;
+
+  const onFinished = () => {
+    res.removeListener('finish', onFinished);
+    res.removeListener('close', onFinished);
+    activeRequests -= 1;
+  };
+
+  res.on('finish', onFinished);
+  res.on('close', onFinished);
+
+  next();
+});
 
 app.use(
   rateLimit({
