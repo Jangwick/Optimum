@@ -14,6 +14,10 @@ function getTestDatabaseUrl(): string {
 process.env.DATABASE_URL = getTestDatabaseUrl();
 
 export default async function () {
+  if (process.env.SKIP_DB_SETUP === 'true') {
+    return;
+  }
+
   execSync('npx prisma db push --accept-data-loss', {
     stdio: 'inherit',
     env: process.env,
