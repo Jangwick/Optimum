@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { Logger } from 'pino';
 import { logger } from '../config/logger.js';
+import { getVersion } from '../config/version.js';
 import crypto from 'node:crypto';
 
 declare module 'express-serve-static-core' {
@@ -36,6 +37,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
         path: req.path,
         statusCode: status,
         duration_ms: duration,
+        version: getVersion(),
       },
       'request complete',
     );

@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
+import { sanitizeLogString } from '../utils/sanitize-log.js';
 import { logAction } from './audit.service.js';
 
 interface ActivityFilters {
@@ -38,12 +39,14 @@ export async function recordActivity(
   actorId: number | null | undefined,
   source = 'SYSTEM'
 ) {
+  const sanitizedDescription = sanitizeLogString(description);
+
   try {
     return await prisma.claimActivity.create({
       data: {
         claimId: Number(claimId),
         activityType,
-        description,
+        description: sanitizedDescription,
         actorId: actorId ?? null,
         source,
         occurredAt: new Date(),
@@ -100,18 +103,23 @@ export async function addActivity(claimId: number | string, data: ActivityData, 
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
+  const sanitizedDescription = sanitizeLogString(data.description);
+
   const activity = await prisma.claimActivity.create({
     data: {
       claimId: Number(claimId),
       activityType: data.activityType,
       occurredAt: data.occurredAt ? toDateOrNull(data.occurredAt) : new Date(),
-      description: data.description,
+      description: sanitizedDescription,
       source: 'USER',
       actorId: addedBy,
     },
   });
 
-  await logAction('ACTIVITY_ADDED', 'Claim', Number(claimId), addedBy, { activityType: data.activityType });
+  await logAction('ACTIVITY_ADDED', 'Claim', Number(claimId), addedBy, {
+    activityType: data.activityType,
+    description: sanitizedDescription,
+  });
   return activity;
 }
 
@@ -147,6 +155,11 @@ export async function addCorrespondence(claimId: number | string, data: Correspo
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) }, select: { id: true } });
   if (!claim) throw new AppError('Claim not found', 404);
 
+  const sanitizedNotes =
+    data.notes !== null && data.notes !== undefined ? sanitizeLogString(data.notes) : null;
+  const sanitizedRecipient =
+    data.recipient !== null && data.recipient !== undefined ? sanitizeLogString(data.recipient) : null;
+
   const corr = await prisma.claimCorrespondence.create({
     data: {
       claimId: Number(claimId),
@@ -154,8 +167,8 @@ export async function addCorrespondence(claimId: number | string, data: Correspo
       sentAt: toDateOrNull(data.sentAt),
       receivedAt: toDateOrNull(data.receivedAt),
       followUpDate: toDateOrNull(data.followUpDate),
-      recipient: data.recipient ?? null,
-      notes: data.notes ?? null,
+      recipient: sanitizedRecipient,
+      notes: sanitizedNotes,
       isHistorical: data.isHistorical ?? false,
       createdById: addedBy,
     },
@@ -168,7 +181,7 @@ export async function addCorrespondence(claimId: number | string, data: Correspo
         claimId: Number(claimId),
         assignedToId: addedBy,
         title: `Follow-up: ${data.type} for claim ${claim.id}`,
-        description: data.notes || `Follow-up on ${data.type} correspondence`,
+        description: sanitizedNotes || `Follow-up on ${data.type} correspondence`,
         dueDate: new Date(data.followUpDate),
         status: 'PENDING',
         priority: 'MEDIUM',
@@ -177,6 +190,10 @@ export async function addCorrespondence(claimId: number | string, data: Correspo
     });
   }
 
-  await logAction('CORRESPONDENCE_ADDED', 'Claim', Number(claimId), addedBy, { type: data.type });
+  await logAction('CORRESPONDENCE_ADDED', 'Claim', Number(claimId), addedBy, {
+    type: data.type,
+    notes: sanitizedNotes,
+    recipient: sanitizedRecipient,
+  });
   return corr;
 }

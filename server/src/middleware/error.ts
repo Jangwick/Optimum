@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../config/logger.js';
+import { getVersion } from '../config/version.js';
 
 interface AppErrorLike extends Error {
   statusCode?: number;
@@ -23,6 +24,7 @@ export function errorHandler(err: AppErrorLike, req: Request, res: Response, nex
     errorType: err.name || 'Error',
     err: err.message,
     stack: err.stack,
+    version: getVersion(),
   }, 'Unhandled error');
 
   if (res.headersSent) {
