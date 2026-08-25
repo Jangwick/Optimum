@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { InProcessJobQueue } from '../src/queue/job-queue.js';
 
 function flush(ms = 50): Promise<void> {
