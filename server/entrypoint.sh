@@ -39,6 +39,12 @@ fi
 
 echo "DATABASE_URL is set (scheme: $(echo $DATABASE_URL | cut -d: -f1))"
 
+# ponytail: one-time recovery for the failed 20260825120000 schema-drift migration.
+# The migration SQL is now idempotent; this lets prisma migrate deploy re-apply it.
+# Safe to leave: it is a no-op once the migration is no longer in a failed state.
+# TODO: remove after the first successful Railway deploy.
+npx prisma migrate resolve --rolled-back 20260825120000_fix_schema_drift 2>/dev/null || true
+
 echo "Running database migrations..."
 npx prisma migrate deploy
 
