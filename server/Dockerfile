@@ -78,7 +78,7 @@ RUN npm ci --workspace=server --include-workspace-root --legacy-peer-deps --omit
 
 # Copy runtime artifacts
 COPY server/prisma ./server/prisma
-COPY server/prisma.config.js ./server/prisma.config.js
+COPY server/prisma.config.ts ./server/prisma.config.ts
 COPY --from=build /app/server/dist ./server/dist
 
 # Create runtime directories and switch to non-root user

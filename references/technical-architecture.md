@@ -217,7 +217,7 @@ Client (`.env` / `.env.local`):
 - Client tooling:
   - `typescript` and `@types/react`/`@types/react-dom`/`@types/node` added.
   - `client/tsconfig.json` and `client/tsconfig.node.json` created with `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes`.
-  - `client/vite.config.js` renamed to `client/vite.config.ts`.
+  - `client/vite.config.ts` (renamed from the legacy `.js` config).
   - `client/eslint.config.ts` updated with `typescript-eslint` for `.js`/`.jsx`/`.ts`/`.tsx`.
 - Server tooling:
   - `typescript`, `tsx`, `ts-jest`, and relevant `@types/*` packages added.

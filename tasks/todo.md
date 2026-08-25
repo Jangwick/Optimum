@@ -1,4 +1,6 @@
-# TypeScript Migration — Remaining JavaScript Sweep
+# (COMPLETED) TypeScript Migration — Remaining JavaScript Sweep
+
+This sweep is complete. All source and tests are now `.ts` / `.tsx`. This file is kept for historical reference; the active plan is `C:\Users\mikmikk03\.devin\plans\analyze-and-optimize-codebase.md`.
 
 ## Phase 1: Client
 
