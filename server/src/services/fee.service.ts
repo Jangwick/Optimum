@@ -27,16 +27,30 @@ async function syncFeeTotals(claimId: number) {
   });
 }
 
-export async function listFees(claimId: number | string, user: AuthUser) {
+export async function listFees(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.fee.findMany({
-    where: { claimId: Number(claimId) },
-    include: { user: { select: { id: true, firstName: true, lastName: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.fee.findMany({
+      where,
+      include: { user: { select: { id: true, firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.fee.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createFee(claimId: number | string, data: FeeInput, user: AuthUser) {

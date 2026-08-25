@@ -1,7 +1,7 @@
 import { api } from './api.js';
 
-export async function getFees(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/fees`);
+export async function getFees(claimId: string | number, params?: Record<string, unknown>): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/fees`, { params });
   return data;
 }
 
@@ -10,8 +10,8 @@ export async function createFee(claimId: string | number, payload: Record<string
   return data;
 }
 
-export async function getInvoices(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/invoices`);
+export async function getInvoices(claimId: string | number, params?: Record<string, unknown>): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/invoices`, { params });
   return data;
 }
 

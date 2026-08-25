@@ -26,20 +26,34 @@ async function generateInvoiceNumber(): Promise<string> {
   return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
 }
 
-export async function listInvoices(claimId: number | string, user: AuthUser) {
+export async function listInvoices(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.invoice.findMany({
-    where: { claimId: Number(claimId) },
-    include: {
-      fees: true,
-      payments: true,
-      createdBy: { select: { firstName: true, lastName: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      include: {
+        fees: true,
+        payments: true,
+        createdBy: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.invoice.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createInvoice(claimId: number | string, data: InvoiceInput, user: AuthUser) {

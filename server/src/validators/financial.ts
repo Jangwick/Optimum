@@ -6,6 +6,7 @@ import {
   optionalId,
   requiredNumber,
   toNumber,
+  PaginationQuerySchema,
 } from './index.js';
 
 export const CreateFeeSchema = z.object({
@@ -54,3 +55,7 @@ export const OfferResponseSchema = z.object({
   status: z.enum(['ACCEPTED', 'REJECTED', 'COUNTERED']),
   notes: optionalString(),
 });
+
+export const ListFeesQuerySchema = PaginationQuerySchema;
+export const ListInvoicesQuerySchema = PaginationQuerySchema;
+export const ListOffersQuerySchema = PaginationQuerySchema;

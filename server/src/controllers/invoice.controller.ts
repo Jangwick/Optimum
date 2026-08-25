@@ -3,13 +3,14 @@ import * as invoiceService from '../services/invoice.service.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { CreateInvoiceSchema, PaymentSchema } from '../validators/financial.js';
+import { ListInvoicesQuerySchema, CreateInvoiceSchema, PaymentSchema } from '../validators/financial.js';
 
 export const listInvoices: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await invoiceService.listInvoices(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListInvoicesQuerySchema, req.query);
+    const data = await invoiceService.listInvoices(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

@@ -109,19 +109,33 @@ export async function upsertSettlement(claimId: number | string, data: Settlemen
   return item;
 }
 
-export async function listOffers(claimId: number | string, user: AuthUser) {
+export async function listOffers(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.offer.findMany({
-    where: { claimId: Number(claimId) },
-    include: {
-      createdBy: { select: { firstName: true, lastName: true } },
-      responseBy: { select: { firstName: true, lastName: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.offer.findMany({
+      where,
+      include: {
+        createdBy: { select: { firstName: true, lastName: true } },
+        responseBy: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.offer.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function createOffer(claimId: number | string, data: OfferInput, user: AuthUser) {

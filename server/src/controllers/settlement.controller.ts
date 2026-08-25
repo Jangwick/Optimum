@@ -3,7 +3,7 @@ import * as settlementService from '../services/settlement.service.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { UpsertSettlementSchema, CreateOfferSchema, OfferResponseSchema } from '../validators/financial.js';
+import { ListOffersQuerySchema, UpsertSettlementSchema, CreateOfferSchema, OfferResponseSchema } from '../validators/financial.js';
 
 export const getSettlement: RequestHandler = async (req, res, next) => {
   try {
@@ -27,8 +27,9 @@ export const upsertSettlement: RequestHandler = async (req, res, next) => {
 export const listOffers: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await settlementService.listOffers(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListOffersQuerySchema, req.query);
+    const data = await settlementService.listOffers(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

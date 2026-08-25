@@ -3,13 +3,14 @@ import * as feeService from '../services/fee.service.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { IdParamSchema, parseWithAppError } from '../validators/index.js';
-import { CreateFeeSchema, UpdateFeeSchema } from '../validators/financial.js';
+import { ListFeesQuerySchema, CreateFeeSchema, UpdateFeeSchema } from '../validators/financial.js';
 
 export const listFees: RequestHandler = async (req, res, next) => {
   try {
     const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
-    const items = await feeService.listFees(claimId, (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListFeesQuerySchema, req.query);
+    const data = await feeService.listFees(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }
