@@ -224,7 +224,11 @@ async function main() {
 
   if (!existingAdmin) {
     const rounds = Number(process.env.BCRYPT_ROUNDS ?? 12);
-    const passwordHash = await bcrypt.hash('ChangeMe123!', rounds);
+    const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    if (!defaultPassword) {
+      throw new Error('DEFAULT_ADMIN_PASSWORD environment variable is required to seed the default admin account.');
+    }
+    const passwordHash = await bcrypt.hash(defaultPassword, rounds);
     await prisma.user.create({
       data: {
         email: 'admin@optimum.com',
@@ -236,7 +240,7 @@ async function main() {
         isActive: true,
       },
     });
-    console.log('Seeded default admin admin@optimum.com / ChangeMe123!');
+    console.log('Seeded default admin admin@optimum.com');
   }
 
   console.log('Seed complete.');
