@@ -15,6 +15,21 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: [
+            'react',
+            'react-dom',
+            'react-router-dom',
+            '@tanstack/react-query',
+          ],
+          ui: ['lucide-react'],
+          charts: ['recharts'],
+          documents: ['mammoth'],
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',
