@@ -1,6 +1,7 @@
 import type { AuthUser } from '../middleware/auth.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import { withRetry } from '../utils/retry.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -123,46 +124,52 @@ export async function getDashboard(user: AuthUser) {
     }),
 
     // Monthly & weekly volume aggregation (DB-level, last 12 months)
-    prisma.$queryRaw(
-      Prisma.sql`
-        SELECT
-          DATE_FORMAT(dateReceived, '%Y-%m') AS monthKey,
-          DATE_FORMAT(DATE_SUB(DATE(dateReceived), INTERVAL DAYOFWEEK(dateReceived) - 1 DAY), '%Y-%m-%d') AS weekKey,
-          COUNT(*) AS claims,
-          SUM(estimatedLoss) AS estimatedLoss
-        FROM claims
-        WHERE dateReceived >= ${twelveMonthsAgo}
-          ${roleFilter}
-        GROUP BY monthKey, weekKey
-      `
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT
+            DATE_FORMAT(dateReceived, '%Y-%m') AS monthKey,
+            DATE_FORMAT(DATE_SUB(DATE(dateReceived), INTERVAL DAYOFWEEK(dateReceived) - 1 DAY), '%Y-%m-%d') AS weekKey,
+            COUNT(*) AS claims,
+            SUM(estimatedLoss) AS estimatedLoss
+          FROM claims
+          WHERE dateReceived >= ${twelveMonthsAgo}
+            ${roleFilter}
+          GROUP BY monthKey, weekKey
+        `
+      )
     ),
 
     // Aging buckets for open claims
-    prisma.$queryRaw(
-      Prisma.sql`
-        SELECT
-          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) <= 30 THEN 1 ELSE 0 END), 0) AS \`0-30\`,
-          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 31 AND 60 THEN 1 ELSE 0 END), 0) AS \`31-60\`,
-          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 61 AND 90 THEN 1 ELSE 0 END), 0) AS \`61-90\`,
-          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) > 90 THEN 1 ELSE 0 END), 0) AS \`90+\`
-        FROM claims
-        WHERE isClosed = 0
-          AND isCancelled = 0
-          ${roleFilter}
-      `
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) <= 30 THEN 1 ELSE 0 END), 0) AS \`0-30\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 31 AND 60 THEN 1 ELSE 0 END), 0) AS \`31-60\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 61 AND 90 THEN 1 ELSE 0 END), 0) AS \`61-90\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) > 90 THEN 1 ELSE 0 END), 0) AS \`90+\`
+          FROM claims
+          WHERE isClosed = 0
+            AND isCancelled = 0
+            ${roleFilter}
+        `
+      )
     ),
 
     // Average cycle time in days for claims closed in the last 12 months
-    prisma.$queryRaw(
-      Prisma.sql`
-        SELECT AVG(DATEDIFF(closedAt, dateReceived)) AS averageCycleTime
-        FROM claims
-        WHERE isClosed = 1
-          AND isCancelled = 0
-          AND closedAt IS NOT NULL
-          AND closedAt >= ${twelveMonthsAgo}
-          ${roleFilter}
-      `
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT AVG(DATEDIFF(closedAt, dateReceived)) AS averageCycleTime
+          FROM claims
+          WHERE isClosed = 1
+            AND isCancelled = 0
+            AND closedAt IS NOT NULL
+            AND closedAt >= ${twelveMonthsAgo}
+            ${roleFilter}
+        `
+      )
     ),
 
     // Active claim count

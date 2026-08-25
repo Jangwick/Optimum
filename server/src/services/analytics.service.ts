@@ -1,6 +1,7 @@
 import type { AuthUser } from '../middleware/auth.js';
 import { prisma } from '../db/client.js';
 import { Prisma } from '../../generated/prisma/client.js';
+import { withRetry } from '../utils/retry.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -52,7 +53,7 @@ export async function getAnalytics(user: AuthUser) {
     }),
 
     // Monthly claim counts and estimated loss totals (last 12 months) — DB aggregation
-    prisma.$queryRaw<any[]>(
+    withRetry(() => prisma.$queryRaw<any[]>(
       Prisma.sql`
         SELECT
           DATE_FORMAT(dateReceived, '%Y-%m') AS month,
@@ -64,7 +65,7 @@ export async function getAnalytics(user: AuthUser) {
         GROUP BY DATE_FORMAT(dateReceived, '%Y-%m')
         ORDER BY month ASC
       `
-    ),
+    )),
 
     // Financial aggregates
     prisma.claim.aggregate({
@@ -119,7 +120,7 @@ export async function getAnalytics(user: AuthUser) {
     }),
 
     // Aging buckets (days since dateReceived for non-closed claims) — DB aggregation
-    prisma.$queryRaw<any[]>(
+    withRetry(() => prisma.$queryRaw<any[]>(
       Prisma.sql`
         SELECT
           SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) <= 30 THEN 1 ELSE 0 END) AS bucket_0_30,
@@ -130,7 +131,7 @@ export async function getAnalytics(user: AuthUser) {
         WHERE isClosed = false AND isCancelled = false
           ${roleFilter}
       `
-    ),
+    )),
   ]);
 
   // Resolve related entities
