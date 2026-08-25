@@ -11,6 +11,7 @@ import { config } from './config/index.js';
 import { errorHandler } from './middleware/error.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { requestSignalMiddleware } from './middleware/request-signal.js';
+import { loadShedMiddleware } from './middleware/load-shed.js';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -77,6 +78,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(requestLogger);
 app.use(requestSignalMiddleware);
+app.use(loadShedMiddleware);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (isShuttingDown) {
