@@ -1,18 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as settlementService from '../services/settlement.service.js';
-import { AppError } from '../middleware/error.js';
-import type { Request, RequestHandler } from 'express';
+import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
-
-function idParam(req: Request) {
-  const id = Number(Number(req.params.id));
-  if (Number.isNaN(id)) throw new AppError('Invalid id', 400);
-  return id;
-}
+import { IdParamSchema, parseWithAppError } from '../validators/index.js';
+import { UpsertSettlementSchema, CreateOfferSchema, OfferResponseSchema } from '../validators/financial.js';
 
 export const getSettlement: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.getSettlement(Number(req.params.claimId), (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const item = await settlementService.getSettlement(claimId, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -20,7 +16,9 @@ export const getSettlement: RequestHandler = async (req, res, next) => {
 
 export const upsertSettlement: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.upsertSettlement(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const body = parseWithAppError(UpsertSettlementSchema, req.body);
+    const item = await settlementService.upsertSettlement(claimId, body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +26,8 @@ export const upsertSettlement: RequestHandler = async (req, res, next) => {
 
 export const listOffers: RequestHandler = async (req, res, next) => {
   try {
-    const items = await settlementService.listOffers(Number(req.params.claimId), (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const items = await settlementService.listOffers(claimId, (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -36,7 +35,9 @@ export const listOffers: RequestHandler = async (req, res, next) => {
 
 export const createOffer: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.createOffer(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const body = parseWithAppError(CreateOfferSchema, req.body);
+    const item = await settlementService.createOffer(claimId, body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -44,7 +45,9 @@ export const createOffer: RequestHandler = async (req, res, next) => {
 
 export const respondToOffer: RequestHandler = async (req, res, next) => {
   try {
-    const item = await settlementService.respondToOffer(idParam(req), req.body, (req as AuthenticatedRequest).user);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    const body = parseWithAppError(OfferResponseSchema, req.body);
+    const item = await settlementService.respondToOffer(id, body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }

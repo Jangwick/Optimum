@@ -1,18 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as inspectionService from '../services/inspection.service.js';
 import { AppError } from '../middleware/error.js';
-import type { Request, RequestHandler } from 'express';
+import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
-
-function idParam(req: Request) {
-  const id = Number(Number(req.params.id));
-  if (Number.isNaN(id)) throw new AppError('Invalid id', 400);
-  return id;
-}
+import { IdParamSchema, parseWithAppError } from '../validators/index.js';
+import { CreateInspectionSchema, UpdateInspectionSchema, InspectionPhotoCaptionSchema } from '../validators/inspection.js';
 
 export const listInspections: RequestHandler = async (req, res, next) => {
   try {
-    const items = await inspectionService.listInspections(Number(req.params.claimId), (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const items = await inspectionService.listInspections(claimId, (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -20,7 +17,9 @@ export const listInspections: RequestHandler = async (req, res, next) => {
 
 export const createInspection: RequestHandler = async (req, res, next) => {
   try {
-    const item = await inspectionService.createInspection(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const body = parseWithAppError(CreateInspectionSchema, req.body);
+    const item = await inspectionService.createInspection(claimId, body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +27,9 @@ export const createInspection: RequestHandler = async (req, res, next) => {
 
 export const updateInspection: RequestHandler = async (req, res, next) => {
   try {
-    const item = await inspectionService.updateInspection(idParam(req), req.body, (req as AuthenticatedRequest).user);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    const body = parseWithAppError(UpdateInspectionSchema, req.body);
+    const item = await inspectionService.updateInspection(id, body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -36,7 +37,8 @@ export const updateInspection: RequestHandler = async (req, res, next) => {
 
 export const deleteInspection: RequestHandler = async (req, res, next) => {
   try {
-    await inspectionService.deleteInspection(idParam(req), (req as AuthenticatedRequest).user);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    await inspectionService.deleteInspection(id, (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }
@@ -45,10 +47,12 @@ export const deleteInspection: RequestHandler = async (req, res, next) => {
 export const uploadInspectionPhoto: RequestHandler = async (req, res, next) => {
   try {
     if (!(req as any).file) throw new AppError('No file uploaded', 400);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    const body = parseWithAppError(InspectionPhotoCaptionSchema, req.body);
     const photo = await inspectionService.uploadPhoto(
-      idParam(req),
+      id,
       (req as any).file,
-      req.body.caption,
+      body.caption,
       (req as AuthenticatedRequest).user
     );
     res.status(201).json({ success: true, item: photo });
@@ -58,7 +62,8 @@ export const uploadInspectionPhoto: RequestHandler = async (req, res, next) => {
 
 export const getInspectionPhoto: RequestHandler = async (req, res, next) => {
   try {
-    const photo = await inspectionService.getPhoto(Number(req.params.photoId), (req as AuthenticatedRequest).user);
+    const photoId = parseWithAppError(IdParamSchema, req.params.photoId);
+    const photo = await inspectionService.getPhoto(photoId, (req as AuthenticatedRequest).user);
     res.setHeader('Content-Type', photo.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${photo.originalName}"`);
     res.send(photo.buffer);
@@ -68,7 +73,8 @@ export const getInspectionPhoto: RequestHandler = async (req, res, next) => {
 
 export const deleteInspectionPhoto: RequestHandler = async (req, res, next) => {
   try {
-    await inspectionService.deletePhoto(Number(Number(req.params.photoId)), (req as AuthenticatedRequest).user);
+    const photoId = parseWithAppError(IdParamSchema, req.params.photoId);
+    await inspectionService.deletePhoto(photoId, (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }
