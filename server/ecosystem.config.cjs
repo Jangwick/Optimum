@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'optimum-server',
-      script: './src/server.js',
+      script: './dist/src/server.js',
       instances: 1,
       exec_mode: 'fork',
       env: {

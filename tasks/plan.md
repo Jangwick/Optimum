@@ -1,86 +1,65 @@
-# Implementation Plan: Responsive Design Across All Devices
+# Implementation Plan: Remaining JavaScript to TypeScript Sweep
 
 ## Overview
 
-Make the Optimum Claims system fully responsive from mobile phones (< 768px) through tablets (768-1024px) to desktop (1024px+). The current system is desktop-only: a fixed 260px sidebar, fixed-width search dropdowns, non-scrollable tables, and form grids that don't collapse on small screens.
+The Optimum project is on the `feature/typescript-migration-and-dockerization` branch. Most source and tests are already `.ts` / `.tsx`. This sweep finishes the migration by removing the remaining `.js` / `.jsx` / `.mjs` files (and a few stale `.js` duplicates of existing `.ts` files), migrating the non-duplicate ones to TypeScript, and updating the references and tooling configs that still point to them.
 
-## Architecture Decisions
+## Master Plan
 
-1. **Mobile-first sidebar pattern**: Hide the fixed sidebar on mobile (< 1024px) and show it as a slide-in drawer triggered by a hamburger menu in the TopBar. On desktop (>= 1024px), keep the current fixed sidebar. This is the most common and reliable pattern for admin dashboards.
+For full context see `C:\Users\mikmikk03\.devin\plans\plan-typescript-and-docker.md`.
 
-2. **Shared layout component**: Extract the repeated `flex h-screen overflow-hidden bg-background` + `Sidebar` + `ml-[260px]` + `TopBar` + `main` shell into a single `AppLayout` component. Every page currently duplicates this structure. A shared component ensures responsive behavior is applied consistently and reduces duplication across 9+ pages.
+## Scope
 
-3. **Tailwind v4 breakpoints (default)**: Use Tailwind's built-in breakpoints (`sm: 640px`, `md: 768px`, `lg: 1024px`, `xl: 1280px`). No custom breakpoints needed. The sidebar collapses at `lg` (1024px) since tablet users still benefit from a drawer.
+### Client
 
-4. **DataTable horizontal scroll**: Wrap tables in `overflow-x-auto` so wide tables scroll horizontally on mobile rather than breaking layout. This is simpler than column-hiding and preserves all data.
+- Delete stale `.jsx` duplicates of already-typed dashboard components (`DashboardCharts`, `DashboardLists`, `DashboardWidgets`). Keep the existing `.tsx` versions; do not change `.jsx` import specifiers because Vite + TypeScript `moduleResolution: Bundler` resolves them.
+- Migrate `client/src/services/search.service.js` → `search.service.ts` and `search.service.test.js` → `search.service.test.ts`.
+- Migrate `client/eslint.config.js` → `client/eslint.config.ts` (requires `jiti` for ESLint 9 to load TS config in Node).
 
-5. **Modal responsive sizing**: All modals use `max-w-[95vw]` on mobile and their current max-width on `sm:` and above. The Modal component already has this for `size="full"` — extend it to all sizes.
+### Server
 
-6. **Form grids**: Change all bare `grid-cols-2` and `grid-cols-3` to `grid-cols-1 sm:grid-cols-2` and `grid-cols-1 md:grid-cols-3` respectively. This is a one-class-per-grid change with no logic impact.
+- Delete stale `.js` duplicates of already-typed files (`server/src/utils/escape-html.js`, `server/tests/dashboard.test.js`, `server/tests/file-path.test.js`).
+- Create typed `.ts` files for the remaining JS modules:
+  - `server/src/services/search.service.ts`
+  - `server/src/controllers/search.controller.ts`
+  - `server/src/routes/search.routes.ts`
+  - `server/tests/search.test.ts`
+  - `server/tests/globalSetup.ts`
+  - `server/tests/setup-test-env.ts` (replaces `.cjs`)
+  - `server/scripts/create-default-template.ts`
+  - `server/scripts/migrate-paths.ts`
+- Migrate `server/prisma.config.js` → `prisma.config.ts`.
+- Migrate `server/eslint.config.js` → `server/eslint.config.ts`.
+- Update `server/package.json` Jest `globalSetup`, `setupFiles`, and `collectCoverageFrom` paths.
+- Keep `server/ecosystem.config.cjs` as PM2's ecosystem file format; only fix the `script` path to point to the compiled `dist/src/server.js`.
 
-7. **No bottom navigation**: The sidebar drawer pattern is sufficient. Bottom nav adds complexity and duplicates navigation. Keep it simple.
+### Tooling
 
-## Breakpoint Strategy
+- Add `jiti` to `devDependencies` in `client/package.json` and `server/package.json` so ESLint 9 can load `eslint.config.ts`.
+- Confirm all `tsconfig.json` `allowJs` settings remain compatible with the removed files.
 
-| Breakpoint | Width | Behavior |
-|-----------|-------|----------|
-| Mobile (default) | < 640px | Single column, sidebar hidden (drawer), compact spacing, horizontal scroll tables |
-| `sm` | >= 640px | Two-column forms, search visible, slightly larger touch targets |
-| `md` | >= 768px | Summary cards in 3-4 columns, filter grids multi-column |
-| `lg` | >= 1024px | Fixed sidebar visible, full desktop layout, 3-column detail grids |
-| `xl` | >= 1280px | Current desktop behavior unchanged |
+## Verification
 
-## Task List
-
-### Phase 1: Foundation — Shared Layout & Mobile Sidebar
-
-- [ ] Task 1: Create AppLayout component with responsive sidebar
-- [ ] Task 2: Add mobile hamburger menu and sidebar drawer to TopBar
-- [ ] Task 3: Migrate all pages to use AppLayout
-
-### Checkpoint: Foundation
-- [ ] Sidebar shows as drawer on mobile, fixed on desktop
-- [ ] All pages render without layout errors
-- [ ] Lint passes, tests pass
-
-### Phase 2: Core Components — Tables, Modals, Forms
-
-- [ ] Task 4: Make DataTable horizontally scrollable on mobile
-- [ ] Task 5: Make Modal responsive across all sizes
-- [ ] Task 6: Fix form grids in NewClaim, EditClaimModal, ClaimFinance, Employees
-- [ ] Task 7: Make TopBar search responsive
-
-### Checkpoint: Core Components
-- [ ] Tables scroll horizontally on mobile
-- [ ] Modals fit mobile screens
-- [ ] Forms stack to single column on mobile
-- [ ] Search doesn't overflow on mobile
-
-### Phase 3: Page-Level Polish
-
-- [ ] Task 8: Responsive padding and spacing across all pages
-- [ ] Task 9: Responsive Claim Detail tabs and summary grid
-- [ ] Task 10: Responsive Pagination component
-- [ ] Task 11: Responsive Reports charts and grids
-
-### Checkpoint: Complete
-- [ ] All acceptance criteria met
-- [ ] Tested on mobile (375px), tablet (768px), desktop (1440px)
-- [ ] Lint passes, tests pass, build succeeds
-- [ ] No console errors in browser
+- `cd client && npm run typecheck`
+- `cd client && npm run build`
+- `cd client && npm run lint`
+- `cd client && npx vitest run src/services/search.service.test.ts`
+- `cd server && npx tsc --noEmit`
+- `cd server && npm run lint`
+- `cd server && npx jest --testPathPatterns=search`
+- `cd server && npx jest --testPathPatterns=dashboard`
+- `cd server && npx jest --testPathPatterns=file-path`
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Sidebar drawer z-index conflicts with Select portal (z-9999) | Med | Use z-30 for drawer overlay, Select portal stays at z-9999 |
-| Breaking existing tests that query sidebar elements | Med | Keep sidebar DOM present but hidden on mobile (CSS, not conditional render) |
-| Modal scroll behavior on iOS Safari | Low | Use `max-h-[90vh] overflow-y-auto` which works on iOS |
-| Table horizontal scroll UX on mobile | Low | Add `-webkit-overflow-scrolling: touch` for smooth scrolling |
-| Performance impact of re-renders from window resize listener | Low | Debounce resize handler in Select component |
+| Deleting `.jsx` duplicate while `.jsx` imports remain | Med | Vite Bundler resolution resolves `.jsx` specifiers to `.tsx`; verify with `npm run build` before commit. |
+| `eslint.config.ts` not loaded without `jiti` | High | Add `jiti` to devDependencies; confirm `npm run lint` in both workspaces. |
+| Jest `setupFiles` / `globalSetup` break after extension change | Med | Update `server/package.json` Jest config and run targeted server tests. |
+| `ecosystem.config.cjs` left as only non-TS file | Low | It is a PM2 config boundary and remains valid; path fixed to built output. |
 
-## Open Questions
+## Notes
 
-- Should the sidebar auto-close when navigating to a new page on mobile? (Assumed yes — standard behavior)
-- Should there be a swipe-to-open gesture for the mobile drawer? (Assumed no — hamburger button is sufficient, keeps it simple)
-- Should tables hide less-important columns on mobile? (Assumed no — horizontal scroll is simpler and preserves all data)
+- This plan supersedes the stale `tasks/plan.md` responsive-design plan, which referenced files that no longer exist (e.g. `client/src/components/AppLayout.jsx`).
+- Import specifiers keep the existing `.js` / `.jsx` extensions because `server/tsconfig.json` uses `moduleResolution: NodeNext` and `client/tsconfig.json` uses `moduleResolution: Bundler`; the actual source files change extension only.
