@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import { userRateLimit } from './middleware/rate-limit.js';
 import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -99,13 +99,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: config.nodeEnv === 'development' ? 1000 : 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
-  })
+  userRateLimit(
+    15 * 60 * 1000,
+    config.nodeEnv === 'development' ? 1000 : 100,
+    (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
+  )
 );
 
 // Legacy public static mount removed; files are served only through
