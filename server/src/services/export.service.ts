@@ -17,7 +17,7 @@ interface ExportFilters {
   view?: 'active' | 'closed' | 'cancelled';
 }
 
-export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser) {
+export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser, signal?: AbortSignal) {
   const where: Prisma.ClaimWhereInput = {};
 
   if (filters.search) {
@@ -56,6 +56,10 @@ export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser
 
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
+
+  if (signal?.aborted) {
+    throw new AppError('Export cancelled', 499);
+  }
 
   const total = await prisma.claim.count({ where });
   if (total > EXPORT_MAX_ROWS) {
@@ -112,6 +116,9 @@ export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser
   const fmtPHP = (v: unknown) => v ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(v)) : '';
 
   for (const c of claims) {
+    if (signal?.aborted) {
+      throw new AppError('Export cancelled', 499);
+    }
     const panelText = c.insurerPanel
       .map((ci) => `${ci.insuranceCompany.name}${ci.isLead ? ' (Lead)' : ''}${ci.participationPercent ? ` ${ci.participationPercent}%` : ''}`)
       .join('; ');

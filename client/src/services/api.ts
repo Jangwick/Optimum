@@ -19,6 +19,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (!config.headers['x-request-id']) {
     config.headers['x-request-id'] = generateRequestId();
   }
+  config.signal ??= AbortSignal.timeout(30000);
   return config;
 });
 
