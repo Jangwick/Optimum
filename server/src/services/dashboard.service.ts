@@ -2,6 +2,7 @@ import type { AuthUser } from '../middleware/auth.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { withRetry } from '../utils/retry.js';
+import { referenceDataCache } from '../utils/cache.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -185,7 +186,9 @@ export async function getDashboard(user: AuthUser) {
     }),
   ]);
 
-  const processStatuses = await prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } });
+  const processStatuses = await referenceDataCache.get('processStatuses', () =>
+    prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } })
+  );
   const processStatusMap = new Map(processStatuses.map((s) => [s.id, s]));
 
   const statusBreakdown: any[] = (processStatusCounts as any[])

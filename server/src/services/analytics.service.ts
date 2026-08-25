@@ -2,6 +2,7 @@ import type { AuthUser } from '../middleware/auth.js';
 import { prisma } from '../db/client.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { withRetry } from '../utils/retry.js';
+import { referenceDataCache } from '../utils/cache.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -135,15 +136,14 @@ export async function getAnalytics(user: AuthUser) {
   ]);
 
   // Resolve related entities
-  const [processStatuses, claimTypes, engineers, clients] = await Promise.all([
-    prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } }),
-    prisma.claimType.findMany(),
-    prisma.user.findMany({
-      where: { role: { name: 'ENGINEER' } },
-      select: { id: true, firstName: true, lastName: true },
-    }),
-    prisma.client.findMany(),
-  ]);
+  const processStatuses = await referenceDataCache.get('processStatuses', () =>
+    prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } })
+  );
+  const claimTypes = await referenceDataCache.get('claimTypes', () => prisma.claimType.findMany());
+  const clients = await referenceDataCache.get('clients', () => prisma.client.findMany());
+  const engineers = await referenceDataCache.get('engineers', () =>
+    prisma.user.findMany({ where: { role: { name: 'ENGINEER' } }, select: { id: true, firstName: true, lastName: true } })
+  );
 
   const statusMap = new Map(processStatuses.map((s) => [s.id, s]));
   const typeMap = new Map(claimTypes.map((t) => [t.id, t]));
