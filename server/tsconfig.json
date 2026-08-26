@@ -19,6 +19,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*", "prisma.config.ts", "prisma/seed.ts"],
   "exclude": ["node_modules", "dist", "generated", "coverage"]
 }
