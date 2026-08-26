@@ -112,19 +112,13 @@ Known ceilings / upgrade paths:
 - Manual chunks are static. Upgrade path: bundle analysis and route-based automatic chunking.
 - `memo` only prevents re-renders of unchanged props. Upgrade path: virtualize large data tables.
 
-## Verification matrix
+## Verification Matrix
 
-| Phase | Server tests | Client tests | Other |
-|---|---|---|---|
-| Phase 2 | `cd server && npx jest --testPathPatterns=claim` <br> `npx jest --testPathPatterns=search` <br> `npx jest --testPathPatterns=dashboard` <br> `npx jest --testPathPatterns=config` <br> `npx jest --testPathPatterns=validators` | `cd client && npx vitest run src/services/search.service.test.ts` | `cd server && npm run typecheck` |
-| Phase 3 | `npx jest --testPathPatterns=request-signal` <br> `npx jest --testPathPatterns=retry` <br> `npx jest --testPathPatterns=job-queue` <br> `npx jest --testPathPatterns=idempotency` <br> `npx jest --testPathPatterns=download-token` | — | `cd client && npx vitest run src/App.test.tsx` (sanity) |
-| Phase 4 | `npx jest --testPathPatterns=sanitize-log` <br> `npx jest --testPathPatterns=logger` | — | `curl http://localhost:3001/api/health` |
-| Phase 5 | — | `npx vitest run src/services/search.service.test.ts` <br> `npx vitest run src/App.test.tsx` <br> `npx vitest run src/pages/ClaimDetail.test.tsx` <br> `npx vitest run src/components/InitialInvestigation.test.tsx` | `npm run build` in `client` |
-| Phase 6 | — | `npx vitest run src/App.test.tsx` | `npm run build` in `client` (verify chunking) |
-
-Run the full suites only as a final check:
-
-```bash
-cd server && npm test
-cd ../client && npm test
-```
+| Check | Command | Result |
+|---|---|---|
+| Server typecheck | `cd server && npx tsc --noEmit` | pass |
+| Server lint | `cd server && npm run lint` | pass |
+| Client typecheck | `cd client && npx tsc --noEmit` | pass |
+| Client lint | `cd client && npm run lint` | pass |
+| Client build | `cd client && npm run build` | pass |
+| Targeted Jest | `cd server; $env:SKIP_DB_SETUP='true'; $env:NODE_OPTIONS='--experimental-vm-modules'; npx jest --testPathPatterns="sanitize-log\|job-queue\|request-signal\|retry\|idempotency\|config"` | pass |
