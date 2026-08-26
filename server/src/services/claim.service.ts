@@ -6,6 +6,10 @@ import { logAction } from './audit.service.js';
 import { recordActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 
+function isUniqueConstraintError(err: unknown): err is Prisma.PrismaClientKnownRequestError {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
+
 type Claim = Prisma.ClaimGetPayload<Prisma.ClaimDefaultArgs>;
 
 type ClaimWithRelations = Prisma.ClaimGetPayload<{
@@ -336,10 +340,10 @@ function formatClaim(c: ClaimWithRelations): Record<string, unknown> {
   };
 }
 
-async function generateClaimNumber() {
+async function generateClaimNumber(tx: Prisma.TransactionClient = prisma) {
   const now = new Date();
   const year = now.getFullYear();
-  const count = await prisma.claim.count({ where: { createdAt: { gte: new Date(year, 0, 1) } } });
+  const count = await tx.claim.count({ where: { createdAt: { gte: new Date(year, 0, 1) } } });
   return `CS-${year}-${String(count + 1).padStart(4, '0')}`;
 }
 
@@ -585,8 +589,6 @@ export async function getClaim(id: number | string, user: AuthUser) {
 }
 
 export async function createClaim(data: CreateClaimInput, createdBy: number) {
-  const claimNumber = data.claimNumber || (await generateClaimNumber());
-
   // Resolve policy if provided; otherwise require direct client/insurer
   let policy = null;
   let clientId: number | null = null;
@@ -616,7 +618,7 @@ export async function createClaim(data: CreateClaimInput, createdBy: number) {
   if (!defaultProcessStatus) throw new AppError('Default process status not found', 500);
 
   const createData: Prisma.ClaimUncheckedCreateInput = {
-    claimNumber,
+    claimNumber: data.claimNumber || '',
     policyId: policy?.id || null,
     clientId,
     insuranceCompanyId,
@@ -658,51 +660,67 @@ export async function createClaim(data: CreateClaimInput, createdBy: number) {
     policyType: data.policyType || null,
   };
 
-  const claim = await prisma.claim.create({
-    data: createData,
-    include: {
-      policy: { include: { client: true, insuranceCompany: true } },
-      client: true,
-      insuranceCompany: true,
-      claimType: true,
-      status: true,
-      processStatus: true,
-      importStatus: true,
-      broker: true,
-      engineer: { select: { id: true, firstName: true, lastName: true } },
-      accountant: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
+  let claim: ClaimWithRelations | undefined;
 
-  await prisma.claimStatusHistory.create({
-    data: {
-      claimId: claim.id,
-      statusId: defaultStatus.id,
-      changedById: createdBy,
-      notes: 'Claim registered',
-    },
-  });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      claim = await prisma.$transaction(async (tx) => {
+        const claimNumber = data.claimNumber || (await generateClaimNumber(tx));
+        const created = await tx.claim.create({
+          data: { ...createData, claimNumber },
+          include: {
+            policy: { include: { client: true, insuranceCompany: true } },
+            client: true,
+            insuranceCompany: true,
+            claimType: true,
+            status: true,
+            processStatus: true,
+            importStatus: true,
+            broker: true,
+            engineer: { select: { id: true, firstName: true, lastName: true } },
+            accountant: { select: { id: true, firstName: true, lastName: true } },
+          },
+        });
 
-  await prisma.claimProcessStatusHistory.create({
-    data: {
-      claimId: claim.id,
-      processStatusId: defaultProcessStatus.id,
-      changedById: createdBy,
-      notes: 'Claim registered',
-      source: 'USER',
-    },
-  });
+        await tx.claimStatusHistory.create({
+          data: {
+            claimId: created.id,
+            statusId: defaultStatus.id,
+            changedById: createdBy,
+            notes: 'Claim registered',
+          },
+        });
 
-  if (data.engineerId) {
-    await prisma.claimAssignment.create({
-      data: { claimId: claim.id, userId: Number(data.engineerId), role: 'ENGINEER', assignedById: createdBy },
-    });
+        await tx.claimProcessStatusHistory.create({
+          data: {
+            claimId: created.id,
+            processStatusId: defaultProcessStatus.id,
+            changedById: createdBy,
+            notes: 'Claim registered',
+            source: 'USER',
+          },
+        });
+
+        if (data.engineerId) {
+          await tx.claimAssignment.create({
+            data: { claimId: created.id, userId: Number(data.engineerId), role: 'ENGINEER', assignedById: createdBy },
+          });
+        }
+        if (data.accountantId) {
+          await tx.claimAssignment.create({
+            data: { claimId: created.id, userId: Number(data.accountantId), role: 'ACCOUNTANT', assignedById: createdBy },
+          });
+        }
+
+        return created as ClaimWithRelations;
+      }, { maxWait: 5000, timeout: 10000 });
+      break;
+    } catch (err) {
+      if (attempt === 4 || !isUniqueConstraintError(err)) throw err;
+    }
   }
-  if (data.accountantId) {
-    await prisma.claimAssignment.create({
-      data: { claimId: claim.id, userId: Number(data.accountantId), role: 'ACCOUNTANT', assignedById: createdBy },
-    });
-  }
+
+  if (!claim) throw new AppError('Failed to create claim after repeated unique constraint conflicts', 500);
 
   await logAction('CLAIM_CREATED', 'Claim', claim.id, createdBy, { claimNumber: claim.claimNumber });
 

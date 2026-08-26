@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import type { Request, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { parseWithAppError } from '../validators/index.js';
+import { ListReportsQuerySchema } from '../validators/report.js';
 
 function idParam(req: Request) {
   const id = Number(Number(req.params.id));
@@ -17,8 +19,9 @@ function idParam(req: Request) {
 
 export const listReports: RequestHandler = async (req, res, next) => {
   try {
-    const items = await reportService.listReports(Number(req.params.claimId), (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListReportsQuerySchema, req.query);
+    const data = await reportService.listReports(Number(req.params.claimId), (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }
@@ -33,7 +36,8 @@ export const createReport: RequestHandler = async (req, res, next) => {
 
 export const generateReport: RequestHandler = async (req, res, next) => {
   try {
-    const item = await reportService.generateReport(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user);
+    const signal = (req as { signal?: AbortSignal }).signal;
+    const item = await reportService.generateReport(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user, signal);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -73,6 +77,12 @@ export const downloadReport: RequestHandler = async (req, res, next) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
+
+    const signal = (req as { signal?: AbortSignal }).signal;
+    if (signal) {
+      signal.addEventListener('abort', () => { res.destroy(); }, { once: true });
+    }
+
     res.sendFile(resolved);
   } catch (err) { next(err as any);
   }
@@ -94,6 +104,12 @@ export const downloadDocx: RequestHandler = async (req, res, next) => {
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.basename(resolved))}`);
+
+    const signal = (req as { signal?: AbortSignal }).signal;
+    if (signal) {
+      signal.addEventListener('abort', () => { res.destroy(); }, { once: true });
+    }
+
     res.sendFile(resolved);
   } catch (err) { next(err as any);
   }

@@ -1,17 +1,17 @@
 import { api } from './api.js';
 
-export async function getClaimTypes(): Promise<unknown> {
-  const { data } = await api.get('/master-data/claim-types');
+export async function getClaimTypes(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/claim-types', { params });
   return data;
 }
 
-export async function getClaimStatuses(): Promise<unknown> {
-  const { data } = await api.get('/master-data/claim-statuses');
+export async function getClaimStatuses(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/claim-statuses', { params });
   return data;
 }
 
-export async function getDocumentCategories(): Promise<unknown> {
-  const { data } = await api.get('/master-data/document-categories');
+export async function getDocumentCategories(params: Record<string, unknown> = {}): Promise<unknown> {
+  const { data } = await api.get('/master-data/document-categories', { params });
   return data;
 }
 

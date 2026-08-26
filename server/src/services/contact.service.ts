@@ -2,6 +2,8 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { recordActivity } from './activity.service.js';
+import { assertClaimAccess } from './claim.service.js';
+import type { AuthUser } from '../middleware/auth.js';
 
 interface ContactData {
   name: string;
@@ -11,16 +13,21 @@ interface ContactData {
   notes?: string;
 }
 
-export async function listContacts(claimId: number | string) {
+export async function listContacts(claimId: number | string, user: AuthUser) {
+  const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
+  if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
+
   return prisma.contact.findMany({
     where: { claimId: Number(claimId) },
     orderBy: { name: 'asc' },
   });
 }
 
-export async function createContact(claimId: number | string, data: ContactData, userId: number) {
+export async function createContact(claimId: number | string, data: ContactData, user: AuthUser) {
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
+  assertClaimAccess(user, claim);
 
   const contact = await prisma.contact.create({
     data: {
@@ -32,13 +39,14 @@ export async function createContact(claimId: number | string, data: ContactData,
       notes: data.notes ?? null,
     },
   });
-  await recordActivity(Number(claimId), 'CONTACT_ADDED', `Contact added: ${data.name}${data.role ? ` (${data.role})` : ''}`, userId);
+  await recordActivity(Number(claimId), 'CONTACT_ADDED', `Contact added: ${data.name}${data.role ? ` (${data.role})` : ''}`, user.id);
   return contact;
 }
 
-export async function updateContact(id: number, data: Partial<ContactData>, userId: number) {
-  const contact = await prisma.contact.findUnique({ where: { id } });
+export async function updateContact(id: number, data: Partial<ContactData>, user: AuthUser) {
+  const contact = await prisma.contact.findUnique({ where: { id }, include: { claim: true } });
   if (!contact) throw new AppError('Contact not found', 404);
+  assertClaimAccess(user, contact.claim);
 
   const updateData: Prisma.ContactUpdateInput = {};
   if (data.name !== undefined) updateData.name = data.name;
@@ -51,14 +59,15 @@ export async function updateContact(id: number, data: Partial<ContactData>, user
     where: { id },
     data: updateData,
   });
-  await recordActivity(updated.claimId, 'CONTACT_UPDATED', `Contact updated: ${updated.name}`, userId);
+  await recordActivity(updated.claimId, 'CONTACT_UPDATED', `Contact updated: ${updated.name}`, user.id);
   return updated;
 }
 
-export async function deleteContact(id: number, userId: number) {
-  const contact = await prisma.contact.findUnique({ where: { id } });
+export async function deleteContact(id: number, user: AuthUser) {
+  const contact = await prisma.contact.findUnique({ where: { id }, include: { claim: true } });
   if (!contact) throw new AppError('Contact not found', 404);
+  assertClaimAccess(user, contact.claim);
   const { claimId, name } = contact;
   await prisma.contact.delete({ where: { id } });
-  await recordActivity(claimId, 'CONTACT_DELETED', `Contact deleted: ${name}`, userId);
+  await recordActivity(claimId, 'CONTACT_DELETED', `Contact deleted: ${name}`, user.id);
 }

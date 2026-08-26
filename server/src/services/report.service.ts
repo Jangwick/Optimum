@@ -12,6 +12,7 @@ import { recordActivity } from './activity.service.js';
 import { autoAdvanceStatus, assertClaimAccess } from './claim.service.js';
 import type { AuthUser } from '../middleware/auth.js';
 import puppeteer from 'puppeteer';
+import type { Browser } from 'puppeteer';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 
@@ -31,26 +32,55 @@ interface ClarificationData {
   answer?: string;
 }
 
-export async function listReports(claimId: number | string, user: AuthUser) {
+interface ReportDocData {
+  title: string;
+  notes: string;
+  generatedAt: string;
+  claimNumber: string;
+  clientName: string;
+  insurerName: string;
+  claimType: string;
+  engineerName: string;
+  statusName: string;
+  dateOfLoss: string;
+  estimatedLoss: string;
+  reserve: string;
+}
+
+export async function listReports(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+) {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({ where: { id: Number(claimId) } });
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  return prisma.report.findMany({
-    where: { claimId: Number(claimId) },
-    include: {
-      generatedBy: { select: { firstName: true, lastName: true } },
-      versions: { orderBy: { versionNumber: 'desc' } },
-      clarifications: {
-        include: {
-          askedBy: { select: { firstName: true, lastName: true } },
-          answeredBy: { select: { firstName: true, lastName: true } },
+  const where = { claimId: Number(claimId) };
+
+  const [items, count] = await Promise.all([
+    prisma.report.findMany({
+      where,
+      include: {
+        generatedBy: { select: { firstName: true, lastName: true } },
+        versions: { orderBy: { versionNumber: 'desc' } },
+        clarifications: {
+          include: {
+            askedBy: { select: { firstName: true, lastName: true } },
+            answeredBy: { select: { firstName: true, lastName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+      orderBy: { createdAt: 'desc' },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.report.count({ where }),
+  ]);
+
+  return { items, count, page: Number(page), limit: Number(limit) };
 }
 
 async function defaultTemplateId() {
@@ -85,7 +115,7 @@ export async function createReportDraft(claimId: number | string, data: ReportDr
   return report;
 }
 
-export async function generateReport(claimId: number | string, id: number, user: AuthUser) {
+export async function generateReport(claimId: number | string, id: number, user: AuthUser, signal?: AbortSignal) {
   const report = await prisma.report.findUnique({
     where: { id },
     include: {
@@ -99,7 +129,7 @@ export async function generateReport(claimId: number | string, id: number, user:
 
   const claim = report.claim;
 
-  const docData: Record<string, unknown> = {
+  const docData: ReportDocData = {
     title: report.title,
     notes: report.notes || 'No summary provided.',
     generatedAt: new Date().toLocaleString(),
@@ -153,17 +183,36 @@ export async function generateReport(claimId: number | string, id: number, user:
   const fileName = `report-${id}-${Date.now()}.pdf`;
   const filePath = path.join(reportOutputDir, String(claim.id), fileName);
 
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await page.setContent(html, { waitUntil: 'networkidle0' as any });
-  await page.pdf({ path: filePath, format: 'A4', printBackground: true });
-  await browser.close();
+  let browser: Browser | undefined;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      timeout: 60000,
+    });
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
+    const page = await browser.newPage();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.setContent(html, { waitUntil: 'networkidle0' as any, timeout: 60000 });
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
+
+    const pdfPromise = page.pdf({ path: filePath, format: 'A4', printBackground: true });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new AppError('PDF generation timed out', 504)), 60_000)
+    );
+    await Promise.race([pdfPromise, timeoutPromise]);
+    if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 
   let docxPath: string | null = null;
   if (report.reportTemplate?.path) {
     const templatePath = resolveFilePath(report.reportTemplate.path, config.uploadDir);
     if (templatePath && fs.existsSync(templatePath)) {
+      if (signal?.aborted) throw new AppError('Report generation cancelled', 499);
       try {
         const content = fs.readFileSync(templatePath, 'binary');
         const zip = new PizZip(content);

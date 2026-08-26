@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { config } from '../config/index.js';
-import { loginHandler, logoutHandler, meHandler, changePasswordHandler, updateProfileHandler } from '../controllers/auth.controller.js';
+import { loginHandler, logoutHandler, meHandler, changePasswordHandler, updateProfileHandler, downloadTokenHandler } from '../controllers/auth.controller.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 
 const RATE_LIMIT_MESSAGE = { success: false, error: 'Too many attempts, please try again later.' };
@@ -43,6 +43,7 @@ const router = Router();
 router.post('/login', loginRateLimit, loginHandler);
 router.post('/logout', logoutHandler);
 router.get('/me', authMiddleware, meHandler);
+router.get('/download-token', authMiddleware, downloadTokenHandler);
 router.put('/me', authMiddleware, updateProfileHandler);
 router.put('/me/password', authMiddleware, passwordChangeRateLimit, changePasswordHandler);
 

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../services/auth.service.js';
+import { verifyDownloadToken } from '../services/download-token.service.js';
 import { prisma } from '../db/client.js';
 import { AppError } from './error.js';
 
@@ -15,41 +16,43 @@ export interface AuthenticatedRequest extends Request {
   user: AuthUser;
 }
 
-function isDocumentDownloadOrPreview(path: string | undefined): boolean {
+function isBinaryResource(path: string | undefined): boolean {
   if (!path) return false;
   const [withoutQuery] = path.split('?');
   if (!withoutQuery) return false;
-  return /^\/api\/claims\/[^/]+\/documents\/[^/]+\/(preview|download)$/.test(withoutQuery);
+  return /^\/api\/claims\/[^/]+\/(documents\/[^/]+\/(preview|download)|inspections\/photos\/[^/]+)$/.test(withoutQuery);
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    let token: string | undefined =
+    const token: string | undefined =
       req.cookies?.token ||
       (typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
         ? req.headers.authorization.split(' ')[1]
         : undefined);
+    const userFromDownloadToken = await tryDownloadToken(req);
 
-    // Allow query-string tokens only on document download/preview GET endpoints,
-    // which are used by legacy/embedded image previews.
-    if (!token && req.method === 'GET' && isDocumentDownloadOrPreview(req.path)) {
-      const queryToken = req.query?.token;
-      if (typeof queryToken === 'string') {
-        token = queryToken;
-      }
-    }
-
-    if (!token) {
+    if (!token && !userFromDownloadToken) {
       throw new AppError('Authentication required', 401);
     }
 
-    const payload = verifyToken(token);
-    if (!payload) {
+    let payload;
+    if (token) {
+      payload = verifyToken(token);
+    }
+
+    if (!payload && !userFromDownloadToken) {
       throw new AppError('Invalid or expired token', 401);
     }
 
+    if (userFromDownloadToken) {
+      const authReq = req as AuthenticatedRequest;
+      authReq.user = userFromDownloadToken;
+      return next();
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: payload!.userId },
       include: { role: true },
     });
 
@@ -70,4 +73,29 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   } catch (err) {
     next(err);
   }
+}
+
+async function tryDownloadToken(req: Request): Promise<AuthUser | null> {
+  if (req.method !== 'GET' || !isBinaryResource(req.path)) {
+    return null;
+  }
+
+  const queryToken = req.query?.dt;
+  if (typeof queryToken !== 'string' || !queryToken) {
+    return null;
+  }
+
+  const [withoutQuery] = req.path.split('?');
+  const payload = verifyDownloadToken(queryToken, withoutQuery!);
+  if (!payload) {
+    return null;
+  }
+
+  return {
+    id: payload.userId,
+    email: payload.email,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    role: payload.role,
+  };
 }

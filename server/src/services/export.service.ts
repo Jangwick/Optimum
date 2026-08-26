@@ -1,7 +1,10 @@
 import ExcelJS from 'exceljs';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import { AppError } from '../middleware/error.js';
 import type { AuthUser } from '../middleware/auth.js';
+
+const EXPORT_MAX_ROWS = 10_000;
 
 interface ExportFilters {
   search?: string;
@@ -14,7 +17,7 @@ interface ExportFilters {
   view?: 'active' | 'closed' | 'cancelled';
 }
 
-export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser) {
+export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser, signal?: AbortSignal) {
   const where: Prisma.ClaimWhereInput = {};
 
   if (filters.search) {
@@ -54,9 +57,19 @@ export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser
   if (user.role === 'ENGINEER') where.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') where.accountantId = user.id;
 
+  if (signal?.aborted) {
+    throw new AppError('Export cancelled', 499);
+  }
+
+  const total = await prisma.claim.count({ where });
+  if (total > EXPORT_MAX_ROWS) {
+    throw new AppError('Export too large; narrow filters to under 10,000 rows', 413);
+  }
+
   const claims = await prisma.claim.findMany({
     where,
     orderBy: { dateReceived: 'desc' },
+    take: EXPORT_MAX_ROWS,
     include: {
       client: { select: { name: true } },
       insuranceCompany: { select: { name: true } },
@@ -103,6 +116,9 @@ export async function exportClaimsToExcel(filters: ExportFilters, user: AuthUser
   const fmtPHP = (v: unknown) => v ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(v)) : '';
 
   for (const c of claims) {
+    if (signal?.aborted) {
+      throw new AppError('Export cancelled', 499);
+    }
     const panelText = c.insurerPanel
       .map((ci) => `${ci.insuranceCompany.name}${ci.isLead ? ' (Lead)' : ''}${ci.participationPercent ? ` ${ci.participationPercent}%` : ''}`)
       .join('; ');

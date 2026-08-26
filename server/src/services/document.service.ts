@@ -1,6 +1,8 @@
 import fs from 'fs';
+import { Readable } from 'stream';
 import type { Express } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
+import type { DocumentCategory } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
@@ -15,13 +17,30 @@ interface DocumentData {
   isReceived?: string | boolean;
 }
 
-interface ChecklistGroup {
-  category: Record<string, unknown> | null;
-  isRequired: boolean;
-  uploaded: Record<string, unknown>[];
+interface ChecklistDocument {
+  id: number;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  description: string | null;
+  isReceived: boolean;
+  receivedAt: string | null | undefined;
+  uploadedBy: string | null;
+  createdAt: string;
 }
 
-export async function getDocumentChecklist(claimId: number | string, user: AuthUser): Promise<ChecklistGroup[]> {
+interface ChecklistGroup {
+  category: DocumentCategory | null;
+  isRequired: boolean;
+  uploaded: ChecklistDocument[];
+}
+
+export async function getDocumentChecklist(
+  claimId: number | string,
+  user: AuthUser,
+  pagination: { page?: number | string; limit?: number | string } = {}
+): Promise<{ items: ChecklistGroup[]; count: number; page: number; limit: number }> {
+  const { page = 1, limit = 20 } = pagination;
   const claim = await prisma.claim.findUnique({
     where: { id: Number(claimId) },
     include: { claimType: { include: { requirements: { include: { documentCategory: true } } } } },
@@ -29,12 +48,18 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
   if (!claim) throw new AppError('Claim not found', 404);
   assertClaimAccess(user, claim);
 
-  const documents = await prisma.document.findMany({
-    where: { claimId: Number(claimId) },
-    include: { documentCategory: true, uploadedBy: { select: { firstName: true, lastName: true } } },
-    orderBy: { createdAt: 'desc' },
-    omit: { data: true },
-  });
+  const where = { claimId: Number(claimId) };
+  const [documents, count] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      include: { documentCategory: true, uploadedBy: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      omit: { data: true },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+    }),
+    prisma.document.count({ where }),
+  ]);
 
   const requirements = claim.claimType?.requirements || [];
 
@@ -43,7 +68,7 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
   for (const req of requirements) {
     if (req.documentCategoryId) {
       categoryMap.set(req.documentCategoryId, {
-        category: req.documentCategory as unknown as Record<string, unknown>,
+        category: req.documentCategory,
         isRequired: req.isRequired,
         uploaded: [],
       });
@@ -54,7 +79,7 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
   for (const doc of documents) {
     if (doc.documentCategoryId && !categoryMap.has(doc.documentCategoryId)) {
       categoryMap.set(doc.documentCategoryId, {
-        category: doc.documentCategory as unknown as Record<string, unknown>,
+        category: doc.documentCategory,
         isRequired: false,
         uploaded: [],
       });
@@ -99,7 +124,7 @@ export async function getDocumentChecklist(claimId: number | string, user: AuthU
     });
   }
 
-  return result;
+  return { items: result, count, page: Number(page), limit: Number(limit) };
 }
 
 export async function uploadDocument(claimId: number | string, file: Express.Multer.File, data: DocumentData, user: AuthUser) {
@@ -177,7 +202,11 @@ export async function deleteDocument(claimId: number | string, id: number, user:
   await prisma.document.delete({ where: { id } });
 }
 
-export async function getDocumentFile(claimId: number | string, id: number, user: AuthUser): Promise<Record<string, unknown>> {
+export async function getDocumentFile(
+  claimId: number | string,
+  id: number,
+  user: AuthUser
+): Promise<{ originalName: string; mimeType: string; stream: Readable; isPlaceholder?: boolean }> {
   const doc = await prisma.document.findFirst({
     where: { id, claimId: Number(claimId) },
     include: { claim: true },
@@ -186,14 +215,15 @@ export async function getDocumentFile(claimId: number | string, id: number, user
   assertClaimAccess(user, doc.claim);
 
   // Prefer BLOB data stored in the database (persistent across deploys)
+  // LIMIT: The whole BLOB is materialized in memory from the Prisma adapter; the upgrade path is a streaming SQL query or an object store.
   if (doc.data) {
-    return { ...doc, buffer: Buffer.from(doc.data as Uint8Array) };
+    return { originalName: doc.originalName, mimeType: doc.mimeType, stream: Readable.from(doc.data as Uint8Array) };
   }
 
   // Fall back to disk for legacy records
   const resolved = resolveFilePath(doc.path);
   if (resolved && fs.existsSync(resolved)) {
-    return { ...doc, buffer: fs.readFileSync(resolved) };
+    return { originalName: doc.originalName, mimeType: doc.mimeType, stream: fs.createReadStream(resolved) };
   }
 
   // File is missing (ephemeral filesystem lost it) — return a text placeholder
@@ -201,5 +231,5 @@ export async function getDocumentFile(claimId: number | string, id: number, user
     `This document ("${doc.originalName}") was uploaded to the server's local disk, ` +
     'which was lost during a redeploy. Please re-upload the file to restore it.'
   );
-  return { ...doc, buffer: placeholder, mimeType: 'text/plain', isPlaceholder: true };
+  return { originalName: doc.originalName, mimeType: 'text/plain', stream: Readable.from(placeholder), isPlaceholder: true };
 }

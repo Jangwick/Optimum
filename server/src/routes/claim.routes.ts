@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
+import { idempotencyMiddleware } from '../middleware/idempotency.js';
+import { strictRateLimit } from '../middleware/rate-limit.js';
 import {
   listClaims,
   getClaim,
@@ -25,7 +27,7 @@ router.use(authMiddleware);
 
 router.get('/', listClaims);
 router.get('/:id', getClaim);
-router.post('/', requireRole('ADMIN'), createClaim);
+router.post('/', requireRole('ADMIN'), idempotencyMiddleware, strictRateLimit, createClaim);
 router.patch('/:id', requireRole('ADMIN'), updateClaim);
 router.patch('/:id/status', updateStatus);
 

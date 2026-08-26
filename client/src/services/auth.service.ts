@@ -7,11 +7,6 @@ export async function login(credentials: Record<string, unknown>): Promise<unkno
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
-  try {
-    localStorage.removeItem('token');
-  } catch {
-    // ignore
-  }
 }
 
 export async function getMe(): Promise<unknown> {

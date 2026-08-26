@@ -27,7 +27,7 @@ Use an **additive-only migration strategy**:
 
 ## Implementation
 - Schema changes in `server/prisma/schema.prisma`
-- Seed script: `server/prisma/seed.js`
+- Seed script: `server/prisma/seed.ts`
 - Manual migration artifact: `server/prisma/migrations/` directory
 - `db push` applied to both development (`claims_solutions`) and test (`claims_solutions_test`) databases
 

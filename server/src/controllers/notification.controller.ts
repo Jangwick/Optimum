@@ -3,11 +3,14 @@ import * as notificationService from '../services/notification.service.js';
 import { AppError } from '../middleware/error.js';
 import type { RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { parseWithAppError } from '../validators/index.js';
+import { ListNotificationsQuerySchema } from '../validators/notification.js';
 
 export const listNotifications: RequestHandler = async (req, res, next) => {
   try {
-    const items = await notificationService.getNotifications((req as AuthenticatedRequest).user.id);
-    res.json({ success: true, items });
+    const query = parseWithAppError(ListNotificationsQuerySchema, req.query);
+    const data = await notificationService.getNotifications((req as AuthenticatedRequest).user.id, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }

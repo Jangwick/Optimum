@@ -13,6 +13,8 @@ import type { ImportStatus, ProcessStatus, StatusConfidence } from './status-inf
 const MAX_SHEETS = 50;
 const MAX_ROWS_PER_SHEET = 10000;
 const MAX_COLUMNS_PER_SHEET = 100;
+const MAX_TOTAL_ROWS = 50000;
+const MAX_PARSE_MS = 120000;
 
 export type SheetType = 'ACTIVE' | 'CLOSED' | 'CANCELLED' | 'LOOKUP' | 'IGNORE';
 
@@ -220,9 +222,20 @@ function parseRow(worksheet: Worksheet, sourceRow: number, headers: MappedHeader
   };
 }
 
+function timeoutPromise(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Import parsing timed out')), ms);
+  });
+}
+
 export async function parseClaimWorkbook(input: Buffer): Promise<ParsedWorkbook> {
+  const start = Date.now();
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(new Uint8Array(input).buffer);
+  await Promise.race([
+    workbook.xlsx.load(new Uint8Array(input).buffer),
+    timeoutPromise(MAX_PARSE_MS),
+  ]);
+  if (Date.now() - start > MAX_PARSE_MS) throw new Error('Import parsing timed out');
   if (workbook.worksheets.length > MAX_SHEETS) throw new Error('Workbook has too many sheets');
 
   const rows: ClaimImportRow[] = [];
@@ -247,6 +260,8 @@ export async function parseClaimWorkbook(input: Buffer): Promise<ParsedWorkbook>
     for (let sourceRow = headerRow + 1; sourceRow <= worksheet.rowCount; sourceRow += 1) {
       const row = worksheet.getRow(sourceRow);
       if (!cell(row, headers.itemNumber) && !cell(row, headers.ocsReference)) continue;
+      if (rows.length >= MAX_TOTAL_ROWS) throw new Error('Workbook has too many total rows');
+      if (Date.now() - start > MAX_PARSE_MS) throw new Error('Import parsing timed out');
       rows.push(parseRow(worksheet, sourceRow, headers, type, year));
       rowCount += 1;
     }

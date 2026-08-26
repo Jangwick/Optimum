@@ -1,16 +1,17 @@
-import { type ReactNode } from 'react';
+import { lazy, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Claims from './pages/Claims.jsx';
-import ClaimDetail from './pages/ClaimDetail.jsx';
-import NewClaim from './pages/NewClaim.jsx';
-import MasterData from './pages/MasterData.jsx';
-import AuditLogs from './pages/AuditLogs.jsx';
-import Employees from './pages/Employees.jsx';
-import Reports from './pages/Reports.jsx';
+
+const Login = lazy(() => import('./pages/Login.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Claims = lazy(() => import('./pages/Claims.jsx'));
+const ClaimDetail = lazy(() => import('./pages/ClaimDetail.jsx'));
+const NewClaim = lazy(() => import('./pages/NewClaim.jsx'));
+const MasterData = lazy(() => import('./pages/MasterData.jsx'));
+const AuditLogs = lazy(() => import('./pages/AuditLogs.jsx'));
+const Employees = lazy(() => import('./pages/Employees.jsx'));
+const Reports = lazy(() => import('./pages/Reports.jsx'));
 
 interface ProtectedRouteProps {
   children: ReactNode;

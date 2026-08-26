@@ -1,5 +1,6 @@
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import { sanitizeLogValue } from '../utils/sanitize-log.js';
 
 interface AuditLogFilters {
   action?: string;
@@ -49,6 +50,10 @@ export async function logAction(
   userId: number | null | undefined,
   newValues: Prisma.InputJsonValue | null = null
 ): Promise<void> {
+  const sanitizedNewValues: Prisma.InputJsonValue | null = newValues
+    ? (sanitizeLogValue(newValues) as Prisma.InputJsonValue)
+    : null;
+
   try {
     await prisma.auditLog.create({
       data: {
@@ -56,7 +61,7 @@ export async function logAction(
         tableName,
         recordId: String(recordId),
         ...(userId !== undefined && userId !== null ? { userId } : {}),
-        ...(newValues === null ? {} : { newValues }),
+        ...(sanitizedNewValues === null ? {} : { newValues: sanitizedNewValues }),
       },
     });
   } catch {

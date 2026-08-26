@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, type ChangeEvent, type MouseEvent } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo, type ChangeEvent, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getClaims, exportClaims } from '../services/claim.service.js';
 import {
@@ -70,7 +70,7 @@ interface StatusPillProps {
   name: string | undefined;
 }
 
-function StatusPill({ code, name }: StatusPillProps) {
+const StatusPill = memo(function StatusPill({ code, name }: StatusPillProps) {
   const colors =
     STATUS_COLORS[code] ?? {
       bg: 'bg-surface-container-high',
@@ -86,14 +86,14 @@ function StatusPill({ code, name }: StatusPillProps) {
       {name || code}
     </span>
   );
-}
+});
 
 interface ReadOnlyBadgeProps {
   isReadOnly: boolean;
   isCancelled: boolean;
 }
 
-function ReadOnlyBadge({ isReadOnly, isCancelled }: ReadOnlyBadgeProps) {
+const ReadOnlyBadge = memo(function ReadOnlyBadge({ isReadOnly, isCancelled }: ReadOnlyBadgeProps) {
   if (!isReadOnly) return null;
   return (
     <span
@@ -105,7 +105,7 @@ function ReadOnlyBadge({ isReadOnly, isCancelled }: ReadOnlyBadgeProps) {
       {isCancelled ? <Ban size={10} /> : <Lock size={10} />}
     </span>
   );
-}
+});
 
 const ALL_COLUMNS: { key: string; label: string; default: boolean }[] = [
   { key: 'claimNumber', label: 'OCS Ref #', default: true },
@@ -121,6 +121,12 @@ const ALL_COLUMNS: { key: string; label: string; default: boolean }[] = [
   { key: 'policyNumber', label: 'Policy #', default: false },
   { key: 'dateOfLoss', label: 'Date of Loss', default: false },
 ];
+
+const VIEW_TABS = [
+  { key: 'active', label: 'Active', icon: ClipboardList },
+  { key: 'closed', label: 'Closed', icon: Lock },
+  { key: 'cancelled', label: 'Cancelled', icon: Ban },
+] as const;
 
 function formatDate(dateStr: string | number | undefined) {
   if (!dateStr) return '—';
@@ -304,7 +310,7 @@ export default function Claims() {
     };
   }, [data, globalCounts]);
 
-  const allColumns: Column[] = [
+  const allColumns = useMemo<Column[]>(() => ([
     {
       key: 'claimNumber',
       title: 'OCS Ref #',
@@ -457,8 +463,81 @@ export default function Claims() {
         </span>
       ),
     },
-  ];
-  const columns = allColumns.filter((col) => !!visibleCols[col.key]);
+  ]), []);
+  const columns = useMemo(() => allColumns.filter((col) => !!visibleCols[col.key]), [allColumns, visibleCols]);
+
+  const statusOptions = useMemo(
+    () => [
+      { value: '', label: 'All Statuses' },
+      ...claimStatuses.map((s) => ({ value: s['code'] as string | number, label: s['name'] as string })),
+    ],
+    [claimStatuses]
+  );
+
+  const processStatusOptions = useMemo(
+    () => [
+      { value: '', label: 'All Process Statuses' },
+      ...claimStatuses.map((s) => ({ value: s['code'] as string | number, label: s['name'] as string })),
+    ],
+    [claimStatuses]
+  );
+
+  const claimTypeOptions = useMemo(
+    () => [
+      { value: '', label: 'All Types' },
+      ...claimTypes.map((t) => ({ value: t['code'] as string | number, label: t['name'] as string })),
+    ],
+    [claimTypes]
+  );
+
+  const clientOptions = useMemo(
+    () => [
+      { value: '', label: 'All Clients' },
+      ...clients.map((c) => ({ value: c['id'] as string | number, label: c['name'] as string })),
+    ],
+    [clients]
+  );
+
+  const insurerOptions = useMemo(
+    () => [
+      { value: '', label: 'All Insurers' },
+      ...insurers.map((i) => ({ value: i['id'] as string | number, label: i['name'] as string })),
+    ],
+    [insurers]
+  );
+
+  const engineerOptions = useMemo(
+    () => [
+      { value: '', label: 'All Adjusters' },
+      ...engineers.map((e) => ({
+        value: e['id'] as string | number,
+        label: `${e['fullName'] as string} (${e['role'] as string})`,
+      })),
+    ],
+    [engineers]
+  );
+
+  const keyExtractor = useCallback(
+    (row: Record<string, unknown>) => row['id'] as string | number,
+    []
+  );
+
+  const rowActions = useCallback(
+    (row: Record<string, unknown>) => (
+      <button
+        onClick={(e: MouseEvent<HTMLButtonElement>) => {
+          e.stopPropagation();
+          navigate(`/claims/${row['id'] as string | number}`);
+        }}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline bg-surface text-body-sm font-medium text-on-surface hover:bg-primary hover:text-white hover:border-primary transition-colors"
+        title="View claim details"
+      >
+        <Eye size={14} />
+        View
+      </button>
+    ),
+    [navigate]
+  );
 
   const clearFilters = () => {
     applySearch('');
@@ -543,11 +622,7 @@ export default function Claims() {
 
       {/* View Tabs */}
       <div className="flex items-center gap-1 mb-4 bg-surface border border-surface-border rounded-lg p-1 w-fit">
-        {[
-          { key: 'active', label: 'Active', icon: ClipboardList },
-          { key: 'closed', label: 'Closed', icon: Lock },
-          { key: 'cancelled', label: 'Cancelled', icon: Ban },
-        ].map((tab) => {
+        {VIEW_TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = view === tab.key;
           return (
@@ -589,10 +664,7 @@ export default function Claims() {
             <Select
               value={(filters['status'] as string | undefined) ?? ''}
               onChange={(v) => setFilter('status', v)}
-              options={[
-                { value: '', label: 'All Statuses' },
-                ...claimStatuses.map((s) => ({ value: s['code'] as string | number, label: s['name'] as string })),
-              ]}
+              options={statusOptions}
               placeholder="All Statuses"
               ariaLabel="Filter by status"
               className="min-w-[160px]"
@@ -675,10 +747,7 @@ export default function Claims() {
                   <Select
                     value={(filters['processStatus'] as string | undefined) ?? ''}
                     onChange={(v) => setFilter('processStatus', v)}
-                    options={[
-                      { value: '', label: 'All Process Statuses' },
-                      ...claimStatuses.map((s) => ({ value: s['code'] as string | number, label: s['name'] as string })),
-                    ]}
+                    options={processStatusOptions}
                     placeholder="All Process Statuses"
                   />
                 </div>
@@ -687,10 +756,7 @@ export default function Claims() {
                   <Select
                     value={(filters['claimType'] as string | undefined) ?? ''}
                     onChange={(v) => setFilter('claimType', v)}
-                    options={[
-                      { value: '', label: 'All Types' },
-                      ...claimTypes.map((t) => ({ value: t['code'] as string | number, label: t['name'] as string })),
-                    ]}
+                    options={claimTypeOptions}
                     placeholder="All Types"
                   />
                 </div>
@@ -699,10 +765,7 @@ export default function Claims() {
                   <Select
                     value={(filters['clientId'] as string | undefined) ?? ''}
                     onChange={(v) => setFilter('clientId', v)}
-                    options={[
-                      { value: '', label: 'All Clients' },
-                      ...clients.map((c) => ({ value: c['id'] as string | number, label: c['name'] as string })),
-                    ]}
+                    options={clientOptions}
                     placeholder="All Clients"
                   />
                 </div>
@@ -711,10 +774,7 @@ export default function Claims() {
                   <Select
                     value={(filters['insurerId'] as string | undefined) ?? ''}
                     onChange={(v) => setFilter('insurerId', v)}
-                    options={[
-                      { value: '', label: 'All Insurers' },
-                      ...insurers.map((i) => ({ value: i['id'] as string | number, label: i['name'] as string })),
-                    ]}
+                    options={insurerOptions}
                     placeholder="All Insurers"
                   />
                 </div>
@@ -723,13 +783,7 @@ export default function Claims() {
                   <Select
                     value={(filters['engineerId'] as string | undefined) ?? ''}
                     onChange={(v) => setFilter('engineerId', v)}
-                    options={[
-                      { value: '', label: 'All Adjusters' },
-                      ...engineers.map((e) => ({
-                        value: e['id'] as string | number,
-                        label: `${e['fullName'] as string} (${e['role'] as string})`,
-                      })),
-                    ]}
+                    options={engineerOptions}
                     placeholder="All Adjusters"
                   />
                 </div>
@@ -746,20 +800,8 @@ export default function Claims() {
           sortField={sortField}
           sortOrder={sortOrder}
           onSort={onSort}
-          keyExtractor={(row) => row['id'] as string | number}
-          rowActions={(row) => (
-            <button
-              onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                e.stopPropagation();
-                navigate(`/claims/${row['id'] as string | number}`);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline bg-surface text-body-sm font-medium text-on-surface hover:bg-primary hover:text-white hover:border-primary transition-colors"
-              title="View claim details"
-            >
-              <Eye size={14} />
-              View
-            </button>
-          )}
+          keyExtractor={keyExtractor}
+          rowActions={rowActions}
           bare
           emptyState={
             <div className="p-12 text-center">

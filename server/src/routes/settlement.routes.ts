@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { idempotencyMiddleware } from '../middleware/idempotency.js';
 import {
   getSettlement,
   upsertSettlement,
@@ -13,9 +14,9 @@ const router = Router({ mergeParams: true });
 router.use(authMiddleware);
 
 router.get('/', getSettlement);
-router.put('/', upsertSettlement);
+router.put('/', idempotencyMiddleware, upsertSettlement);
 router.get('/offers', listOffers);
-router.post('/offers', createOffer);
-router.put('/offers/:id/response', respondToOffer);
+router.post('/offers', idempotencyMiddleware, createOffer);
+router.put('/offers/:id/response', idempotencyMiddleware, respondToOffer);
 
 export default router;

@@ -1,5 +1,8 @@
 import { useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
 interface UseListOptions {
   initialPage?: number;
   initialLimit?: number;
@@ -28,9 +31,20 @@ interface UseListState {
   reload: () => void;
 }
 
-export function useList({ initialPage = 1, initialLimit = 25, initialSearch = '' }: UseListOptions = {}): UseListState {
+export function useList({
+  initialPage = 1,
+  initialLimit = DEFAULT_LIMIT,
+  initialSearch = '',
+}: UseListOptions = {}): UseListState {
   const [page, setPage] = useState(initialPage);
-  const [limit, setLimit] = useState(initialLimit);
+  const [limit, setLimit] = useState(Math.min(initialLimit, MAX_LIMIT));
+
+  const setSafeLimit = useCallback((value: SetStateAction<number>) => {
+    setLimit((prev) => {
+      const next = typeof value === 'function' ? (value as (prev: number) => number)(prev) : value;
+      return Math.min(next, MAX_LIMIT);
+    });
+  }, []);
   const [search, setSearch] = useState(initialSearch);
   const [filters, setFilters] = useState<UseListFilters>({});
   const [sortField, setSortField] = useState('');
@@ -65,7 +79,7 @@ export function useList({ initialPage = 1, initialLimit = 25, initialSearch = ''
     page,
     setPage,
     limit,
-    setLimit,
+    setLimit: setSafeLimit,
     search,
     setSearch,
     applySearch,

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type ComponentProps } from 'react';
+import { useEffect, useMemo, useState, memo, type ReactNode, type ComponentProps } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type LucideIcon } from 'lucide-react';
 import { AppLayout } from '../components/AppLayout.jsx';
@@ -26,6 +26,14 @@ import {
   BarChart3,
   Clock,
 } from 'lucide-react';
+
+const MemoizedDashboardMetricCard = memo(DashboardMetricCard);
+const MemoizedVolumeChart = memo(VolumeChart);
+const MemoizedOpenTasksList = memo(OpenTasksList);
+const MemoizedStatusBarChart = memo(StatusBarChart);
+const MemoizedAgingBarChart = memo(AgingBarChart);
+const MemoizedRecentClaims = memo(RecentClaims);
+const MemoizedRecentActivity = memo(RecentActivity);
 
 interface Metric {
   key: string;
@@ -87,26 +95,41 @@ export default function Dashboard() {
 
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
 
-  const counts = data ? (data['counts'] as Record<string, unknown> | undefined) : undefined;
-  const metricValues: Record<string, ReactNode> = {
-    active: (counts?.['active'] as number | undefined) ?? 0,
-    pendingInspections: (counts?.['pendingInspections'] as number | undefined) ?? 0,
-    estimated: counts?.['estimated']
-      ? formatCurrency(counts['estimated'] as string | number)
-      : '₱0.00',
-    settledMTD: counts?.['settledMTD']
-      ? formatCurrency(counts['settledMTD'] as string | number)
-      : '₱0.00',
-  };
+  const {
+    metricValues,
+    monthlyVolume,
+    weeklyVolume,
+    statusBreakdown,
+    agingBuckets,
+    openTasksList,
+    recentClaims,
+    recentActivity,
+    overdueTasks,
+  } = useMemo(() => {
+    const counts = data ? (data['counts'] as Record<string, unknown> | undefined) : undefined;
+    const metricValues: Record<string, ReactNode> = {
+      active: (counts?.['active'] as number | undefined) ?? 0,
+      pendingInspections: (counts?.['pendingInspections'] as number | undefined) ?? 0,
+      estimated: counts?.['estimated']
+        ? formatCurrency(counts['estimated'] as string | number)
+        : '₱0.00',
+      settledMTD: counts?.['settledMTD']
+        ? formatCurrency(counts['settledMTD'] as string | number)
+        : '₱0.00',
+    };
 
-  const monthlyVolume = (data?.['monthlyVolume'] as Record<string, unknown>[] | undefined) ?? [];
-  const weeklyVolume = (data?.['weeklyVolume'] as Record<string, unknown>[] | undefined) ?? [];
-  const statusBreakdown = (data?.['statusBreakdown'] as Record<string, unknown>[] | undefined) ?? [];
-  const agingBuckets = (data?.['agingBuckets'] as Record<string, unknown>[] | undefined) ?? [];
-  const openTasksList = (data?.['openTasksList'] as Record<string, unknown>[] | undefined) ?? [];
-  const recentClaims = (data?.['recentClaims'] as Record<string, unknown>[] | undefined) ?? [];
-  const recentActivity = (data?.['recentActivity'] as Record<string, unknown>[] | undefined) ?? [];
-  const overdueTasks = (counts?.['overdueTasks'] as number | undefined) ?? 0;
+    return {
+      metricValues,
+      monthlyVolume: (data?.['monthlyVolume'] as Record<string, unknown>[] | undefined) ?? [],
+      weeklyVolume: (data?.['weeklyVolume'] as Record<string, unknown>[] | undefined) ?? [],
+      statusBreakdown: (data?.['statusBreakdown'] as Record<string, unknown>[] | undefined) ?? [],
+      agingBuckets: (data?.['agingBuckets'] as Record<string, unknown>[] | undefined) ?? [],
+      openTasksList: (data?.['openTasksList'] as Record<string, unknown>[] | undefined) ?? [],
+      recentClaims: (data?.['recentClaims'] as Record<string, unknown>[] | undefined) ?? [],
+      recentActivity: (data?.['recentActivity'] as Record<string, unknown>[] | undefined) ?? [],
+      overdueTasks: (counts?.['overdueTasks'] as number | undefined) ?? 0,
+    };
+  }, [data]);
 
   return (
     <>
@@ -152,7 +175,7 @@ export default function Dashboard() {
             {/* Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {METRICS.map((m) => (
-                <DashboardMetricCard
+                <MemoizedDashboardMetricCard
                   key={m.key}
                   title={m.title}
                   subtitle={m.subtitle}
@@ -168,7 +191,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <DashboardSection title="Claim Volume Over Time" icon={BarChart3}>
-                  <VolumeChart
+                  <MemoizedVolumeChart
                     monthlyData={monthlyVolume as unknown as ComponentProps<typeof VolumeChart>['monthlyData']}
                     weeklyData={weeklyVolume as unknown as ComponentProps<typeof VolumeChart>['weeklyData']}
                   />
@@ -179,7 +202,7 @@ export default function Dashboard() {
                   title={user?.role === 'ADMIN' ? 'Open Tasks' : 'My Open Tasks'}
                   icon={ClipboardList}
                 >
-                  <OpenTasksList
+                  <MemoizedOpenTasksList
                     tasks={openTasksList as unknown as ComponentProps<typeof OpenTasksList>['tasks']}
                     overdueCount={overdueTasks}
                     userRole={user?.role ?? ''}
@@ -203,13 +226,13 @@ export default function Dashboard() {
                   </button>
                 }
               >
-                <StatusBarChart
+                <MemoizedStatusBarChart
                   data={statusBreakdown as unknown as ComponentProps<typeof StatusBarChart>['data']}
                 />
               </DashboardSection>
 
               <DashboardSection title="Claim Aging" icon={Clock}>
-                <AgingBarChart
+                <MemoizedAgingBarChart
                   data={agingBuckets as unknown as ComponentProps<typeof AgingBarChart>['data']}
                 />
               </DashboardSection>
@@ -218,12 +241,12 @@ export default function Dashboard() {
             {/* Recent Claims + Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <RecentClaims
+                <MemoizedRecentClaims
                   claims={recentClaims as unknown as ComponentProps<typeof RecentClaims>['claims']}
                 />
               </div>
               <div className="lg:col-span-1">
-                <RecentActivity
+                <MemoizedRecentActivity
                   activity={recentActivity as unknown as ComponentProps<typeof RecentActivity>['activity']}
                 />
               </div>

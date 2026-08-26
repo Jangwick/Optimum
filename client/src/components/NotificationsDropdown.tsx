@@ -39,6 +39,9 @@ export function NotificationsDropdown() {
     queryKey: ['notifications', 'unread-count'],
     queryFn: getUnreadCount,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false,
+    retry: 1,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const { data: notifData } = useQuery({
@@ -46,6 +49,8 @@ export function NotificationsDropdown() {
     queryFn: getNotifications,
     enabled: hasFetched,
     staleTime: 10000,
+    retry: 1,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const unreadCount = (unreadData as { count?: number } | undefined)?.count ?? 0;

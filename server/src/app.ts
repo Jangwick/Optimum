@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import { userRateLimit } from './middleware/rate-limit.js';
 import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 import { config } from './config/index.js';
 import { errorHandler } from './middleware/error.js';
+import { requestLogger } from './middleware/request-logger.js';
+import { requestSignalMiddleware } from './middleware/request-signal.js';
+import { loadShedMiddleware } from './middleware/load-shed.js';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -35,6 +38,14 @@ import discussionNoteRoutes from './routes/discussion-note.routes.js';
 import searchRoutes from './routes/search.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// In-flight request tracking for graceful shutdown
+export let activeRequests = 0;
+export let isShuttingDown = false;
+
+export function setShuttingDown(value: boolean): void {
+  isShuttingDown = value;
+}
 
 const app: Express = express();
 
@@ -65,15 +76,36 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
+app.use(requestLogger);
+app.use(requestSignalMiddleware);
+app.use(loadShedMiddleware);
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (isShuttingDown) {
+    res.status(503).json({ success: false, error: 'Server is shutting down' });
+    return;
+  }
+
+  activeRequests += 1;
+
+  const onFinished = () => {
+    res.removeListener('finish', onFinished);
+    res.removeListener('close', onFinished);
+    activeRequests -= 1;
+  };
+
+  res.on('finish', onFinished);
+  res.on('close', onFinished);
+
+  next();
+});
 
 app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: config.nodeEnv === 'development' ? 1000 : 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
-  })
+  userRateLimit(
+    15 * 60 * 1000,
+    config.nodeEnv === 'development' ? 1000 : 100,
+    (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
+  )
 );
 
 // Legacy public static mount removed; files are served only through

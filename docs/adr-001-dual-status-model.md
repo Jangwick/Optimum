@@ -35,5 +35,5 @@ Implement a **dual status model**:
 ## Implementation
 - `ProcessStatus` model with `code`, `name`, `color`, `isTerminal`, `sortOrder`
 - `ClaimProcessStatusHistory` for audit trail
-- `process-status.service.js` with transition validation and closing guards
+- `process-status.service.ts` with transition validation and closing guards
 - Routes: `GET /api/process-statuses`, `PATCH /api/claims/:id/process-status`, `GET /api/claims/:id/process-status-history`, `GET /api/claims/:id/closing-guards`

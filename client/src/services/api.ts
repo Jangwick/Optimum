@@ -1,17 +1,15 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { classifyApiError } from '../utils/api-error.js';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-function getToken(): string | null {
-  try {
-    return localStorage.getItem('token');
-  } catch {
-    return null;
-  }
+function generateRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 export const api: AxiosInstance = axios.create({
   baseURL,
+  timeout: 30000,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -19,10 +17,10 @@ export const api: AxiosInstance = axios.create({
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!config.headers['x-request-id']) {
+    config.headers['x-request-id'] = generateRequestId();
   }
+  config.signal ??= AbortSignal.timeout(30000);
   return config;
 });
 
@@ -34,17 +32,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isAuth && !onLogin) {
       window.location.href = '/login';
     }
-    return Promise.reject(error);
-  }
-);
 
-/**
- * Build an authenticated URL for binary resources (images, documents)
- * that are loaded via <img>, <a download>, etc. and cannot send
- * Authorization headers. Appends the JWT as a query parameter.
- */
-export function authUrl(path: string): string {
-  const token = getToken();
-  const sep = path.includes('?') ? '&' : '?';
-  return token ? `${path}${sep}token=${encodeURIComponent(token)}` : path;
-}
+    const classified = classifyApiError(error);
+    console.error(`[API] ${classified.kind}: ${classified.message}`);
+
+    return Promise.reject(error);
+  },
+);

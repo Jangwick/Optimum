@@ -1,5 +1,9 @@
 import type { AuthUser } from '../middleware/auth.js';
+import { Prisma } from '../../generated/prisma/client.js';
+import type { ProcessStatus } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
+import { withRetry } from '../utils/retry.js';
+import { referenceDataCache } from '../utils/cache.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -7,6 +11,12 @@ export async function getDashboard(user: AuthUser) {
   const baseWhere: any = {};
   if (user.role === 'ENGINEER') baseWhere.engineerId = user.id;
   if (user.role === 'ACCOUNTANT') baseWhere.accountantId = user.id;
+
+  const roleFilter = baseWhere.engineerId
+    ? Prisma.sql`AND engineerId = ${baseWhere.engineerId}`
+    : baseWhere.accountantId
+      ? Prisma.sql`AND accountantId = ${baseWhere.accountantId}`
+      : Prisma.empty;
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -115,28 +125,54 @@ export async function getDashboard(user: AuthUser) {
       _count: { id: true },
     }),
 
-    // Raw data for monthly volume chart
-    prisma.claim.findMany({
-      where: { ...baseWhere, dateReceived: { gte: twelveMonthsAgo } },
-      select: { dateReceived: true, estimatedLoss: true },
-    }),
+    // Monthly & weekly volume aggregation (DB-level, last 12 months)
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT
+            DATE_FORMAT(dateReceived, '%Y-%m') AS monthKey,
+            DATE_FORMAT(DATE_SUB(DATE(dateReceived), INTERVAL DAYOFWEEK(dateReceived) - 1 DAY), '%Y-%m-%d') AS weekKey,
+            COUNT(*) AS claims,
+            SUM(estimatedLoss) AS estimatedLoss
+          FROM claims
+          WHERE dateReceived >= ${twelveMonthsAgo}
+            ${roleFilter}
+          GROUP BY monthKey, weekKey
+        `
+      )
+    ),
 
-    // Raw data for aging buckets
-    prisma.claim.findMany({
-      where: { ...baseWhere, isClosed: false, isCancelled: false },
-      select: { dateReceived: true },
-    }),
+    // Aging buckets for open claims
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) <= 30 THEN 1 ELSE 0 END), 0) AS \`0-30\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 31 AND 60 THEN 1 ELSE 0 END), 0) AS \`31-60\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) BETWEEN 61 AND 90 THEN 1 ELSE 0 END), 0) AS \`61-90\`,
+            IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), dateReceived) > 90 THEN 1 ELSE 0 END), 0) AS \`90+\`
+          FROM claims
+          WHERE isClosed = 0
+            AND isCancelled = 0
+            ${roleFilter}
+        `
+      )
+    ),
 
-    // Closed claims for average cycle-time calculation
-    prisma.claim.findMany({
-      where: {
-        ...baseWhere,
-        isClosed: true,
-        isCancelled: false,
-        closedAt: { not: null, gte: twelveMonthsAgo },
-      },
-      select: { dateReceived: true, closedAt: true },
-    }),
+    // Average cycle time in days for claims closed in the last 12 months
+    withRetry(() =>
+      prisma.$queryRaw(
+        Prisma.sql`
+          SELECT AVG(DATEDIFF(closedAt, dateReceived)) AS averageCycleTime
+          FROM claims
+          WHERE isClosed = 1
+            AND isCancelled = 0
+            AND closedAt IS NOT NULL
+            AND closedAt >= ${twelveMonthsAgo}
+            ${roleFilter}
+        `
+      )
+    ),
 
     // Active claim count
     prisma.claim.count({
@@ -151,16 +187,21 @@ export async function getDashboard(user: AuthUser) {
     }),
   ]);
 
-  const processStatuses = await prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } });
+  const processStatuses = await referenceDataCache.get('processStatuses', () =>
+    prisma.processStatus.findMany({ orderBy: { sortOrder: 'asc' } })
+  );
   const processStatusMap = new Map(processStatuses.map((s) => [s.id, s]));
 
-  const statusBreakdown: any[] = (processStatusCounts as any[])
-    .map((s: any) => ({
+  const orderMap = new Map(processStatuses.map((p, i) => [p.id, i]));
+
+  const statusBreakdown = processStatusCounts
+    .filter((s): s is { processStatusId: number; _count: { id: number } } => s.processStatusId !== null)
+    .map((s) => ({
       status: processStatusMap.get(s.processStatusId),
       count: s._count.id,
     }))
-    .filter((s: any) => s.status)
-    .sort((a: any, b: any) => (a.status.sortOrder || 0) - (b.status.sortOrder || 0));
+    .filter((s): s is { status: ProcessStatus; count: number } => s.status !== undefined)
+    .sort((a, b) => (orderMap.get(a.status.id) ?? 0) - (orderMap.get(b.status.id) ?? 0));
 
   // Monthly volume buckets (last 12 months)
   const monthLabels: any[] = [];
@@ -192,44 +233,32 @@ export async function getDashboard(user: AuthUser) {
   }
   const weekMap = new Map(weekLabels.map((w) => [w.key, w]));
 
-  for (const c of monthlyVolumeRaw as any[]) {
-    const d = new Date(c.dateReceived);
-    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const monthEntry = monthMap.get(monthKey);
+  for (const r of monthlyVolumeRaw as any[]) {
+    const monthEntry = monthMap.get(r.monthKey);
     if (monthEntry) {
-      monthEntry.claims += 1;
-      monthEntry.estimatedLoss += Number(c.estimatedLoss || 0);
+      monthEntry.claims += Number(String(r.claims ?? 0));
+      monthEntry.estimatedLoss += Number(String(r.estimatedLoss ?? 0));
     }
 
-    const weekStart = new Date(d);
-    weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    const weekKey = weekStart.toISOString().slice(0, 10);
-    const weekEntry = weekMap.get(weekKey);
+    const weekEntry = weekMap.get(r.weekKey);
     if (weekEntry) {
-      weekEntry.claims += 1;
-      weekEntry.estimatedLoss += Number(c.estimatedLoss || 0);
+      weekEntry.claims += Number(String(r.claims ?? 0));
+      weekEntry.estimatedLoss += Number(String(r.estimatedLoss ?? 0));
     }
   }
 
   // Aging buckets for open claims
   const buckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-  for (const c of agingRaw as any[]) {
-    const days = Math.floor((now.getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
-    if (days <= 30) buckets['0-30']++;
-    else if (days <= 60) buckets['31-60']++;
-    else if (days <= 90) buckets['61-90']++;
-    else buckets['90+']++;
+  const agingRow = (agingRaw as any[])[0] ?? {};
+  for (const label of Object.keys(buckets) as Array<keyof typeof buckets>) {
+    buckets[label] = Number(String(agingRow[label] ?? 0));
   }
 
   // Average cycle time in days for claims closed in the last 12 months
+  const cycleRow = (closedForCycleTime as any[])[0] ?? {};
   let averageCycleTime = null;
-  if (closedForCycleTime.length > 0) {
-    const totalDays = (closedForCycleTime as any[]).reduce((sum, c: any) => {
-      const days = Math.floor((new Date(c.closedAt as Date).getTime() - new Date(c.dateReceived).getTime()) / (1000 * 60 * 60 * 24));
-      return sum + days;
-    }, 0);
-    averageCycleTime = Math.round((totalDays / closedForCycleTime.length) * 10) / 10;
+  if (cycleRow.averageCycleTime != null) {
+    averageCycleTime = Math.round(Number(String(cycleRow.averageCycleTime)) * 10) / 10;
   }
 
   return {

@@ -355,6 +355,8 @@ model Claim {
   @@index([importBatchId])
   @@index([importStatusId])
   @@index([isReadOnly])
+  @@index([isClosed])
+  @@index([isCancelled])
   @@map("claims")
 }
 
@@ -384,6 +386,7 @@ model ClaimStatusHistory {
   changedBy   User        @relation(fields: [changedById], references: [id])
   notes       String?     @db.Text
   createdAt   DateTime    @default(now())
+  @@index([claimId])
   @@map("claim_status_history")
 }
 
@@ -529,6 +532,9 @@ model Inspection {
   photos      InspectionPhoto[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  @@index([claimId])
+  @@index([conductedAt])
+  @@index([scheduledAt])
   @@map("inspections")
 }
 
@@ -743,6 +749,7 @@ model Settlement {
   createdBy      User      @relation(fields: [createdById], references: [id])
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  @@index([claimId])
   @@map("settlements")
 }
 
@@ -761,6 +768,8 @@ model Offer {
   createdBy     User      @relation("OfferCreatedBy", fields: [createdById], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  @@index([claimId])
+  @@index([status])
   @@map("offers")
 }
 
@@ -778,6 +787,7 @@ model Fee {
   invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  @@index([claimId])
   @@map("fees")
 }
 
@@ -797,6 +807,7 @@ model Invoice {
   payments      Payment[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  @@index([claimId])
   @@map("invoices")
 }
 
@@ -830,6 +841,9 @@ model Task {
   createdBy   User      @relation("TaskCreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  @@index([assignedToId])
+  @@index([claimId])
+  @@index([status])
   @@map("tasks")
 }
 
@@ -844,6 +858,9 @@ model Notification {
   isRead    Boolean  @default(false)
   readAt    DateTime?
   createdAt DateTime @default(now())
+  @@index([claimId])
+  @@index([userId])
+  @@index([isRead])
   @@map("notifications")
 }
 
@@ -858,6 +875,8 @@ model AuditLog {
   user      User?    @relation(fields: [userId], references: [id])
   ipAddress String?  @db.VarChar(45)
   createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 

@@ -3,17 +3,16 @@ import * as documentService from '../services/document.service.js';
 import { AppError } from '../middleware/error.js';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
-
-function idParam(req: Request) {
-  const id = Number(Number(req.params.id));
-  if (Number.isNaN(id)) throw new AppError('Invalid id', 400);
-  return id;
-}
+import type { Readable } from 'stream';
+import { IdParamSchema, parseWithAppError } from '../validators/index.js';
+import { ListDocumentsQuerySchema, UploadDocumentSchema } from '../validators/document.js';
 
 export const getChecklist: RequestHandler = async (req, res, next) => {
   try {
-    const items = await documentService.getDocumentChecklist(Number(req.params.claimId), (req as AuthenticatedRequest).user);
-    res.json({ success: true, items });
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const query = parseWithAppError(ListDocumentsQuerySchema, req.query);
+    const data = await documentService.getDocumentChecklist(claimId, (req as AuthenticatedRequest).user, query);
+    res.json({ success: true, ...data });
   } catch (err) { next(err as any);
   }
 }
@@ -21,7 +20,9 @@ export const getChecklist: RequestHandler = async (req, res, next) => {
 export const uploadDocument: RequestHandler = async (req, res, next) => {
   try {
     if (!(req as any).file) throw new AppError('No file uploaded', 400);
-    const item = await documentService.uploadDocument(Number(req.params.claimId), (req as any).file, req.body, (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const body = parseWithAppError(UploadDocumentSchema, req.body);
+    const item = await documentService.uploadDocument(claimId, (req as any).file, body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -29,7 +30,9 @@ export const uploadDocument: RequestHandler = async (req, res, next) => {
 
 export const markReceived: RequestHandler = async (req, res, next) => {
   try {
-    const item = await documentService.markDocumentReceived(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    const item = await documentService.markDocumentReceived(claimId, id, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -37,15 +40,20 @@ export const markReceived: RequestHandler = async (req, res, next) => {
 
 async function sendDocumentFile(req: Request, res: Response, next: NextFunction, disposition: string) {
   try {
-    const id = idParam(req);
-    const doc = (await documentService.getDocumentFile(Number(req.params.claimId), id, (req as AuthenticatedRequest).user)) as { originalName: string; mimeType: string; buffer: Buffer };
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    const doc = (await documentService.getDocumentFile(claimId, id, (req as AuthenticatedRequest).user)) as {
+      originalName: string;
+      mimeType: string;
+      stream: Readable;
+    };
 
     res.setHeader(
       'Content-Disposition',
       `${disposition}; filename*=UTF-8''${encodeURIComponent(doc.originalName)}`
     );
     res.setHeader('Content-Type', doc.mimeType);
-    res.send(doc.buffer);
+    doc.stream.on('error', (err) => next(err as any)).pipe(res);
   } catch (err) { next(err as any);
   }
 }
@@ -60,7 +68,9 @@ export const previewDocument: RequestHandler = async (req, res, next) => {
 
 export const deleteDocument: RequestHandler = async (req, res, next) => {
   try {
-    await documentService.deleteDocument(Number(req.params.claimId), idParam(req), (req as AuthenticatedRequest).user);
+    const claimId = parseWithAppError(IdParamSchema, req.params.claimId);
+    const id = parseWithAppError(IdParamSchema, req.params.id);
+    await documentService.deleteDocument(claimId, id, (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }

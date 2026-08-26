@@ -12,7 +12,7 @@ function idParam(req: Request) {
 
 export const listContacts: RequestHandler = async (req, res, next) => {
   try {
-    const items = await contactService.listContacts(Number(req.params.claimId));
+    const items = await contactService.listContacts(Number(req.params.claimId), (req as AuthenticatedRequest).user);
     res.json({ success: true, items });
   } catch (err) { next(err as any);
   }
@@ -20,7 +20,7 @@ export const listContacts: RequestHandler = async (req, res, next) => {
 
 export const createContact: RequestHandler = async (req, res, next) => {
   try {
-    const item = await contactService.createContact(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await contactService.createContact(Number(req.params.claimId), req.body, (req as AuthenticatedRequest).user);
     res.status(201).json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -28,7 +28,7 @@ export const createContact: RequestHandler = async (req, res, next) => {
 
 export const updateContact: RequestHandler = async (req, res, next) => {
   try {
-    const item = await contactService.updateContact(idParam(req), req.body, (req as AuthenticatedRequest).user.id);
+    const item = await contactService.updateContact(idParam(req), req.body, (req as AuthenticatedRequest).user);
     res.json({ success: true, item });
   } catch (err) { next(err as any);
   }
@@ -36,7 +36,7 @@ export const updateContact: RequestHandler = async (req, res, next) => {
 
 export const deleteContact: RequestHandler = async (req, res, next) => {
   try {
-    await contactService.deleteContact(idParam(req), (req as AuthenticatedRequest).user.id);
+    await contactService.deleteContact(idParam(req), (req as AuthenticatedRequest).user);
     res.json({ success: true });
   } catch (err) { next(err as any);
   }

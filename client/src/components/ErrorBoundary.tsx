@@ -3,7 +3,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  fallback?: (error: Error | null, reset: () => void) => ReactNode;
+  fallback?: ReactNode | ((error: Error | null, reset: () => void) => ReactNode);
 }
 
 interface ErrorBoundaryState {
@@ -13,10 +13,7 @@ interface ErrorBoundaryState {
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
-  }
+  state: ErrorBoundaryState = { hasError: false, error: null, errorInfo: null };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error, errorInfo: null };
@@ -37,8 +34,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback(this.state.error, this.handleReset);
+      const { fallback } = this.props;
+
+      if (fallback) {
+        if (typeof fallback === 'function') {
+          return fallback(this.state.error, this.handleReset);
+        }
+        return fallback;
       }
 
       return (

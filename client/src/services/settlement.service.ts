@@ -10,8 +10,8 @@ export async function saveSettlement(claimId: string | number, payload: Record<s
   return data;
 }
 
-export async function getOffers(claimId: string | number): Promise<unknown> {
-  const { data } = await api.get(`/claims/${claimId}/settlements/offers`);
+export async function getOffers(claimId: string | number, params?: Record<string, unknown>): Promise<unknown> {
+  const { data } = await api.get(`/claims/${claimId}/settlements/offers`, { params });
   return data;
 }
 

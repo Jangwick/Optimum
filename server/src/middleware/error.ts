@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../config/logger.js';
+import { getVersion } from '../config/version.js';
 
 interface AppErrorLike extends Error {
   statusCode?: number;
@@ -9,7 +10,22 @@ interface AppErrorLike extends Error {
 }
 
 export function errorHandler(err: AppErrorLike, req: Request, res: Response, next: NextFunction) {
-  logger.error({ err: err.message, stack: err.stack }, 'Unhandled error');
+  const requestId = req.id;
+  const log = req.log ?? logger.child({ requestId });
+  const statusCode = err.statusCode || err.status || 500;
+
+  log.error({
+    event: 'request_error',
+    requestId,
+    method: req.method,
+    route: req.route?.path ?? req.path,
+    path: req.path,
+    statusCode,
+    errorType: err.name || 'Error',
+    err: err.message,
+    stack: err.stack,
+    version: getVersion(),
+  }, 'Unhandled error');
 
   if (res.headersSent) {
     return next(err);
@@ -24,7 +40,6 @@ export function errorHandler(err: AppErrorLike, req: Request, res: Response, nex
     });
   }
 
-  const statusCode = err.statusCode || err.status || 500;
   const message = statusCode >= 500 && process.env.NODE_ENV === 'production'
     ? 'Internal server error'
     : err.message || 'Internal server error';
