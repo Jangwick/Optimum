@@ -1,5 +1,6 @@
 import type { AuthUser } from '../middleware/auth.js';
 import { Prisma } from '../../generated/prisma/client.js';
+import type { ProcessStatus } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { withRetry } from '../utils/retry.js';
 import { referenceDataCache } from '../utils/cache.js';
@@ -191,13 +192,16 @@ export async function getDashboard(user: AuthUser) {
   );
   const processStatusMap = new Map(processStatuses.map((s) => [s.id, s]));
 
-  const statusBreakdown: any[] = (processStatusCounts as any[])
-    .map((s: any) => ({
+  const orderMap = new Map(processStatuses.map((p, i) => [p.id, i]));
+
+  const statusBreakdown = processStatusCounts
+    .filter((s): s is { processStatusId: number; _count: { id: number } } => s.processStatusId !== null)
+    .map((s) => ({
       status: processStatusMap.get(s.processStatusId),
       count: s._count.id,
     }))
-    .filter((s: any) => s.status)
-    .sort((a: any, b: any) => (a.status.sortOrder || 0) - (b.status.sortOrder || 0));
+    .filter((s): s is { status: ProcessStatus; count: number } => s.status !== undefined)
+    .sort((a, b) => (orderMap.get(a.status.id) ?? 0) - (orderMap.get(b.status.id) ?? 0));
 
   // Monthly volume buckets (last 12 months)
   const monthLabels: any[] = [];

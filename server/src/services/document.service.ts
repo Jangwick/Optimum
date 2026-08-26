@@ -2,6 +2,7 @@ import fs from 'fs';
 import { Readable } from 'stream';
 import type { Express } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
+import type { DocumentCategory } from '../../generated/prisma/client.js';
 import { prisma } from '../db/client.js';
 import { AppError } from '../middleware/error.js';
 import { logAction } from './audit.service.js';
@@ -16,10 +17,22 @@ interface DocumentData {
   isReceived?: string | boolean;
 }
 
+interface ChecklistDocument {
+  id: number;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  description: string | null;
+  isReceived: boolean;
+  receivedAt: string | null | undefined;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
 interface ChecklistGroup {
-  category: Record<string, unknown> | null;
+  category: DocumentCategory | null;
   isRequired: boolean;
-  uploaded: Record<string, unknown>[];
+  uploaded: ChecklistDocument[];
 }
 
 export async function getDocumentChecklist(
@@ -55,7 +68,7 @@ export async function getDocumentChecklist(
   for (const req of requirements) {
     if (req.documentCategoryId) {
       categoryMap.set(req.documentCategoryId, {
-        category: req.documentCategory as unknown as Record<string, unknown>,
+        category: req.documentCategory,
         isRequired: req.isRequired,
         uploaded: [],
       });
@@ -66,7 +79,7 @@ export async function getDocumentChecklist(
   for (const doc of documents) {
     if (doc.documentCategoryId && !categoryMap.has(doc.documentCategoryId)) {
       categoryMap.set(doc.documentCategoryId, {
-        category: doc.documentCategory as unknown as Record<string, unknown>,
+        category: doc.documentCategory,
         isRequired: false,
         uploaded: [],
       });

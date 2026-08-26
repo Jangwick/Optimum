@@ -151,19 +151,22 @@ export async function getAnalytics(user: AuthUser) {
   const clientMap = new Map(clients.map((c) => [c.id, c]));
 
   // Build process status breakdown
-  const statusBreakdown: any[] = (processStatusCounts as any[])
-    .map((s: any) => ({
-      name: statusMap.get(s.processStatusId)?.name || 'Unknown',
-      code: statusMap.get(s.processStatusId)?.code || 'UNKNOWN',
-      color: statusMap.get(s.processStatusId)?.color || '#999',
-      count: s._count.id,
-    }))
-    .filter((s: any) => s.code !== 'UNKNOWN')
-    .sort((a: any, b: any) => {
-      const aOrder = processStatuses.find((p) => p.id === (processStatusCounts as any[]).find((c: any) => c.processStatusId === processStatuses.find((ps: any) => ps.name === a.name)?.id)?.processStatusId)?.sortOrder || 0;
-      const bOrder = processStatuses.find((p) => p.id === (processStatusCounts as any[]).find((c: any) => c.processStatusId === processStatuses.find((ps: any) => ps.name === b.name)?.id)?.processStatusId)?.sortOrder || 0;
-      return aOrder - bOrder;
-    });
+  const statusBreakdown = processStatusCounts
+    .filter((s): s is { processStatusId: number; _count: { id: number } } => s.processStatusId !== null)
+    .map((s) => {
+      const status = statusMap.get(s.processStatusId);
+      return {
+        id: s.processStatusId,
+        name: status?.name ?? 'Unknown',
+        code: status?.code ?? 'UNKNOWN',
+        color: status?.color ?? '#999',
+        count: s._count.id,
+      };
+    })
+    .filter((s) => s.code !== 'UNKNOWN');
+
+  const orderMap = new Map(processStatuses.map((p, i) => [p.id, i]));
+  statusBreakdown.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 
   // Build claim type breakdown
   const typeBreakdown: any[] = (claimTypeCounts as any[])

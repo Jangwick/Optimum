@@ -32,6 +32,21 @@ interface ClarificationData {
   answer?: string;
 }
 
+interface ReportDocData {
+  title: string;
+  notes: string;
+  generatedAt: string;
+  claimNumber: string;
+  clientName: string;
+  insurerName: string;
+  claimType: string;
+  engineerName: string;
+  statusName: string;
+  dateOfLoss: string;
+  estimatedLoss: string;
+  reserve: string;
+}
+
 export async function listReports(
   claimId: number | string,
   user: AuthUser,
@@ -114,7 +129,7 @@ export async function generateReport(claimId: number | string, id: number, user:
 
   const claim = report.claim;
 
-  const docData: Record<string, unknown> = {
+  const docData: ReportDocData = {
     title: report.title,
     notes: report.notes || 'No summary provided.',
     generatedAt: new Date().toLocaleString(),
