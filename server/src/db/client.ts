@@ -9,6 +9,11 @@ function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaM
 
   // mysql://user:pass@host:port/database?options
   const parsed = new URL(url);
+  // queryTimeout is MariaDB-only (driver issues SET STATEMENT max_statement_time). Against
+  // MySQL the driver throws ER_TIMEOUT_NOT_SUPPORTED on every connect, so only send it when
+  // explicitly asked for -- never as a default.
+  const queryTimeout = Number(parsed.searchParams.get('queryTimeout') ?? process.env.QUERY_TIMEOUT) || 0;
+
   return {
     host: parsed.hostname,
     port: parsed.port ? Number(parsed.port) : 3306,
@@ -19,7 +24,7 @@ function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaM
     idleTimeout: Number(parsed.searchParams.get('idleTimeout')) || 600000,
     acquireTimeout: Number(parsed.searchParams.get('acquireTimeout')) || 30000,
     connectTimeout: Number(parsed.searchParams.get('connectTimeout')) || 30000,
-    queryTimeout: Number(parsed.searchParams.get('queryTimeout') ?? process.env.QUERY_TIMEOUT) || 60000,
+    ...(queryTimeout ? { queryTimeout } : {}),
   };
 }
 
