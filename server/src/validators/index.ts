@@ -47,16 +47,22 @@ export function optionalNullableString(maxLength?: number) {
 
 // Runtime accepts undefined (preprocess maps "" -> undefined; exactOptional would reject it), while the
 // type stays exactOptional so consumers see `key?: number`. stripUndefined() makes the parsed object match.
+// Every money/quantity column is DECIMAL(18,2). 1e14 keeps cents exact in a JS double and is well inside
+// the column, so MySQL never raises "Out of range value" (Prisma P2020) for user input.
+export const MAX_DECIMAL_VALUE = 1e14;
+const boundedNumber = () =>
+  z.number().min(-MAX_DECIMAL_VALUE, `Must be at least -${MAX_DECIMAL_VALUE}`).max(MAX_DECIMAL_VALUE, `Must be at most ${MAX_DECIMAL_VALUE}`);
+
 export function optionalNumber() {
-  return z.preprocess(toNumberOrUndefined, z.number().optional()) as unknown as z.ZodExactOptional<z.ZodNumber>;
+  return z.preprocess(toNumberOrUndefined, boundedNumber().optional()) as unknown as z.ZodExactOptional<z.ZodNumber>;
 }
 
 export function optionalNullableNumber() {
-  return z.preprocess(toNumber, z.number().nullable().exactOptional());
+  return z.preprocess(toNumber, boundedNumber().nullable().exactOptional());
 }
 
 export function requiredNumber() {
-  return z.preprocess(toNumber, z.number());
+  return z.preprocess(toNumber, boundedNumber());
 }
 
 export function optionalId() {

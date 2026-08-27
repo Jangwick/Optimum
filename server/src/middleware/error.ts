@@ -31,15 +31,19 @@ export function errorHandler(err: AppErrorLike, req: Request, res: Response, nex
     return next(err);
   }
 
-  // Prisma known request errors (P2000 = value too long for column, etc.)
+  // Prisma known request errors: P2000 = value too long for column, P2020 = numeric value out of range.
   // Check by duck-typing to avoid importing Prisma client (breaks tests).
-  if (err && err.code === 'P2000' && typeof err.meta === 'object') {
-    const column = typeof err.meta?.column_name === 'string' ? err.meta.column_name : null;
+  if (err && (err.code === 'P2000' || err.code === 'P2020') && typeof err.meta === 'object') {
+    const column =
+      typeof err.meta?.column_name === 'string'
+        ? err.meta.column_name
+        : (typeof err.meta?.details === 'string' && /column '([^']+)'/.exec(err.meta.details)?.[1]) || null;
+    const problem = err.code === 'P2000' ? 'too long' : 'out of range';
     return res.status(400).json({
       success: false,
       error: column
-        ? `Value for "${column}" is too long for the database column.`
-        : 'A value provided is too long for the database column.',
+        ? `Value for "${column}" is ${problem} for the database column.`
+        : `A value provided is ${problem} for the database column.`,
     });
   }
 

@@ -82,3 +82,15 @@ describe('ListClaimsQuerySchema optional ids', () => {
     expect(() => parseWithAppError(ListClaimsQuerySchema, { clientId: 'abc' })).toThrow(AppError);
   });
 });
+
+describe('CreateClaimSchema amount range (DECIMAL(18,2))', () => {
+  it('rejects amounts MySQL would report as out of range', () => {
+    expect(() => parseWithAppError(CreateClaimSchema, { claimedAmount: 1e18 })).toThrow(/^claimedAmount: /);
+    expect(() => parseWithAppError(CreateClaimSchema, { claimedAmount: '99999999999999999999' })).toThrow(AppError);
+  });
+
+  it('accepts realistic and empty amounts', () => {
+    expect(parseWithAppError(CreateClaimSchema, { claimedAmount: 1_500_000.75 }).claimedAmount).toBe(1_500_000.75);
+    expect(parseWithAppError(CreateClaimSchema, { claimedAmount: '' }).claimedAmount).toBeNull();
+  });
+});
