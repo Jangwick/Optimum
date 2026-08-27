@@ -49,12 +49,13 @@ describe('validators', () => {
     const err = new z.ZodError([
       { message: 'first issue', path: ['a'], code: 'invalid_type', expected: 'string', input: 0 },
     ]);
-    expect(firstZodMessage(err)).toBe('first issue');
+    expect(firstZodMessage(err)).toBe('a: first issue');
   });
 });
 
 describe('CreateClaimSchema column limits', () => {
   it('rejects strings longer than their VARCHAR column', () => {
+    expect(() => parseWithAppError(CreateClaimSchema, { policyNumber: 'x'.repeat(101) })).toThrow(/^policyNumber: /);
     expect(() => parseWithAppError(CreateClaimSchema, { policyNumber: 'x'.repeat(101) })).toThrow(AppError);
     expect(() => parseWithAppError(CreateClaimSchema, { classification: 'x'.repeat(51) })).toThrow(AppError);
   });

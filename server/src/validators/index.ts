@@ -78,14 +78,17 @@ export function parseWithAppError<T>(schema: z.ZodType<T>, data: unknown): T {
     return schema.parse(data);
   } catch (err) {
     if (err instanceof z.ZodError) {
-      throw new AppError(err.issues[0]?.message || 'Invalid input', 400);
+      throw new AppError(firstZodMessage(err), 400);
     }
     throw err;
   }
 }
 
 export function firstZodMessage(err: z.ZodError): string {
-  return err.issues[0]?.message || 'Invalid input';
+  const issue = err.issues[0];
+  if (!issue) return 'Invalid input';
+  const field = issue.path.map(String).join('.');
+  return field ? `${field}: ${issue.message}` : issue.message;
 }
 
 export function validateBody<T>(schema: z.ZodType<T>): RequestHandler {
