@@ -6,7 +6,7 @@ import {
   optionalNullableNumber,
   optionalString,
   toNumber,
-  toNumberOrUndefined,
+  optionalId,
 } from './index.js';
 
 const statusCodes = [
@@ -67,10 +67,10 @@ export const ListClaimsQuerySchema = PaginationQuerySchema.extend({
   status: z.string().exactOptional(),
   processStatus: z.string().exactOptional(),
   claimType: z.string().exactOptional(),
-  clientId: z.preprocess(toNumberOrUndefined, z.number().int().positive().exactOptional()),
-  engineerId: z.preprocess(toNumberOrUndefined, z.number().int().positive().exactOptional()),
-  accountantId: z.preprocess(toNumberOrUndefined, z.number().int().positive().exactOptional()),
-  insurerId: z.preprocess(toNumberOrUndefined, z.number().int().positive().exactOptional()),
+  clientId: optionalId(),
+  engineerId: optionalId(),
+  accountantId: optionalId(),
+  insurerId: optionalId(),
   view: z.enum(['active', 'closed', 'cancelled']).exactOptional(),
   sortField: z.string().exactOptional(),
   sortOrder: z.enum(['asc', 'desc']).exactOptional(),

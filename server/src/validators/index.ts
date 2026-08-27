@@ -45,8 +45,10 @@ export function optionalNullableString(maxLength?: number) {
   return base.nullable().exactOptional();
 }
 
+// Runtime accepts undefined (preprocess maps "" -> undefined; exactOptional would reject it), while the
+// type stays exactOptional so consumers see `key?: number`. stripUndefined() makes the parsed object match.
 export function optionalNumber() {
-  return z.preprocess(toNumberOrUndefined, z.number().exactOptional());
+  return z.preprocess(toNumberOrUndefined, z.number().optional()) as unknown as z.ZodExactOptional<z.ZodNumber>;
 }
 
 export function optionalNullableNumber() {
@@ -58,7 +60,7 @@ export function requiredNumber() {
 }
 
 export function optionalId() {
-  return z.preprocess(toNumberOrUndefined, z.number().int().positive().exactOptional());
+  return z.preprocess(toNumberOrUndefined, z.number().int().positive().optional()) as unknown as z.ZodExactOptional<z.ZodNumber>;
 }
 
 export function optionalNullableId() {
@@ -73,25 +75,37 @@ export function parseIdParam(req: Request, param = 'id'): number {
   return parseWithAppError(IdParamSchema, req.params[param]);
 }
 
+function stripUndefined<T>(value: T): T {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const key of Object.keys(value)) {
+      if ((value as Record<string, unknown>)[key] === undefined) delete (value as Record<string, unknown>)[key];
+    }
+  }
+  return value;
+}
+
 export function parseWithAppError<T>(schema: z.ZodType<T>, data: unknown): T {
   try {
-    return schema.parse(data);
+    return stripUndefined(schema.parse(data));
   } catch (err) {
     if (err instanceof z.ZodError) {
-      throw new AppError(err.issues[0]?.message || 'Invalid input', 400);
+      throw new AppError(firstZodMessage(err), 400);
     }
     throw err;
   }
 }
 
 export function firstZodMessage(err: z.ZodError): string {
-  return err.issues[0]?.message || 'Invalid input';
+  const issue = err.issues[0];
+  if (!issue) return 'Invalid input';
+  const field = issue.path.map(String).join('.');
+  return field ? `${field}: ${issue.message}` : issue.message;
 }
 
 export function validateBody<T>(schema: z.ZodType<T>): RequestHandler {
   return (req, _res, next) => {
     try {
-      (req as Request & { body: T }).body = schema.parse(req.body);
+      (req as Request & { body: T }).body = stripUndefined(schema.parse(req.body));
       next();
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -106,7 +120,7 @@ export function validateBody<T>(schema: z.ZodType<T>): RequestHandler {
 export function validateQuery<T>(schema: z.ZodType<T>): RequestHandler {
   return (req, _res, next) => {
     try {
-      req.query = schema.parse(req.query) as unknown as typeof req.query;
+      req.query = stripUndefined(schema.parse(req.query)) as unknown as typeof req.query;
       next();
     } catch (err) {
       if (err instanceof z.ZodError) {

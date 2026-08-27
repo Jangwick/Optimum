@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IdParamSchema, PaginationQuerySchema, parseWithAppError, firstZodMessage } from '../src/validators/index.js';
 import { AppError } from '../src/middleware/error.js';
-import { CreateClaimSchema } from '../src/validators/claims.js';
+import { CreateClaimSchema, ListClaimsQuerySchema } from '../src/validators/claims.js';
 
 describe('validators', () => {
   it('rejects NaN ids', () => {
@@ -49,12 +49,13 @@ describe('validators', () => {
     const err = new z.ZodError([
       { message: 'first issue', path: ['a'], code: 'invalid_type', expected: 'string', input: 0 },
     ]);
-    expect(firstZodMessage(err)).toBe('first issue');
+    expect(firstZodMessage(err)).toBe('a: first issue');
   });
 });
 
 describe('CreateClaimSchema column limits', () => {
   it('rejects strings longer than their VARCHAR column', () => {
+    expect(() => parseWithAppError(CreateClaimSchema, { policyNumber: 'x'.repeat(101) })).toThrow(/^policyNumber: /);
     expect(() => parseWithAppError(CreateClaimSchema, { policyNumber: 'x'.repeat(101) })).toThrow(AppError);
     expect(() => parseWithAppError(CreateClaimSchema, { classification: 'x'.repeat(51) })).toThrow(AppError);
   });
@@ -66,5 +67,18 @@ describe('CreateClaimSchema column limits', () => {
       classification: 'x'.repeat(50),
     });
     expect(parsed.locationOfLoss).toHaveLength(500);
+  });
+});
+
+describe('ListClaimsQuerySchema optional ids', () => {
+  it('drops empty-string filter ids (the Claims page always sends them)', () => {
+    const parsed = parseWithAppError(ListClaimsQuerySchema, { page: '1', limit: '20', view: 'active', clientId: '', engineerId: '' });
+    expect(parsed).not.toHaveProperty('clientId');
+    expect(parsed).not.toHaveProperty('engineerId');
+  });
+
+  it('coerces numeric ids and rejects garbage', () => {
+    expect(parseWithAppError(ListClaimsQuerySchema, { clientId: '3' }).clientId).toBe(3);
+    expect(() => parseWithAppError(ListClaimsQuerySchema, { clientId: 'abc' })).toThrow(AppError);
   });
 });
