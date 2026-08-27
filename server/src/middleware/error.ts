@@ -34,9 +34,12 @@ export function errorHandler(err: AppErrorLike, req: Request, res: Response, nex
   // Prisma known request errors (P2000 = value too long for column, etc.)
   // Check by duck-typing to avoid importing Prisma client (breaks tests).
   if (err && err.code === 'P2000' && typeof err.meta === 'object') {
+    const column = typeof err.meta?.column_name === 'string' ? err.meta.column_name : null;
     return res.status(400).json({
       success: false,
-      error: 'A value provided is too large for the database column (e.g. amount exceeds allowed precision).',
+      error: column
+        ? `Value for "${column}" is too long for the database column.`
+        : 'A value provided is too long for the database column.',
     });
   }
 
