@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request } from 'express';
 
 export function userRateLimit(
@@ -14,7 +14,9 @@ export function userRateLimit(
     ...(skip ? { skip } : {}),
     keyGenerator: (req: Request) => {
       const user = (req as { user?: { id: number } }).user;
-      return user?.id?.toString() ?? req.ip ?? 'anonymous';
+      // ipKeyGenerator normalises an IPv6 address to its subnet prefix; using req.ip raw lets an IPv6
+      // client hop addresses to bypass the limit (ERR_ERL_KEY_GEN_IPV6).
+      return user?.id?.toString() ?? ipKeyGenerator(req.ip ?? 'unknown');
     },
   });
 }
