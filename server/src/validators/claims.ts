@@ -17,20 +17,20 @@ const statusCodes = [
 ] as const;
 
 const ClaimRegistrySchema = z.object({
-  claimNumber: optionalNullableString(),
+  claimNumber: optionalNullableString(100),
   policyId: optionalNullableId(),
   clientId: optionalNullableId(),
   insuranceCompanyId: optionalNullableId(),
   claimTypeId: optionalNullableId(),
-  assignmentNumber: optionalNullableString(),
-  insurerClaimNumber: optionalNullableString(),
+  assignmentNumber: optionalNullableString(100),
+  insurerClaimNumber: optionalNullableString(150),
   brokerId: optionalNullableId(),
-  brokerReference: optionalNullableString(),
-  assignedByName: optionalNullableString(),
+  brokerReference: optionalNullableString(150),
+  assignedByName: optionalNullableString(150),
   description: optionalNullableString(),
   natureOfLoss: optionalNullableString(),
   locationOfLoss: optionalNullableString(),
-  classification: optionalNullableString(),
+  classification: optionalNullableString(50),
   dateOfLoss: optionalNullableString(),
   dateInspected: optionalNullableString(),
   letterRequestDate: optionalNullableString(),
@@ -49,9 +49,9 @@ const ClaimRegistrySchema = z.object({
   agreedSettlementRaw: optionalNullableString(),
   engineerId: optionalNullableId(),
   accountantId: optionalNullableId(),
-  handlingAdjuster: optionalNullableString(),
-  policyNumber: optionalNullableString(),
-  policyType: optionalNullableString(),
+  handlingAdjuster: optionalNullableString(100),
+  policyNumber: optionalNullableString(100),
+  policyType: optionalNullableString(100),
 });
 
 export const CreateClaimSchema = ClaimRegistrySchema;

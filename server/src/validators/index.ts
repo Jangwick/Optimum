@@ -40,8 +40,9 @@ export function optionalString() {
   return z.string().exactOptional();
 }
 
-export function optionalNullableString() {
-  return z.string().nullable().exactOptional();
+export function optionalNullableString(maxLength?: number) {
+  const base = maxLength ? z.string().max(maxLength) : z.string();
+  return base.nullable().exactOptional();
 }
 
 export function optionalNumber() {

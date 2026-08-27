@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IdParamSchema, PaginationQuerySchema, parseWithAppError, firstZodMessage } from '../src/validators/index.js';
 import { AppError } from '../src/middleware/error.js';
+import { CreateClaimSchema } from '../src/validators/claims.js';
 
 describe('validators', () => {
   it('rejects NaN ids', () => {
@@ -49,5 +50,21 @@ describe('validators', () => {
       { message: 'first issue', path: ['a'], code: 'invalid_type', expected: 'string', input: 0 },
     ]);
     expect(firstZodMessage(err)).toBe('first issue');
+  });
+});
+
+describe('CreateClaimSchema column limits', () => {
+  it('rejects strings longer than their VARCHAR column', () => {
+    expect(() => parseWithAppError(CreateClaimSchema, { policyNumber: 'x'.repeat(101) })).toThrow(AppError);
+    expect(() => parseWithAppError(CreateClaimSchema, { classification: 'x'.repeat(51) })).toThrow(AppError);
+  });
+
+  it('accepts a long locationOfLoss (TEXT column) and max-length VARCHAR values', () => {
+    const parsed = parseWithAppError(CreateClaimSchema, {
+      locationOfLoss: 'x'.repeat(500),
+      policyNumber: 'x'.repeat(100),
+      classification: 'x'.repeat(50),
+    });
+    expect(parsed.locationOfLoss).toHaveLength(500);
   });
 });

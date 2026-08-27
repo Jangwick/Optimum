@@ -637,7 +637,8 @@ export async function createClaim(data: CreateClaimInput, createdBy: number) {
     natureOfLoss: data.natureOfLoss || null,
     locationOfLoss: data.locationOfLoss || null,
     dateOfLoss: data.dateOfLoss ? new Date(data.dateOfLoss) : null,
-    classification: data.classification || data.locationOfLoss || null,
+    // classification is VARCHAR(50); locationOfLoss is TEXT. Truncate the legacy mirror.
+    classification: data.classification || data.locationOfLoss?.slice(0, 50) || null,
     policyPeriodText: data.policyPeriodText || null,
     policyCoverageText: data.policyCoverageText || null,
     // Financial
