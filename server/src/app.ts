@@ -100,11 +100,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Scoped to /api on purpose: mounted globally this also counted static assets
+// and the SPA document, so a few refreshes returned 429 in place of index.html.
 app.use(
+  '/api',
   userRateLimit(
     15 * 60 * 1000,
-    config.nodeEnv === 'development' ? 1000 : 100,
-    (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
+    1000,
+    (req: Request) => req.path === '/health' || (req.path === '/auth/me' && req.method === 'GET'),
   )
 );
 
