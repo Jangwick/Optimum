@@ -66,13 +66,16 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
+// Scoped to /api on purpose: mounted globally this also counted static assets
+// and the SPA document, so a few refreshes returned 429 in place of index.html.
 app.use(
+  '/api',
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: config.nodeEnv === 'development' ? 1000 : 100,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req: Request) => req.path === '/api/health' || (req.path === '/api/auth/me' && req.method === 'GET'),
+    skip: (req: Request) => req.path === '/health' || (req.path === '/auth/me' && req.method === 'GET'),
   })
 );
 
