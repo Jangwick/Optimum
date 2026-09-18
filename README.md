@@ -156,7 +156,7 @@ Copy `.env.example` files to `.env` and fill in real values before running in pr
 
 ### Railway (recommended)
 
-The project includes a `Dockerfile` and `railway.json` for one-click Railway deployment.
+The root `Dockerfile` and `railway.json` deploy the React client and Express API together in **one application service**, alongside a MySQL database. A separate client service is not needed for this configuration.
 
 #### Steps
 
@@ -166,12 +166,17 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
    - Go to [railway.app](https://railway.app) and sign in.
    - Click **New Project** → **Deploy from GitHub repo**.
    - Select your repository.
+   - Keep the application's **Root Directory** at the repository root (`/`), so all npm workspaces are available.
+   - Use `/railway.json` as the config file and the root `Dockerfile` as the Docker build file. Do not select `client/Dockerfile` or `server/Dockerfile` for this combined deployment.
 
 3. **Add a MySQL database**:
    - In the Railway project, click **Add** → **Database** → **Add MySQL**.
    - Railway creates a MySQL instance and provides connection variables.
+   - PostgreSQL is not compatible with this application's Prisma schema, driver, or migrations. Adding a database does not automatically set the application's `DATABASE_URL`.
 
-4. **Set environment variables** on the server service:
+4. **Generate a public domain** on the application service under **Settings** → **Networking** → **Generate Domain**, with target port `3001`. Use this HTTPS origin as `CLIENT_URL` below (no path or trailing slash).
+
+5. **Set environment variables** on the application service:
    - Go to your service → **Variables** tab.
    - Add the following (see `.env.railway.example` for reference):
 
@@ -179,26 +184,25 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
    |----------|-------|
    | `NODE_ENV` | `production` |
    | `PORT` | `3001` (Railway auto-detects, but set explicitly) |
-   | `DATABASE_URL` | Reference the MySQL addon's `MYSQL_URL` (Railway will suggest this) |
+   | `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` (replace `MySQL` with the database service's exact name) |
    | `JWT_SECRET` | Generate with `openssl rand -hex 32` |
+   | `DEFAULT_ADMIN_PASSWORD` | A strong password you choose; required to create the initial admin on a new database |
    | `JWT_EXPIRES_IN` | `24h` |
    | `BCRYPT_ROUNDS` | `12` |
    | `UPLOAD_DIR` | `/tmp/uploads` |
    | `REPORT_DIR` | `/tmp/reports` |
-   | `CLIENT_URL` | Your Railway public URL (e.g. `https://your-app.up.railway.app`) or `*` |
+   | `CLIENT_URL` | Your exact public origin, e.g. `https://your-app.up.railway.app`; defaults to `https://${RAILWAY_PUBLIC_DOMAIN}` when available; `*` is rejected |
 
-5. **Set a custom start command** (if not auto-detected from `railway.json`):
+6. **Use the startup command from `railway.json`**:
    ```
-   sh -c "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/server.js"
+   sh entrypoint.sh
    ```
+   Remove any conflicting `npm start` override. The entrypoint runs migrations and seeds before starting the server; `npm start` starts only the server.
 
-6. **Deploy**:
+7. **Deploy**:
    - Railway will build the Docker image, run Prisma migrations, seed the database, and start the server.
    - The Express server serves both the API (`/api/*`) and the built React client (all other routes).
-
-7. **Generate a public domain**:
-   - Go to your service → **Settings** → **Networking** → **Generate Domain**.
-   - Update `CLIENT_URL` to match the generated domain.
+   - Verify `/api/health` responds successfully and the public root URL shows the login page.
 
 8. **Login** with the default admin:
    - Email: `admin@optimum.com`
@@ -207,6 +211,8 @@ The project includes a `Dockerfile` and `railway.json` for one-click Railway dep
 
 #### Notes
 
+- A startup `ZodError` naming `CLIENT_URL`, `DATABASE_URL`, or `JWT_SECRET` means the application service is missing required production variables. The app can use `RAILWAY_PUBLIC_DOMAIN` for its origin and `MYSQL_URL` / `MYSQL_PRIVATE_URL` for the database when explicit values are absent. Database variables must still be linked to the application service, and a persistent `JWT_SECRET` must be configured there; a Git commit cannot provision these settings. Do not disable production validation.
+- See Railway's [MySQL connection documentation](https://docs.railway.com/databases/mysql) and [Dockerfile configuration](https://docs.railway.com/builds/dockerfiles).
 - Puppeteer/Chromium is installed in the Docker image for PDF report generation.
 - File uploads are stored in `/tmp/uploads` (ephemeral). For persistent storage, configure an S3-compatible service and update `server/src/middleware/upload.ts`.
 - Railway's free tier provides limited hours. See [Railway pricing](https://railway.app/pricing) for details.

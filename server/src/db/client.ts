@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '../../generated/prisma/client.js';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { getDatabaseUrl } from '../../deployment-env.js';
 
 function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaMariaDb>[0] {
   if (!url) {
@@ -28,7 +29,7 @@ function parseUrl(url: string | undefined): ConstructorParameters<typeof PrismaM
   };
 }
 
-const config = parseUrl(process.env.DATABASE_URL);
+const config = parseUrl(getDatabaseUrl(process.env));
 const adapter = new PrismaMariaDb(config);
 
 export const prisma = new PrismaClient({ adapter });

@@ -30,10 +30,7 @@ if [ -z "$DATABASE_URL" ]; then
   echo "ERROR: DATABASE_URL is not set and no MySQL variables found."
   echo "Please set DATABASE_URL in Railway Variables tab."
   echo "Either use the raw connection string from your MySQL addon's Connect tab,"
-  echo "or reference it with: \${{MySQL.MYSQL_PRIVATE_URL}}"
-  echo ""
-  echo "All environment variables:"
-  env | sort
+  echo "or reference it with: \${{MySQL.MYSQL_URL}}"
   exit 1
 fi
 

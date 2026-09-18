@@ -1,6 +1,25 @@
 import { configSchema, MAX_FILE_SIZE_CAP } from '../src/config/index.js';
 
 describe('config validation', () => {
+  it('loads production configuration from Railway domain and MySQL variables', () => {
+    const result = configSchema.parse({
+      NODE_ENV: 'production',
+      RAILWAY_PUBLIC_DOMAIN: 'claims.up.railway.app',
+      MYSQL_URL: 'mysql://db:3306/railway',
+      JWT_SECRET: 'test-only-production-secret',
+    });
+    expect(result.clientUrl).toBe('https://claims.up.railway.app');
+    expect(result.databaseUrl).toBe('mysql://db:3306/railway');
+  });
+
+  it('still requires a JWT secret when Railway defaults are available', () => {
+    expect(() => configSchema.parse({
+      NODE_ENV: 'production',
+      RAILWAY_PUBLIC_DOMAIN: 'claims.up.railway.app',
+      MYSQL_URL: 'mysql://db:3306/railway',
+    })).toThrow(/JWT_SECRET must be set/);
+  });
+
   it('loads with defaults in development', () => {
     const result = configSchema.parse({
       NODE_ENV: 'development',

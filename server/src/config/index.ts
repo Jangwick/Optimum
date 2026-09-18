@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import type { SignOptions } from 'jsonwebtoken';
 import { z } from 'zod';
+import { getDatabaseUrl, getClientUrl } from '../../deployment-env.js';
 
 interface AppConfig {
   nodeEnv: string;
@@ -50,6 +51,9 @@ const envSchema = z.object({
   PORT: z.preprocess(normalizeNumber, z.number().int().default(3001)),
   CLIENT_URL: z.preprocess(normalizeString, z.string().optional()),
   DATABASE_URL: z.preprocess(normalizeString, z.string().optional()),
+  MYSQL_URL: z.preprocess(normalizeString, z.string().optional()),
+  MYSQL_PRIVATE_URL: z.preprocess(normalizeString, z.string().optional()),
+  RAILWAY_PUBLIC_DOMAIN: z.preprocess(normalizeString, z.string().optional()),
   JWT_SECRET: z.preprocess(normalizeString, z.string().optional()),
   JWT_EXPIRES_IN: z.preprocess(normalizeString, z.string().default('24h')),
   BCRYPT_ROUNDS: z.preprocess(normalizeNumber, z.number().default(12)),
@@ -65,6 +69,11 @@ const envSchema = z.object({
 });
 
 const configSchema = envSchema
+  .transform((data) => ({
+    ...data,
+    DATABASE_URL: getDatabaseUrl(data),
+    CLIENT_URL: getClientUrl(data),
+  }))
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
 
